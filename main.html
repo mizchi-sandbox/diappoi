@@ -55,11 +55,14 @@ class Game
     @g.restore()
 
 class Status
-  constructor: (params) ->
-    @MAX_HP = params.hp
-    @hp = params.@MAX_HP
-    @MAX_WT = params.wt
+  constructor: (params = {}, @lv = 1) ->
+    @MAX_HP = params.hp or 30
+    @hp = @MAX_HP
+    @MAX_WT = params.wt or 10
     @wt = 0
+    @str = params.str or 10
+    @def = params.def or 1.0
+    @res = params.res or 1.0
 
 class Sprite
   constructor: (@x,@y) ->
@@ -72,34 +75,38 @@ class Sprite
     g.arc(@x,@y, 15 - ms ,0,Math.PI*2,true)
     g.stroke()
 
-  atack: (target)->
-    target.status.hp -= 10
-    if target.status.hp <= 0
-        target.alive = false
-
   get_distance: (target)->
     xd = Math.pow (@x-target.x) ,2
     yd = Math.pow (@y-target.y) ,2
     return Math.sqrt xd+yd
 
 class Battler extends Sprite
-  constructor: (@x,@y) ->
-    defaults =
-        hp: 30
-        wt: 30
-        str: 10
-        def: 1.0
-        res: 1.0
-    @status = new Status(params = defaults)
+  constructor: () ->
+    @status = new Status()
 
   atack: (target)->
-    target.status.hp -= 10
+    target.status.hp -= @status.str * target.status.def
     if target.status.hp <= 0
         target.alive = false
 
-class Player extends Sprite
+  _render_gages:(g,x,y,w,h,rest) ->
+    # HP bar
+    my.init_cv(g,"rgb(0, 250, 100)")
+    my.render_rest_gage(g,x,y+15,w,h,@status.hp/@status.MAX_HP)
+
+    # WT bar
+    my.init_cv(g,"rgb(0, 100, 255)")
+    my.render_rest_gage(g,x,y+25,w,h,@status.wt/@status.MAX_WT)
+
+class Player extends Battler
   constructor: (@x,@y) ->
-    @status = new Status({hp:120,wt:20})
+    super()
+    status =
+      hp : 120
+      wt : 20
+      str : 10
+      def: 0.5
+    @status = new Status(status)
     @active = false
 
     @speed = 6
@@ -135,11 +142,6 @@ class Player extends Sprite
     @dir = Math.atan( (320 - mouse.y) / (240 - mouse.x)  )
 
 
-  atack: (target)->
-    target.status.hp -= 10
-    if target.status.hp <= 0
-      target.alive = false
-
   render: (g)->
 
     # baet icon
@@ -157,19 +159,16 @@ class Player extends Sprite
     my.init_cv(g,"rgb(255, 0, 0)")
     g.arc(320,240, @atack_range ,  0 , Math.PI*2,true)
     g.stroke()
+    @_render_gages(g,320,240,40,6,@status.hp/@status.MAX_HP)
 
-    # HP bar
-    my.init_cv(g,"rgb(0, 250, 100)")
-    my.render_rest_gage(g , 320 , 240 + 15 ,40,6,@status.hp/@status.MAX_HP)
-
-    # WT bar
-    my.init_cv(g,"rgb(0, 100, 255)")
-    my.render_rest_gage(g , 320 , 240 + 25 ,40,6,@status.wt/@status.MAX_WT)
-
-class Enemy extends Sprite
+class Enemy extends Battler
   constructor: (@x,@y) ->
-    @status = new Status({hp:80,wt:20})
-
+    status =
+      hp : 50
+      wt : 22
+      str : 10
+      def: 1.0
+    @status = new Status(status)
     @active = false
 
     @alive = true
@@ -234,10 +233,10 @@ class Enemy extends Sprite
         g.arc(@x + player.vx,@y + player.vy, @sight_range ,0,Math.PI*2,true)
         g.stroke()
 
-        my.init_cv(g,"rgb(255, 100, 100)")
-        my.render_rest_gage(g , @x+player.vx , @y+player.vy+15 ,30,6,@status.hp/@status.MAX_HP)
-        my.init_cv(g,"rgb(0, 100, 255)")
-        my.render_rest_gage(g , @x+player.vx , @y+player.vy+25 ,30,6,@status.wt/@status.MAX_WT)
+        # my.init_cv(g,"rgb(255, 100, 100)")
+        # my.render_rest_gage(g , @x+player.vx , @y+player.vy+15 ,30,6,@status.hp/@status.MAX_HP)
+        # my.init_cv(g,"rgb(0, 100, 255)")
+        @_render_gages(g , @x+player.vx , @y+player.vy ,30,6,@status.wt/@status.MAX_WT)
     else
         g.fillStyle = @_dead_color
         g.arc(@x + player.vx,@y + player.vy, @scale ,0,Math.PI*2,true)
