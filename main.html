@@ -55,10 +55,10 @@ class Game
     @g.restore()
 
 class Status
-  constructor: (hp = 30 ,wt = 20, params = null) ->
-    @MAX_HP = hp
-    @hp = @MAX_HP
-    @MAX_WT = wt
+  constructor: (params) ->
+    @MAX_HP = params.hp
+    @hp = params.@MAX_HP
+    @MAX_WT = params.wt
     @wt = 0
 
 class Sprite
@@ -99,7 +99,7 @@ class Battler extends Sprite
 
 class Player extends Sprite
   constructor: (@x,@y) ->
-    @status = new Status(hp=120,wt=20)
+    @status = new Status({hp:120,wt:20})
     @active = false
 
     @speed = 6
@@ -168,7 +168,7 @@ class Player extends Sprite
 
 class Enemy extends Sprite
   constructor: (@x,@y) ->
-    @status = new Status(hp=80,wt=20)
+    @status = new Status({hp:80,wt:20})
 
     @active = false
 
