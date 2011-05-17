@@ -9,6 +9,7 @@
 <body>
   <script type="text/coffeescript">
 # Coffee Script Sandbox
+# v 0.0.1
 
 class Game
   constructor: (conf) ->
@@ -54,20 +55,15 @@ class Game
     @ctx.restore()
 
 class Status
-  constructor: (hp = 30 ,wt = 20) ->
+  constructor: (hp = 30 ,wt = 20, params = null) ->
     @MAX_HP = hp
     @hp = @MAX_HP
     @MAX_WT = wt
     @wt = 0
 
-class Sprite extends Status
+class Sprite
   constructor: (@x,@y) ->
-    super(50,20)
     @speed = 5
-    @MAX_HP = hp
-    @hp = @MAX_HP
-    @MAX_WT = wt
-    @wt = 0
 
   render: (ctx)->
     ctx.beginPath()
@@ -77,8 +73,8 @@ class Sprite extends Status
     ctx.stroke()
 
   atack: (target)->
-    target.hp -= 10
-    if target.hp <= 0
+    target.status.hp -= 10
+    if target.status.hp <= 0
         target.alive = false
 
   get_distance: (target)->
@@ -86,15 +82,24 @@ class Sprite extends Status
     yd = Math.pow (@y-target.y) ,2
     return Math.sqrt xd+yd
 
+class Battler extends Sprite
+  constructor: (@x,@y) ->
+    defaults =
+        hp: 30
+        wt: 30
+        str: 10
+        def: 1.0
+        res: 1.0
+    @status = new Status(params = defaults)
+
+  atack: (target)->
+    target.status.hp -= 10
+    if target.status.hp <= 0
+        target.alive = false
 
 class Player extends Sprite
   constructor: (@x,@y) ->
     @status = new Status(hp=80,wt=20)
-
-    @MAX_HP = 50
-    @hp = @MAX_HP
-    @MAX_WT = 20
-    @wt = 0
 
     @speed = 6
     @scale = 10
@@ -130,8 +135,8 @@ class Player extends Sprite
 
 
   atack: (target)->
-    target.hp -= 10
-    if target.hp <= 0
+    target.status.hp -= 10
+    if target.status.hp <= 0
         target.alive = false
 
   render: (g)->
@@ -154,11 +159,11 @@ class Player extends Sprite
 
     # HP bar
     my.init_cv(g,"rgb(0, 250, 100)")
-    my.render_rest_gage(g , 320 , 240 + 15 ,40,6,@hp/@MAX_HP)
+    my.render_rest_gage(g , 320 , 240 + 15 ,40,6,@status.hp/@status.MAX_HP)
 
     # WT bar
     my.init_cv(g,"rgb(0, 100, 255)")
-    my.render_rest_gage(g , 320 , 240 + 25 ,40,6,@wt/@MAX_WT)
+    my.render_rest_gage(g , 320 , 240 + 25 ,40,6,@status.wt/@status.MAX_WT)
 
     # atack area
     # g.fillStyle = 'rgb(256, 0, 1)'
@@ -171,10 +176,7 @@ class Player extends Sprite
 
 class Enemy extends Sprite
   constructor: (@x,@y) ->
-    @MAX_HP = 20
-    @hp = @MAX_HP
-    @MAX_WT = 15
-    @wt = 0
+    @status = new Status(hp=80,wt=20)
 
     @active = false
 
@@ -209,10 +211,10 @@ class Enemy extends Sprite
                 @y += @speed/2 if @y < player.y
                 @y -= @speed/2 if @y > player.y
             else
-                @wt += 1
-                if @wt >= @MAX_WT
+                @status.wt += 1
+                if @status.wt >= @status.MAX_WT
                     @atack(player)
-                    @wt = 0
+                    @status.wt = 0
         else
             if @cnt % 24 ==  0
                 @dir = Math.PI * 2 * Math.random()
@@ -241,9 +243,9 @@ class Enemy extends Sprite
 
 
         my.init_cv(g,"rgb(255, 100, 100)")
-        my.render_rest_gage(g , @x+player.vx , @y+player.vy+15 ,30,6,@hp/@MAX_HP)
+        my.render_rest_gage(g , @x+player.vx , @y+player.vy+15 ,30,6,@status.hp/@status.MAX_HP)
         my.init_cv(g,"rgb(0, 100, 255)")
-        my.render_rest_gage(g , @x+player.vx , @y+player.vy+25 ,30,6,@wt/@MAX_WT)
+        my.render_rest_gage(g , @x+player.vx , @y+player.vy+25 ,30,6,@status.wt/@status.MAX_WT)
     else
         g.fillStyle = @_dead_color
         g.arc(@x + player.vx,@y + player.vy, @scale ,0,Math.PI*2,true)
@@ -265,10 +267,10 @@ class Scene
 
         d = my.distance( @player.x,@player.y,enemy.x,enemy.y )
         if d < @player.atack_range and  enemy.alive
-            if @player.MAX_WT >  @player.wt
-                @player.wt += 1
-            else if @player.MAX_WT <= @player.wt
-                @player.wt = 0
+            if @player.status.MAX_WT >  @player.status.wt
+                @player.status.wt += 1
+            else if @player.status.MAX_WT <= @player.status.wt
+                @player.status.wt = 0
                 @player.atack(enemy)
 
     return @name
@@ -291,7 +293,7 @@ class Scene
     my.init_cv(g,color="rgb(255,255,255)")
     g.font = "10px "+"mono"
     g.fillText(
-        "HP "+@player.hp+"/"+@player.MAX_HP,
+        "HP "+@player.status.hp+"/"+@player.status.MAX_HP,
         15,15)
 
     for i in [0..@map.length-1]
@@ -303,16 +305,6 @@ class Scene
             my.draw_cell(g,
                 @player.vx+i*cell,@player.vy+j*cell,
                 cell)
-    # for i in [0..(640/cell)]
-    #     my.init_cv(g,color="rgb(100,100,100)",alpha=0.3)
-    #     my.draw_line(g,
-    #         @player.vx     ,@player.vy+i*cell,
-    #         @player.vx+640 ,@player.vy+i*cell)
-    # for i in [0..(480/cell)]
-    #     my.init_cv(g,color="rgb(100,100,100)",alpha=0.3)
-    #     my.draw_line(g,
-    #         @player.vx+i*cell,@player.vy,
-    #         @player.vx+i*cell,@player.vy+480)
 
 
 my =
