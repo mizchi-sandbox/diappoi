@@ -1,0 +1,239 @@
+(function() {
+  var Battler, Enemy, Player, Sprite, Status;
+  var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
+    for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
+    function ctor() { this.constructor = child; }
+    ctor.prototype = parent.prototype;
+    child.prototype = new ctor;
+    child.__super__ = parent.prototype;
+    return child;
+  };
+  Status = (function() {
+    function Status(params, lv) {
+      if (params == null) {
+        params = {};
+      }
+      this.lv = lv != null ? lv : 1;
+      this.MAX_HP = params.hp || 30;
+      this.hp = this.MAX_HP;
+      this.MAX_WT = params.wt || 10;
+      this.wt = 0;
+      this.atk = params.atk || 10;
+      this.def = params.def || 1.0;
+      this.res = params.res || 1.0;
+    }
+    return Status;
+  })();
+  Sprite = (function() {
+    function Sprite(x, y) {
+      this.x = x;
+      this.y = y;
+      this.speed = 5;
+    }
+    Sprite.prototype.render = function(g) {
+      var ms;
+      g.beginPath();
+      ms = parseInt(new Date() / 100) % 10;
+      if (ms > 5) {
+        ms = 10 - ms;
+      }
+      g.arc(this.x, this.y, 15 - ms, 0, Math.PI * 2, true);
+      return g.stroke();
+    };
+    Sprite.prototype.get_distance = function(target) {
+      var xd, yd;
+      xd = Math.pow(this.x - target.x, 2);
+      yd = Math.pow(this.y - target.y, 2);
+      return Math.sqrt(xd + yd);
+    };
+    return Sprite;
+  })();
+  Battler = (function() {
+    __extends(Battler, Sprite);
+    function Battler() {
+      this.status = new Status();
+      this.state = {
+        alive: true,
+        active: false
+      };
+    }
+    Battler.prototype.atack = function(target) {
+      target.status.hp -= ~~(this.status.atk * (target.status.def + Math.random() / 4));
+      if (target.status.hp <= 0) {
+        return target.state.alive = false;
+      }
+    };
+    Battler.prototype._render_gages = function(g, x, y, w, h, rest) {
+      my.init_cv(g, "rgb(0, 250, 100)");
+      my.render_rest_gage(g, x, y + 15, w, h, this.status.hp / this.status.MAX_HP);
+      my.init_cv(g, "rgb(0, 100, 255)");
+      return my.render_rest_gage(g, x, y + 25, w, h, this.status.wt / this.status.MAX_WT);
+    };
+    return Battler;
+  })();
+  Player = (function() {
+    __extends(Player, Battler);
+    function Player(x, y) {
+      var status;
+      this.x = x;
+      this.y = y;
+      Player.__super__.constructor.call(this);
+      status = {
+        hp: 120,
+        wt: 20,
+        atk: 10,
+        def: 0.8
+      };
+      this.status = new Status(status);
+      this.speed = 6;
+      this.scale = 10;
+      this.beat = 20;
+      this.atack_range = 50;
+      this._rotate = 0;
+      this._fontsize = 10;
+      this.dir = 0;
+      this.vx = 0;
+      this.vy = 0;
+    }
+    Player.prototype.process = function(keys, mouse) {
+      var move, s;
+      s = keys.right + keys.left + keys.up + keys.down;
+      if (s > 1) {
+        move = this.speed * Math.sqrt(2) / 2;
+      } else {
+        move = this.speed;
+      }
+      if (keys.right) {
+        this.x += move;
+        this.vx -= move;
+      }
+      if (keys.left) {
+        this.x -= move;
+        this.vx += move;
+      }
+      if (keys.up) {
+        this.y -= move;
+        this.vy += move;
+      }
+      if (keys.down) {
+        this.y += move;
+        this.vy -= move;
+      }
+      return this.dir = Math.atan((320 - mouse.y) / (240 - mouse.x));
+    };
+    Player.prototype.render = function(g) {
+      var ms;
+      my.init_cv(g, "rgb(0, 0, 162)");
+      ms = ~~(new Date() / 100) % this.beat / this.beat;
+      if (ms > 0.5) {
+        ms = 1 - ms;
+      }
+      g.arc(320, 240, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
+      g.stroke();
+      this._rotate += Math.PI * 0.1;
+      my.init_cv(g, "rgb(128, 100, 162)");
+      g.arc(320, 240, this.scale * 0.5, this._rotate, Math.PI + this._rotate, true);
+      g.stroke();
+      my.init_cv(g, "rgb(255, 0, 0)");
+      g.arc(320, 240, this.atack_range, 0, Math.PI * 2, true);
+      g.stroke();
+      return this._render_gages(g, 320, 240, 40, 6, this.status.hp / this.status.MAX_HP);
+    };
+    return Player;
+  })();
+  Enemy = (function() {
+    __extends(Enemy, Battler);
+    function Enemy(x, y) {
+      var status;
+      this.x = x;
+      this.y = y;
+      Enemy.__super__.constructor.call(this);
+      status = {
+        hp: 50,
+        wt: 22,
+        atk: 10,
+        def: 1.0
+      };
+      this.status = new Status(status);
+      this.atack_range = 20;
+      this.sight_range = 80;
+      this.speed = 6;
+      this.dir = 0;
+      this._fontsize = 10;
+      this.scale = 5;
+      this.beat = 10;
+      this._alive_color = 'rgb(255, 255, 255)';
+      this._dead_color = 'rgb(55, 55, 55)';
+      this.cnt = ~~(Math.random() * 24);
+    }
+    Enemy.prototype.process = function(player) {
+      var distance;
+      this.cnt += 1;
+      if (this.state.alive) {
+        distance = this.get_distance(player);
+        if (distance < this.sight_range) {
+          this.state.active = true;
+        } else {
+          this.state.active = false;
+        }
+        if (this.state.active) {
+          if (distance > this.atack_range) {
+            if (this.x > player.x) {
+              this.x -= this.speed / 2;
+            }
+            if (this.x < player.x) {
+              this.x += this.speed / 2;
+            }
+            if (this.y < player.y) {
+              this.y += this.speed / 2;
+            }
+            if (this.y > player.y) {
+              return this.y -= this.speed / 2;
+            }
+          } else {
+            this.status.wt += 1;
+            if (this.status.wt >= this.status.MAX_WT) {
+              this.atack(player);
+              return this.status.wt = 0;
+            }
+          }
+        } else {
+          if (this.cnt % 24 === 0) {
+            this.dir = Math.PI * 2 * Math.random();
+          }
+          if (this.cnt % 24 < 8) {
+            this.x += this.speed * Math.cos(this.dir);
+            return this.y += this.speed * Math.sin(this.dir);
+          }
+        }
+      }
+    };
+    Enemy.prototype.render = function(g, player) {
+      var alpha, color, ms;
+      my.init_cv(g);
+      if (this.state.alive) {
+        g.fillStyle = this._alive_color;
+        ms = ~~(new Date() / 100) % this.beat / this.beat;
+        if (ms > 0.5) {
+          ms = 1 - ms;
+        }
+        g.arc(this.x + player.vx, this.y + player.vy, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
+        g.fill();
+        if (this.state.active) {
+          my.init_cv(g, color = "rgb(255,0,0)");
+          g.arc(this.x + player.vx, this.y + player.vy, this.scale * 0.4, 0, Math.PI * 2, true);
+          g.fill();
+        }
+        my.init_cv(g, color = "rgb(50,50,50)", alpha = 0.3);
+        g.arc(this.x + player.vx, this.y + player.vy, this.sight_range, 0, Math.PI * 2, true);
+        g.stroke();
+        return this._render_gages(g, this.x + player.vx, this.y + player.vy, 30, 6, this.status.wt / this.status.MAX_WT);
+      } else {
+        g.fillStyle = this._dead_color;
+        g.arc(this.x + player.vx, this.y + player.vy, this.scale, 0, Math.PI * 2, true);
+        return g.fill();
+      }
+    };
+    return Enemy;
+  })();
+}).call(this);
