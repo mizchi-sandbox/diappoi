@@ -1,5 +1,5 @@
 (function() {
-  var Battler, Enemy, Player, Sprite, Status;
+  var Battler, Enemy, Follower, Player, Sprite, Status;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -7,6 +7,11 @@
     child.prototype = new ctor;
     child.__super__ = parent.prototype;
     return child;
+  }, __indexOf = Array.prototype.indexOf || function(item) {
+    for (var i = 0, l = this.length; i < l; i++) {
+      if (this[i] === item) return i;
+    }
+    return -1;
   };
   Status = (function() {
     function Status(params, lv) {
@@ -25,18 +30,13 @@
     return Status;
   })();
   Sprite = (function() {
-    function Sprite(x, y) {
-      this.x = x;
-      this.y = y;
-      this.speed = 5;
+    function Sprite(x, y, scale) {
+      this.x = x != null ? x : 0;
+      this.y = y != null ? y : 0;
+      this.scale = scale != null ? scale : 10;
     }
     Sprite.prototype.render = function(g) {
-      var ms;
       g.beginPath();
-      ms = parseInt(new Date() / 100) % 10;
-      if (ms > 5) {
-        ms = 10 - ms;
-      }
       g.arc(this.x, this.y, 15 - ms, 0, Math.PI * 2, true);
       return g.stroke();
     };
@@ -50,18 +50,92 @@
   })();
   Battler = (function() {
     __extends(Battler, Sprite);
-    function Battler() {
+    function Battler(x, y, scale) {
+      this.x = x != null ? x : 0;
+      this.y = y != null ? y : 0;
+      this.scale = scale != null ? scale : 10;
+      Battler.__super__.constructor.call(this, this.x, this.y, this.scale);
       this.status = new Status();
       this.state = {
         alive: true,
         active: false
       };
+      this.atack_range = 10;
+      this.targeting = null;
+      this.id = ~~(Math.random() * 100);
     }
+    Battler.prototype.update = function(targets, keys, mouse) {
+      var target, targets_inrange;
+      targets_inrange = this.get_targets_in_range(targets);
+      target = this.change_target(targets_inrange);
+      return this.act(target);
+    };
     Battler.prototype.atack = function(target) {
+      if (target == null) {
+        target = this.targeting;
+      }
       target.status.hp -= ~~(this.status.atk * (target.status.def + Math.random() / 4));
       if (target.status.hp <= 0) {
-        return target.state.alive = false;
+        target.state.alive = false;
+        return this.targeting = null;
       }
+    };
+    Battler.prototype.set_target = function(targets) {
+      if (targets.length === 0) {
+        return this.targeting = null;
+      } else if (!this.targeting && targets.length > 0) {
+        return this.targeting = targets[0];
+      }
+    };
+    Battler.prototype.change_target = function(targets) {
+      var i, _ref, _ref2, _results;
+      if (targets.length > 0) {
+        if (_ref = !this.targeting, __indexOf.call(targets, _ref) >= 0) {
+          this.targeting = targets[0];
+          return this.targeting;
+        } else if (targets.length === 1) {
+          this.targeting = targets[0];
+          return this.targeting;
+        } else if (targets.length > 1) {
+          if (this.targeting) {
+            _results = [];
+            for (i = 0, _ref2 = targets.length; (0 <= _ref2 ? i < _ref2 : i > _ref2); (0 <= _ref2 ? i += 1 : i -= 1)) {
+              if (targets[i] === this.targeting) {
+                if (i < targets.length) {
+                  this.targeting = targets[i + 1];
+                  return this.targeting;
+                } else {
+                  this.targeting = targets[0];
+                  return this.targeting;
+                }
+              }
+            }
+            return _results;
+          } else {
+            this.targeting = targets[0];
+            return this.targeting;
+          }
+        }
+      } else {
+        this.targeting = null;
+        return this.targeting;
+      }
+    };
+    Battler.prototype.get_targets_in_range = function(targets) {
+      var buff, d, t, _i, _len;
+      buff = [];
+      for (_i = 0, _len = targets.length; _i < _len; _i++) {
+        t = targets[_i];
+        d = this.get_distance(t);
+        if (d < this.atack_range && t.state.alive) {
+          buff[buff.length] = t;
+        }
+      }
+      return buff;
+    };
+    Battler.prototype.move = function(x, y) {};
+    Battler.prototype.act = function(target) {
+      return this.atack(target);
     };
     Battler.prototype._render_gages = function(g, x, y, w, h, rest) {
       my.init_cv(g, "rgb(0, 250, 100)");
@@ -77,7 +151,7 @@
       var status;
       this.x = x;
       this.y = y;
-      Player.__super__.constructor.call(this);
+      Player.__super__.constructor.call(this, this.x, this.y);
       status = {
         hp: 120,
         wt: 20,
@@ -86,7 +160,6 @@
       };
       this.status = new Status(status);
       this.speed = 6;
-      this.scale = 10;
       this.beat = 20;
       this.atack_range = 50;
       this._rotate = 0;
@@ -141,13 +214,48 @@
     };
     return Player;
   })();
+  Follower = (function() {
+    __extends(Follower, Player);
+    function Follower(x, y) {
+      this.x = x;
+      this.y = y;
+      Follower.__super__.constructor.call(this, this.x, this.y);
+    }
+    Follower.prototype.render = function(g, player) {
+      var alpha, color, ms;
+      my.init_cv(g);
+      if (this.state.alive) {
+        g.fillStyle = this._alive_color;
+        ms = ~~(new Date() / 100) % this.beat / this.beat;
+        if (ms > 0.5) {
+          ms = 1 - ms;
+        }
+        g.arc(this.x + player.vx, this.y + player.vy, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
+        g.fill();
+        if (this.state.active) {
+          my.init_cv(g, color = "rgb(255,0,0)");
+          g.arc(this.x + player.vx, this.y + player.vy, this.scale * 0.4, 0, Math.PI * 2, true);
+          g.fill();
+        }
+        my.init_cv(g, color = "rgb(50,50,50)", alpha = 0.3);
+        g.arc(this.x + player.vx, this.y + player.vy, this.sight_range, 0, Math.PI * 2, true);
+        g.stroke();
+        return this._render_gages(g, this.x + player.vx, this.y + player.vy, 30, 6, this.status.wt / this.status.MAX_WT);
+      } else {
+        g.fillStyle = this._dead_color;
+        g.arc(this.x + player.vx, this.y + player.vy, this.scale, 0, Math.PI * 2, true);
+        return g.fill();
+      }
+    };
+    return Follower;
+  })();
   Enemy = (function() {
     __extends(Enemy, Battler);
     function Enemy(x, y) {
       var status;
       this.x = x;
       this.y = y;
-      Enemy.__super__.constructor.call(this);
+      Enemy.__super__.constructor.call(this, this.x, this.y, this.scale = 5);
       status = {
         hp: 50,
         wt: 22,
@@ -160,7 +268,6 @@
       this.speed = 6;
       this.dir = 0;
       this._fontsize = 10;
-      this.scale = 5;
       this.beat = 10;
       this._alive_color = 'rgb(255, 255, 255)';
       this._dead_color = 'rgb(55, 55, 55)';

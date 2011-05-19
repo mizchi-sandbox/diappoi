@@ -9,13 +9,9 @@ class Status
     @res = params.res or 1.0
 
 class Sprite
-  constructor: (@x,@y) ->
-    @speed = 5
-
+  constructor: (@x=0,@y=0,@scale=10) ->
   render: (g)->
     g.beginPath()
-    ms = parseInt(new Date()/100) % 10
-    ms = 10 - ms if ms > 5
     g.arc(@x,@y, 15 - ms ,0,Math.PI*2,true)
     g.stroke()
 
@@ -25,17 +21,69 @@ class Sprite
     return Math.sqrt xd+yd
 
 class Battler extends Sprite
-  constructor: () ->
+  constructor: (@x=0,@y=0,@scale=10) ->
+    super @x, @y,@scale
     @status = new Status()
     @state =
       alive : true
       active : false
+    @atack_range = 10
+    @targeting = null
+    @id = ~~(Math.random() * 100)
+  update:(targets, keys , mouse)->
+    targets_inrange = @get_targets_in_range(targets)
+    target = @change_target(targets_inrange)
+    @act(target)
 
-  atack: (target)->
+  atack: (target=@targeting)->
     target.status.hp -= ~~(@status.atk * ( target.status.def + Math.random()/4 ))
     if target.status.hp <= 0
         target.state.alive = false
+        @targeting = null
 
+  set_target:(targets)->
+    if targets.length == 0
+      @targeting = null
+    else if not @targeting and targets.length > 0
+      @targeting = targets[0]
+
+  change_target:(targets)->
+    # TODO: implement hate control
+    if targets.length > 0
+      if not @targeting in targets # target go out
+        @targeting = targets[0]    #   focus anyone
+        return @targeting
+      else if targets.length == 1  # one target in range
+        @targeting = targets[0]    #   focus that target
+        return @targeting
+      else if targets.length > 1   # 2 over target
+        if @targeting              #   toggle target
+          for i in [0...targets.length]
+            if targets[i] is @targeting
+              if i < targets.length
+                @targeting = targets[i+1]
+                return @targeting
+              else
+                @targeting = targets[0]
+                return @targeting
+        else
+          @targeting = targets[0]
+          return @targeting
+    else                           # no target in range
+      @targeting = null
+      return @targeting
+
+  get_targets_in_range:(targets)->
+    buff = []
+    for t in targets
+      d = @get_distance(t)
+      if d < @atack_range and t.state.alive
+        buff[buff.length] = t
+    return buff
+
+  move:(x,y)->
+  act:(target)->
+    @atack(target)
   _render_gages:(g,x,y,w,h,rest) ->
     # HP bar
     my.init_cv(g,"rgb(0, 250, 100)")
@@ -47,7 +95,7 @@ class Battler extends Sprite
 
 class Player extends Battler
   constructor: (@x,@y) ->
-    super()
+    super(@x,@y)
     status =
       hp : 120
       wt : 20
@@ -55,7 +103,6 @@ class Player extends Battler
       def: 0.8
     @status = new Status(status)
     @speed = 6
-    @scale = 10
     @beat = 20
     @atack_range = 50
 
@@ -88,7 +135,6 @@ class Player extends Battler
 
 
   render: (g)->
-
     # baet icon
     my.init_cv(g,"rgb(0, 0, 162)")
     ms = ~~(new Date()/100) % @beat / @beat
@@ -106,9 +152,39 @@ class Player extends Battler
     g.stroke()
     @_render_gages(g,320,240,40,6,@status.hp/@status.MAX_HP)
 
+class Follower extends Player
+  constructor: (@x,@y) ->
+    super(@x,@y)
+
+  render: (g,player)->
+    my.init_cv(g)
+    if @state.alive
+        g.fillStyle = @_alive_color
+        ms = ~~(new Date()/100) % @beat / @beat
+        ms = 1 - ms if ms > 0.5
+        g.arc(@x + player.vx,@y + player.vy, ( 1.3 - ms ) * @scale ,0,Math.PI*2,true)
+        g.fill()
+
+        # active circle
+        if @state.active
+            my.init_cv(g , color = "rgb(255,0,0)")
+            g.arc(@x + player.vx,@y + player.vy, @scale*0.4 ,0,Math.PI*2,true)
+            g.fill()
+
+        # sight circle
+        my.init_cv(g , color = "rgb(50,50,50)",alpha=0.3)
+        g.arc(@x + player.vx,@y + player.vy, @sight_range ,0,Math.PI*2,true)
+        g.stroke()
+
+        @_render_gages(g , @x+player.vx , @y+player.vy ,30,6,@status.wt/@status.MAX_WT)
+    else
+        g.fillStyle = @_dead_color
+        g.arc(@x + player.vx,@y + player.vy, @scale ,0,Math.PI*2,true)
+        g.fill()
+
 class Enemy extends Battler
   constructor: (@x,@y) ->
-    super()
+    super(@x,@y,@scale=5)
     status =
       hp : 50
       wt : 22
@@ -123,7 +199,6 @@ class Enemy extends Battler
     @dir = 0
 
     @_fontsize = 10
-    @scale = 5
     @beat = 10
     @_alive_color = 'rgb(255, 255, 255)'
     @_dead_color = 'rgb(55, 55, 55)'
