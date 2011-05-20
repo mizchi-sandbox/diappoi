@@ -140,9 +140,10 @@ class Battler extends Sprite
     @atack_range = 10
     @targeting = null
     @id = ~~(Math.random() * 100)
+
   update:(targets, keys , mouse)->
     targets_inrange = @get_targets_in_range(targets)
-    target = @change_target(targets_inrange)
+    target = @set_target(targets_inrange)
     @act(target)
 
   atack: (target=@targeting)->
@@ -242,7 +243,6 @@ class Player extends Battler
       @vy -= move
 
     @dir = Math.atan( (320 - mouse.y) / (240 - mouse.x)  )
-
 
   render: (g)->
     # baet icon
@@ -455,6 +455,8 @@ class FieldScene extends Scene
 vows = require 'vows'
 assert = require 'assert'
 
+
+
 keys =
    left : 0
    right : 0
@@ -494,27 +496,37 @@ vows.describe('Game Test').addBatch
         p.set_target(targets_inrange)
         # p.change_target(targets_inrange)
         if p.targeting
-          console.log(p.targeting.id+ ":" +p.targeting.status.hp)
+          # console.log(p.targeting.id+ ":" +p.targeting.status.hp)
           p.atack()
         else
-          console.log "no"
+          # console.log "no"
 
-      # console.log p.targeting.status.hp
-      # console.log targets_inrange
+    topic: "select update method"
+    'update': ()->
+      p = new Player(320,240)
+      enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..20])
+      for i in [0..100]
+        p.update()
+        p.act()
+        e.process(p) for e in enemies
+        e.update()
+        e.act()
+        console.log p.status.hp
+        console.log e.status.hp
 
-    # topic: "battle collide"
-    # 'many vs many': ()->
-    #   players = [ new Player(320,240) , new Follower(320,240) ]
-    #   enemies = (new Enemy 320,240 ) for i in [1..3])
+    topic: "battle collide"
+    'many vs many': ()->
+      players = [new Player(320,240) , new Follower(320,240) ]
+      enemies = (new Enemy 320,240  for i in [1..3])
 
-    #   for i in [1..10]
-    #     for p in players
-    #       p.update(enemies, keys,mouse)
-    #       p.move(map)
+      for i in [1..10]
+        for p in players
+          p.process(enemies, keys,mouse)
+          p.move(map)
 
-    #     for e in enemies
-    #       e.update(players)
-    #       e.move(map)
+        for e in enemies
+          e.process(players)
+          e.move(map)
 
     # topic: "scene"
     # 'test2': ()->

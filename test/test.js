@@ -227,7 +227,7 @@
     Battler.prototype.update = function(targets, keys, mouse) {
       var target, targets_inrange;
       targets_inrange = this.get_targets_in_range(targets);
-      target = this.change_target(targets_inrange);
+      target = this.set_target(targets_inrange);
       return this.act(target);
     };
     Battler.prototype.atack = function(target) {
@@ -662,7 +662,66 @@
             e.process(p);
           }
           p.set_target(targets_inrange);
-          _results.push(p.targeting ? (console.log(p.targeting.id + ":" + p.targeting.status.hp), p.atack()) : console.log("no"));
+          _results.push(p.targeting ? p.atack() : void 0);
+        }
+        return _results;
+      },
+      topic: "select update method",
+      'update': function() {
+        var e, enemies, i, p, _i, _len, _results;
+        p = new Player(320, 240);
+        enemies = (function() {
+          var _results;
+          _results = [];
+          for (i = 1; i <= 20; i++) {
+            _results.push(new Enemy(~~(Math.random() * 640), ~~(Math.random() * 480)));
+          }
+          return _results;
+        })();
+        _results = [];
+        for (i = 0; i <= 100; i++) {
+          p.update();
+          p.act();
+          for (_i = 0, _len = enemies.length; _i < _len; _i++) {
+            e = enemies[_i];
+            e.process(p);
+          }
+          e.update();
+          e.act();
+          console.log(p.status.hp);
+          _results.push(console.log(e.status.hp));
+        }
+        return _results;
+      },
+      topic: "battle collide",
+      'many vs many': function() {
+        var e, enemies, i, p, players, _i, _len, _results;
+        players = [new Player(320, 240), new Follower(320, 240)];
+        enemies = (function() {
+          var _results;
+          _results = [];
+          for (i = 1; i <= 3; i++) {
+            _results.push(new Enemy(320, 240));
+          }
+          return _results;
+        })();
+        _results = [];
+        for (i = 1; i <= 10; i++) {
+          for (_i = 0, _len = players.length; _i < _len; _i++) {
+            p = players[_i];
+            p.process(enemies, keys, mouse);
+            p.move(map);
+          }
+          _results.push((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = enemies.length; _i < _len; _i++) {
+              e = enemies[_i];
+              e.process(players);
+              _results.push(e.move(map));
+            }
+            return _results;
+          })());
         }
         return _results;
       }

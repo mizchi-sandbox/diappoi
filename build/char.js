@@ -67,7 +67,7 @@
     Battler.prototype.update = function(targets, keys, mouse) {
       var target, targets_inrange;
       targets_inrange = this.get_targets_in_range(targets);
-      target = this.change_target(targets_inrange);
+      target = this.set_target(targets_inrange);
       return this.act(target);
     };
     Battler.prototype.atack = function(target) {

@@ -30,9 +30,10 @@ class Battler extends Sprite
     @atack_range = 10
     @targeting = null
     @id = ~~(Math.random() * 100)
+
   update:(targets, keys , mouse)->
     targets_inrange = @get_targets_in_range(targets)
-    target = @change_target(targets_inrange)
+    target = @set_target(targets_inrange)
     @act(target)
 
   atack: (target=@targeting)->
@@ -132,7 +133,6 @@ class Player extends Battler
       @vy -= move
 
     @dir = Math.atan( (320 - mouse.y) / (240 - mouse.x)  )
-
 
   render: (g)->
     # baet icon
