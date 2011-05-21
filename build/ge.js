@@ -353,9 +353,11 @@
     }
     Player.prototype.update = function(enemies, keys, mouse) {
       this.cnt += 1;
-      this.move(keys);
-      this.set_target(this.get_targets_in_range(enemies));
-      return this.act();
+      if (this.state.alive) {
+        this.set_target(this.get_targets_in_range(enemies, this.sight_range));
+        this.move(keys, mouse);
+        return this.act();
+      }
     };
     Player.prototype.move = function(keys) {
       var move, s;
@@ -411,30 +413,9 @@
       Follower.__super__.constructor.call(this, this.x, this.y);
     }
     Follower.prototype.render = function(g, player) {
-      var alpha, color, ms;
-      my.init_cv(g);
-      if (this.state.alive) {
-        g.fillStyle = this._alive_color;
-        ms = ~~(new Date() / 100) % this.beat / this.beat;
-        if (ms > 0.5) {
-          ms = 1 - ms;
-        }
-        g.arc(this.x + player.vx, this.y + player.vy, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
-        g.fill();
-        if (this.state.active) {
-          my.init_cv(g, color = "rgb(255,0,0)");
-          g.arc(this.x + player.vx, this.y + player.vy, this.scale * 0.4, 0, Math.PI * 2, true);
-          g.fill();
-        }
-        my.init_cv(g, color = "rgb(50,50,50)", alpha = 0.3);
-        g.arc(this.x + player.vx, this.y + player.vy, this.sight_range, 0, Math.PI * 2, true);
-        g.stroke();
-        return this._render_gages(g, this.x + player.vx, this.y + player.vy, 30, 6, this.status.wt / this.status.MAX_WT);
-      } else {
-        g.fillStyle = this._dead_color;
-        g.arc(this.x + player.vx, this.y + player.vy, this.scale, 0, Math.PI * 2, true);
-        return g.fill();
-      }
+      my.init_cv(g, "rgb(255, 0, 0)");
+      g.arc(320, 240, this.scale, 0, Math.PI * 2, true);
+      return g.stroke();
     };
     return Follower;
   })();
@@ -456,10 +437,6 @@
       this.sight_range = 80;
       this.speed = 6;
       this.dir = 0;
-      this._fontsize = 10;
-      this.beat = 10;
-      this._alive_color = 'rgb(255, 255, 255)';
-      this._dead_color = 'rgb(55, 55, 55)';
       this.cnt = ~~(Math.random() * 24);
     }
     Enemy.prototype.update = function(players) {
@@ -501,11 +478,12 @@
       }
     };
     Enemy.prototype.render = function(g, player) {
-      var alpha, color, ms;
+      var alpha, beat, color, ms;
       my.init_cv(g);
       if (this.state.alive) {
-        g.fillStyle = this._alive_color;
-        ms = ~~(new Date() / 100) % this.beat / this.beat;
+        g.fillStyle = 'rgb(255, 255, 255)';
+        beat = 20;
+        ms = ~~(new Date() / 100) % beat / beat;
         if (ms > 0.5) {
           ms = 1 - ms;
         }
@@ -521,7 +499,7 @@
         g.stroke();
         return this._render_gages(g, this.x + player.vx, this.y + player.vy, 30, 6, this.status.wt / this.status.MAX_WT);
       } else {
-        g.fillStyle = this._dead_color;
+        g.fillStyle = 'rgb(55, 55, 55)';
         g.arc(this.x + player.vx, this.y + player.vy, this.scale, 0, Math.PI * 2, true);
         return g.fill();
       }

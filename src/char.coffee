@@ -130,11 +130,12 @@ class Player extends Battler
     @dir = 0
     @cnt = 0
 
-  update: (enemies, keys,mouse)->
+  update: (enemies,keys,mouse)->
     @cnt += 1
-    @move(keys)
-    @set_target(@get_targets_in_range(enemies))
-    @act()
+    if @state.alive
+      @set_target(@get_targets_in_range(enemies,@sight_range))
+      @move(keys,mouse)
+      @act()
 
   move: (keys)->
     s = keys.right+keys.left+keys.up+keys.down
@@ -181,30 +182,9 @@ class Follower extends Player
     super(@x,@y)
 
   render: (g,player)->
-    my.init_cv(g)
-    if @state.alive
-        g.fillStyle = @_alive_color
-        ms = ~~(new Date()/100) % @beat / @beat
-        ms = 1 - ms if ms > 0.5
-        g.arc(@x + player.vx,@y + player.vy, ( 1.3 - ms ) * @scale ,0,Math.PI*2,true)
-        g.fill()
-
-        # active circle
-        if @state.active
-            my.init_cv(g , color = "rgb(255,0,0)")
-            g.arc(@x + player.vx,@y + player.vy, @scale*0.4 ,0,Math.PI*2,true)
-            g.fill()
-
-        # sight circle
-        my.init_cv(g , color = "rgb(50,50,50)",alpha=0.3)
-        g.arc(@x + player.vx,@y + player.vy, @sight_range ,0,Math.PI*2,true)
-        g.stroke()
-
-        @_render_gages(g , @x+player.vx , @y+player.vy ,30,6,@status.wt/@status.MAX_WT)
-    else
-        g.fillStyle = @_dead_color
-        g.arc(@x + player.vx,@y + player.vy, @scale ,0,Math.PI*2,true)
-        g.fill()
+    my.init_cv(g,"rgb(255, 0, 0)")
+    g.arc(320,240, @scale ,  0 , Math.PI*2,true)
+    g.stroke()
 
 class Enemy extends Battler
   constructor: (@x,@y) ->
@@ -215,19 +195,12 @@ class Enemy extends Battler
       atk : 10
       def: 1.0
     @status = new Status(status)
-
     @atack_range = 20
     @sight_range = 80
 
     @speed = 6
     @dir = 0
-
-    @_fontsize = 10
-    @beat = 10
-    @_alive_color = 'rgb(255, 255, 255)'
-    @_dead_color = 'rgb(55, 55, 55)'
     @cnt = ~~(Math.random() * 24)
-
 
   update: (players)->
     @cnt += 1
@@ -255,8 +228,9 @@ class Enemy extends Battler
   render: (g,player)->
     my.init_cv(g)
     if @state.alive
-        g.fillStyle = @_alive_color
-        ms = ~~(new Date()/100) % @beat / @beat
+        g.fillStyle = 'rgb(255, 255, 255)'
+        beat = 20
+        ms = ~~(new Date()/100) % beat / beat
         ms = 1 - ms if ms > 0.5
         g.arc(@x + player.vx,@y + player.vy, ( 1.3 - ms ) * @scale ,0,Math.PI*2,true)
         g.fill()
@@ -277,6 +251,6 @@ class Enemy extends Battler
         # my.init_cv(g,"rgb(0, 100, 255)")
         @_render_gages(g , @x+player.vx , @y+player.vy ,30,6,@status.wt/@status.MAX_WT)
     else
-        g.fillStyle = @_dead_color
+        g.fillStyle = 'rgb(55, 55, 55)'
         g.arc(@x + player.vx,@y + player.vy, @scale ,0,Math.PI*2,true)
         g.fill()
