@@ -115,6 +115,8 @@ class Battler extends Sprite
 class Player extends Battler
   constructor: (@x,@y) ->
     super(@x,@y)
+    @vx = 0
+    @vy = 0
     status =
       hp : 120
       wt : 20
@@ -123,14 +125,10 @@ class Player extends Battler
     @status = new Status(status)
 
     @speed = 6
-    @beat = 20
     @atack_range = 50
 
-    @_rotate = 0
-    @_fontsize = 10
     @dir = 0
-    @vx = 0
-    @vy = 0
+    @cnt = 0
 
   update: (enemies, keys,mouse)->
     @cnt += 1
@@ -158,16 +156,19 @@ class Player extends Battler
       @vy -= move
 
   render: (g)->
-    # baet icon
+
+    beat = 20
+
     my.init_cv(g,"rgb(0, 0, 162)")
-    ms = ~~(new Date()/100) % @beat / @beat
+    ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
     g.arc(320,240, ( 1.3 - ms ) * @scale ,0,Math.PI*2,true)
     g.stroke()
 
-    @_rotate += Math.PI * 0.1
+    roll = Math.PI * (@cnt % 20) / 10
+
     my.init_cv(g,"rgb(128, 100, 162)")
-    g.arc(320,240, @scale * 0.5,  @_rotate ,Math.PI+@_rotate,true)
+    g.arc(320,240, @scale * 0.5,  roll ,Math.PI+roll,true)
     g.stroke()
 
     my.init_cv(g,"rgb(255, 0, 0)")

@@ -337,6 +337,8 @@
       this.x = x;
       this.y = y;
       Player.__super__.constructor.call(this, this.x, this.y);
+      this.vx = 0;
+      this.vy = 0;
       status = {
         hp: 120,
         wt: 20,
@@ -345,13 +347,9 @@
       };
       this.status = new Status(status);
       this.speed = 6;
-      this.beat = 20;
       this.atack_range = 50;
-      this._rotate = 0;
-      this._fontsize = 10;
       this.dir = 0;
-      this.vx = 0;
-      this.vy = 0;
+      this.cnt = 0;
     }
     Player.prototype.update = function(enemies, keys, mouse) {
       this.cnt += 1;
@@ -385,17 +383,18 @@
       }
     };
     Player.prototype.render = function(g) {
-      var ms;
+      var beat, ms, roll;
+      beat = 20;
       my.init_cv(g, "rgb(0, 0, 162)");
-      ms = ~~(new Date() / 100) % this.beat / this.beat;
+      ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
         ms = 1 - ms;
       }
       g.arc(320, 240, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
       g.stroke();
-      this._rotate += Math.PI * 0.1;
+      roll = Math.PI * (this.cnt % 20) / 10;
       my.init_cv(g, "rgb(128, 100, 162)");
-      g.arc(320, 240, this.scale * 0.5, this._rotate, Math.PI + this._rotate, true);
+      g.arc(320, 240, this.scale * 0.5, roll, Math.PI + roll, true);
       g.stroke();
       my.init_cv(g, "rgb(255, 0, 0)");
       g.arc(320, 240, this.atack_range, 0, Math.PI * 2, true);

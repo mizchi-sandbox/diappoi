@@ -140,8 +140,8 @@ class Battler extends Sprite
 
     @atack_range = 10
     @sight_range = 80
-
     @targeting = null
+
     @id = ~~(Math.random() * 100)
 
   update:(targets, keys , mouse)->
@@ -225,21 +225,20 @@ class Battler extends Sprite
 class Player extends Battler
   constructor: (@x,@y) ->
     super(@x,@y)
+    @vx = 0
+    @vy = 0
     status =
       hp : 120
       wt : 20
       atk : 10
       def: 0.8
     @status = new Status(status)
+
     @speed = 6
-    @beat = 20
     @atack_range = 50
 
-    @_rotate = 0
-    @_fontsize = 10
     @dir = 0
-    @vx = 0
-    @vy = 0
+    @cnt = 0
 
   update: (enemies, keys,mouse)->
     @cnt += 1
@@ -267,16 +266,19 @@ class Player extends Battler
       @vy -= move
 
   render: (g)->
-    # baet icon
+
+    beat = 20
+
     my.init_cv(g,"rgb(0, 0, 162)")
-    ms = ~~(new Date()/100) % @beat / @beat
+    ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
     g.arc(320,240, ( 1.3 - ms ) * @scale ,0,Math.PI*2,true)
     g.stroke()
 
-    @_rotate += Math.PI * 0.1
+    roll = Math.PI * (@cnt % 20) / 10
+
     my.init_cv(g,"rgb(128, 100, 162)")
-    g.arc(320,240, @scale * 0.5,  @_rotate ,Math.PI+@_rotate,true)
+    g.arc(320,240, @scale * 0.5,  roll ,Math.PI+roll,true)
     g.stroke()
 
     my.init_cv(g,"rgb(255, 0, 0)")
@@ -452,8 +454,6 @@ class FieldScene extends Scene
 vows = require 'vows'
 assert = require 'assert'
 
-
-
 keys =
    left : 0
    right : 0
@@ -519,6 +519,18 @@ vows.describe('Game Test').addBatch
       console.log p.status
       console.log enemies[0].status
 
+    # topic: "map collide"
+
+    # return @name
+    #   'walk to block': ()->
+
+    #   players = new Player(320,240)
+    #   for i in [1..100]
+    #     p.move(map)
+    #     p.update(enemies, keys,mouse) for p in players
+    #     e.update(players) for e in enemies
+    #   console.log p.status
+    #   console.log enemies[0].status
     # topic: "scene"
     # 'test2': ()->
     #   player = new Player(320,240)

@@ -66,18 +66,18 @@ vows.describe('Game Test').addBatch
       console.log p.status
       console.log enemies[0].status
 
-    topic: "map collide"
+    # topic: "map collide"
 
-    return @name
-    'walk to block': ()->
+    # return @name
+    #   'walk to block': ()->
 
-      players = new Player(320,240)
-      for i in [1..100]
-        p.move(map)
-        p.update(enemies, keys,mouse) for p in players
-        e.update(players) for e in enemies
-      console.log p.status
-      console.log enemies[0].status
+    #   players = new Player(320,240)
+    #   for i in [1..100]
+    #     p.move(map)
+    #     p.update(enemies, keys,mouse) for p in players
+    #     e.update(players) for e in enemies
+    #   console.log p.status
+    #   console.log enemies[0].status
     # topic: "scene"
     # 'test2': ()->
     #   player = new Player(320,240)
