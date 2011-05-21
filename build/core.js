@@ -25,7 +25,7 @@
     }
     Game.prototype.enter = function() {
       var next_scene;
-      next_scene = this.curr_scene.process(this.keys, this.mouse);
+      next_scene = this.curr_scene.enter(this.keys, this.mouse);
       this.curr_scene = this.scenes[next_scene];
       return this.draw(this.curr_scene);
     };

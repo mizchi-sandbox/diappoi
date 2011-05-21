@@ -12,7 +12,7 @@
     function Scene(name) {
       this.name = name;
     }
-    Scene.prototype.process = function(keys, mouse) {
+    Scene.prototype.enter = function(keys, mouse) {
       return this.name;
     };
     Scene.prototype.render = function(g) {
@@ -27,7 +27,7 @@
       OpeningScene.__super__.constructor.call(this, "Opening");
       this.player = new Player(320, 240);
     }
-    OpeningScene.prototype.process = function(keys, mouse) {
+    OpeningScene.prototype.enter = function(keys, mouse) {
       if (keys.right) {
         return "Filed";
       }
@@ -55,27 +55,17 @@
       })();
       this.map = my.gen_map(20, 15);
     }
-    FieldScene.prototype.process = function(keys, mouse) {
-      var d, enemy, n, _ref;
-      this.player.process(keys, mouse);
-      this.player.state.active = false;
-      for (n = 0, _ref = this.enemies.length - 1; (0 <= _ref ? n <= _ref : n >= _ref); (0 <= _ref ? n += 1 : n -= 1)) {
-        enemy = this.enemies[n];
-        enemy.process(this.player);
-        d = my.distance(this.player.x, this.player.y, enemy.x, enemy.y);
-        if (d < this.player.atack_range && enemy.state.alive) {
-          if (this.player.status.MAX_WT > this.player.status.wt) {
-            this.player.state.active = true;
-          } else if (this.player.status.MAX_WT <= this.player.status.wt) {
-            this.player.status.wt = 0;
-            this.player.atack(enemy);
-          }
-        }
+    FieldScene.prototype.enter = function(keys, mouse) {
+      var e, p, _i, _j, _len, _len2, _ref, _ref2;
+      _ref = [this.player];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        p = _ref[_i];
+        p.update(this.enemies, keys, mouse);
       }
-      if (this.player.state.active && this.player.status.wt < this.player.status.MAX_WT) {
-        this.player.status.wt += 1;
-      } else {
-        this.player.status.wt = 0;
+      _ref2 = this.enemies;
+      for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
+        e = _ref2[_j];
+        e.update([this.player]);
       }
       return this.name;
     };

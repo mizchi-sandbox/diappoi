@@ -1,8 +1,6 @@
 vows = require 'vows'
 assert = require 'assert'
 
-
-
 keys =
    left : 0
    right : 0
@@ -38,7 +36,7 @@ vows.describe('Game Test').addBatch
       enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..30])
       for i in [0..100]
         targets_inrange =  p.get_targets_in_range(enemies)
-        e.process(p) for e in enemies
+        e.update([p]) for e in enemies
         p.set_target(targets_inrange)
         # p.change_target(targets_inrange)
         if p.targeting
@@ -50,30 +48,36 @@ vows.describe('Game Test').addBatch
     topic: "select update method"
     'update': ()->
       p = new Player(320,240)
-      enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..20])
-      for i in [0..100]
-        p.update()
-        p.act()
-        e.process(p) for e in enemies
-        e.update()
-        e.act()
-        console.log p.status.hp
-        console.log e.status.hp
+      enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..100])
+      for i in [1..10]
+        p.update(enemies,keys,mouse)
+        e.update([p]) for e in enemies
+      console.log p.status
+      console.log enemies[0].targeting
 
     topic: "battle collide"
     'many vs many': ()->
-      players = [new Player(320,240) , new Follower(320,240) ]
+      players = [new Player(320,240) , new Player(320,240) ]
       enemies = (new Enemy 320,240  for i in [1..3])
 
-      for i in [1..10]
-        for p in players
-          p.process(enemies, keys,mouse)
-          p.move(map)
+      for i in [1..100]
+        p.update(enemies, keys,mouse) for p in players
+        e.update(players) for e in enemies
+      console.log p.status
+      console.log enemies[0].status
 
-        for e in enemies
-          e.process(players)
-          e.move(map)
+    topic: "map collide"
 
+    return @name
+    'walk to block': ()->
+
+      players = new Player(320,240)
+      for i in [1..100]
+        p.move(map)
+        p.update(enemies, keys,mouse) for p in players
+        e.update(players) for e in enemies
+      console.log p.status
+      console.log enemies[0].status
     # topic: "scene"
     # 'test2': ()->
     #   player = new Player(320,240)

@@ -19,7 +19,7 @@ class Game
     @curr_scene = @scenes["Field"]
 
   enter: ->
-    next_scene = @curr_scene.process(@keys,@mouse)
+    next_scene = @curr_scene.enter(@keys,@mouse)
     @curr_scene = @scenes[next_scene]
     @draw(@curr_scene)
 
@@ -137,14 +137,35 @@ class Battler extends Sprite
     @state =
       alive : true
       active : false
+
     @atack_range = 10
+    @sight_range = 80
+
     @targeting = null
     @id = ~~(Math.random() * 100)
 
   update:(targets, keys , mouse)->
-    targets_inrange = @get_targets_in_range(targets)
+    targets_inrange = @get_targets_in_range(targets,@sight_range)
     target = @set_target(targets_inrange)
+    @move(target)
     @act(target)
+
+  act:(target=@targeting)->
+    if @targeting
+      d = @get_distance(@targeting)
+      if d < @atack_range
+        if @status.wt < @status.MAX_WT
+          @status.wt += 1
+        else
+          @atack()
+          @status.wt = 0
+      else
+        if @status.wt < @status.MAX_WT
+          @status.wt += 1
+    else
+      @status.wt = 0
+
+  move:(x,y)-> #abstract
 
   atack: (target=@targeting)->
     target.status.hp -= ~~(@status.atk * ( target.status.def + Math.random()/4 ))
@@ -184,17 +205,14 @@ class Battler extends Sprite
       @targeting = null
       return @targeting
 
-  get_targets_in_range:(targets)->
+  get_targets_in_range:(targets, range= @sight_range)->
     buff = []
     for t in targets
       d = @get_distance(t)
-      if d < @atack_range and t.state.alive
+      if d < range and t.state.alive
         buff[buff.length] = t
     return buff
 
-  move:(x,y)->
-  act:(target)->
-    @atack(target)
   _render_gages:(g,x,y,w,h,rest) ->
     # HP bar
     my.init_cv(g,"rgb(0, 250, 100)")
@@ -223,7 +241,13 @@ class Player extends Battler
     @vx = 0
     @vy = 0
 
-  process: (keys,mouse)->
+  update: (enemies, keys,mouse)->
+    @cnt += 1
+    @move(keys)
+    @set_target(@get_targets_in_range(enemies))
+    @act()
+
+  move: (keys)->
     s = keys.right+keys.left+keys.up+keys.down
     if s > 1
       move = @speed * Math.sqrt(2)/2
@@ -241,8 +265,6 @@ class Player extends Battler
     if keys.down
       @y += move
       @vy -= move
-
-    @dir = Math.atan( (320 - mouse.y) / (240 - mouse.x)  )
 
   render: (g)->
     # baet icon
@@ -315,33 +337,29 @@ class Enemy extends Battler
     @cnt = ~~(Math.random() * 24)
 
 
-  process: (player)->
+  update: (players)->
     @cnt += 1
     if @state.alive
-        # tracing
-        distance = @get_distance(player)
-        if distance < @sight_range # in sight
-            @state.active = true
-        else  # when not in sight
-            @state.active = false
+      @set_target(@get_targets_in_range(players,@sight_range))
+      @move()
+      @act()
 
-        if @state.active
-            if distance > @atack_range
-                @x -= @speed/2 if @x > player.x
-                @x += @speed/2 if @x < player.x
-                @y += @speed/2 if @y < player.y
-                @y -= @speed/2 if @y > player.y
-            else
-                @status.wt += 1
-                if @status.wt >= @status.MAX_WT
-                    @atack(player)
-                    @status.wt = 0
-        else
-            if @cnt % 24 ==  0
-                @dir = Math.PI * 2 * Math.random()
-            if @cnt % 24 < 8
-                @x += @speed * Math.cos(@dir)
-                @y += @speed * Math.sin(@dir)
+  move: ()->
+    if @targeting
+      distance = @get_distance(@targeting)
+      if distance > @atack_range
+        @x -= @speed/2 if @x > @targeting.x
+        @x += @speed/2 if @x < @targeting.x
+        @y += @speed/2 if @y < @targeting.y
+        @y -= @speed/2 if @y > @targeting.y
+      else # stay here
+    else
+        if @cnt % 24 ==  0
+            @dir = Math.PI * 2 * Math.random()
+        if @cnt % 24 < 8
+            @x += ~~(@speed * Math.cos(@dir))
+            @y += ~~(@speed * Math.sin(@dir))
+
   render: (g,player)->
     my.init_cv(g)
     if @state.alive
@@ -374,7 +392,7 @@ class Enemy extends Battler
 class Scene
   constructor: (@name) ->
 
-  process: (keys,mouse) ->
+  enter: (keys,mouse) ->
     return @name
 
   render: (g)->
@@ -389,7 +407,7 @@ class OpeningScene extends Scene
     super("Opening")
     @player  =  new Player(320,240)
 
-  process: (keys,mouse) ->
+  enter: (keys,mouse) ->
     if keys.right
       return "Filed"
     return @name
@@ -407,30 +425,9 @@ class FieldScene extends Scene
     @enemies = (new Enemy(Math.random()*640, Math.random()*480) for i in [1..30])
     @map = my.gen_map(20,15)
 
-  process: (keys,mouse) ->
-    @player.process(keys,mouse)
-    @player.state.active = false
-    # pst = @player.status
-
-    # collision
-    for n in [0..(@enemies.length-1)]
-      enemy = @enemies[n]
-      enemy.process(@player)
-
-      d = my.distance( @player.x,@player.y,enemy.x,enemy.y )
-      if d < @player.atack_range and enemy.state.alive
-        if @player.status.MAX_WT >  @player.status.wt
-          # @player.status.wt += 1
-          @player.state.active = true
-
-        else if @player.status.MAX_WT <= @player.status.wt
-          @player.status.wt = 0
-          @player.atack(enemy)
-
-    if @player.state.active and @player.status.wt < @player.status.MAX_WT
-      @player.status.wt += 1
-    else
-      @player.status.wt = 0
+  enter: (keys,mouse) ->
+    p.update(@enemies ,keys,mouse) for p in [@player]
+    e.update([@player]) for e in @enemies
     return @name
 
   render: (g)->
@@ -492,7 +489,7 @@ vows.describe('Game Test').addBatch
       enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..30])
       for i in [0..100]
         targets_inrange =  p.get_targets_in_range(enemies)
-        e.process(p) for e in enemies
+        e.update([p]) for e in enemies
         p.set_target(targets_inrange)
         # p.change_target(targets_inrange)
         if p.targeting
@@ -504,29 +501,23 @@ vows.describe('Game Test').addBatch
     topic: "select update method"
     'update': ()->
       p = new Player(320,240)
-      enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..20])
-      for i in [0..100]
-        p.update()
-        p.act()
-        e.process(p) for e in enemies
-        e.update()
-        e.act()
-        console.log p.status.hp
-        console.log e.status.hp
+      enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..100])
+      for i in [1..10]
+        p.update(enemies,keys,mouse)
+        e.update([p]) for e in enemies
+      console.log p.status
+      console.log enemies[0].targeting
 
     topic: "battle collide"
     'many vs many': ()->
-      players = [new Player(320,240) , new Follower(320,240) ]
+      players = [new Player(320,240) , new Player(320,240) ]
       enemies = (new Enemy 320,240  for i in [1..3])
 
-      for i in [1..10]
-        for p in players
-          p.process(enemies, keys,mouse)
-          p.move(map)
-
-        for e in enemies
-          e.process(players)
-          e.move(map)
+      for i in [1..100]
+        p.update(enemies, keys,mouse) for p in players
+        e.update(players) for e in enemies
+      console.log p.status
+      console.log enemies[0].status
 
     # topic: "scene"
     # 'test2': ()->

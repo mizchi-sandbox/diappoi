@@ -17,7 +17,7 @@ class Game
     @curr_scene = @scenes["Field"]
 
   enter: ->
-    next_scene = @curr_scene.process(@keys,@mouse)
+    next_scene = @curr_scene.enter(@keys,@mouse)
     @curr_scene = @scenes[next_scene]
     @draw(@curr_scene)
 

@@ -1,7 +1,7 @@
 class Scene
   constructor: (@name) ->
 
-  process: (keys,mouse) ->
+  enter: (keys,mouse) ->
     return @name
 
   render: (g)->
@@ -16,7 +16,7 @@ class OpeningScene extends Scene
     super("Opening")
     @player  =  new Player(320,240)
 
-  process: (keys,mouse) ->
+  enter: (keys,mouse) ->
     if keys.right
       return "Filed"
     return @name
@@ -34,30 +34,9 @@ class FieldScene extends Scene
     @enemies = (new Enemy(Math.random()*640, Math.random()*480) for i in [1..30])
     @map = my.gen_map(20,15)
 
-  process: (keys,mouse) ->
-    @player.process(keys,mouse)
-    @player.state.active = false
-    # pst = @player.status
-
-    # collision
-    for n in [0..(@enemies.length-1)]
-      enemy = @enemies[n]
-      enemy.process(@player)
-
-      d = my.distance( @player.x,@player.y,enemy.x,enemy.y )
-      if d < @player.atack_range and enemy.state.alive
-        if @player.status.MAX_WT >  @player.status.wt
-          # @player.status.wt += 1
-          @player.state.active = true
-
-        else if @player.status.MAX_WT <= @player.status.wt
-          @player.status.wt = 0
-          @player.atack(enemy)
-
-    if @player.state.active and @player.status.wt < @player.status.MAX_WT
-      @player.status.wt += 1
-    else
-      @player.status.wt = 0
+  enter: (keys,mouse) ->
+    p.update(@enemies ,keys,mouse) for p in [@player]
+    e.update([@player]) for e in @enemies
     return @name
 
   render: (g)->

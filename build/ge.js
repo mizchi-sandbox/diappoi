@@ -38,7 +38,7 @@
     }
     Game.prototype.enter = function() {
       var next_scene;
-      next_scene = this.curr_scene.process(this.keys, this.mouse);
+      next_scene = this.curr_scene.enter(this.keys, this.mouse);
       this.curr_scene = this.scenes[next_scene];
       return this.draw(this.curr_scene);
     };
@@ -221,15 +221,41 @@
         active: false
       };
       this.atack_range = 10;
+      this.sight_range = 80;
       this.targeting = null;
       this.id = ~~(Math.random() * 100);
     }
     Battler.prototype.update = function(targets, keys, mouse) {
       var target, targets_inrange;
-      targets_inrange = this.get_targets_in_range(targets);
+      targets_inrange = this.get_targets_in_range(targets, this.sight_range);
       target = this.set_target(targets_inrange);
+      this.move(target);
       return this.act(target);
     };
+    Battler.prototype.act = function(target) {
+      var d;
+      if (target == null) {
+        target = this.targeting;
+      }
+      if (this.targeting) {
+        d = this.get_distance(this.targeting);
+        if (d < this.atack_range) {
+          if (this.status.wt < this.status.MAX_WT) {
+            return this.status.wt += 1;
+          } else {
+            this.atack();
+            return this.status.wt = 0;
+          }
+        } else {
+          if (this.status.wt < this.status.MAX_WT) {
+            return this.status.wt += 1;
+          }
+        }
+      } else {
+        return this.status.wt = 0;
+      }
+    };
+    Battler.prototype.move = function(x, y) {};
     Battler.prototype.atack = function(target) {
       if (target == null) {
         target = this.targeting;
@@ -281,21 +307,20 @@
         return this.targeting;
       }
     };
-    Battler.prototype.get_targets_in_range = function(targets) {
+    Battler.prototype.get_targets_in_range = function(targets, range) {
       var buff, d, t, _i, _len;
+      if (range == null) {
+        range = this.sight_range;
+      }
       buff = [];
       for (_i = 0, _len = targets.length; _i < _len; _i++) {
         t = targets[_i];
         d = this.get_distance(t);
-        if (d < this.atack_range && t.state.alive) {
+        if (d < range && t.state.alive) {
           buff[buff.length] = t;
         }
       }
       return buff;
-    };
-    Battler.prototype.move = function(x, y) {};
-    Battler.prototype.act = function(target) {
-      return this.atack(target);
     };
     Battler.prototype._render_gages = function(g, x, y, w, h, rest) {
       my.init_cv(g, "rgb(0, 250, 100)");
@@ -328,7 +353,13 @@
       this.vx = 0;
       this.vy = 0;
     }
-    Player.prototype.process = function(keys, mouse) {
+    Player.prototype.update = function(enemies, keys, mouse) {
+      this.cnt += 1;
+      this.move(keys);
+      this.set_target(this.get_targets_in_range(enemies));
+      return this.act();
+    };
+    Player.prototype.move = function(keys) {
       var move, s;
       s = keys.right + keys.left + keys.up + keys.down;
       if (s > 1) {
@@ -350,9 +381,8 @@
       }
       if (keys.down) {
         this.y += move;
-        this.vy -= move;
+        return this.vy -= move;
       }
-      return this.dir = Math.atan((320 - mouse.y) / (240 - mouse.x));
     };
     Player.prototype.render = function(g) {
       var ms;
@@ -433,45 +463,41 @@
       this._dead_color = 'rgb(55, 55, 55)';
       this.cnt = ~~(Math.random() * 24);
     }
-    Enemy.prototype.process = function(player) {
-      var distance;
+    Enemy.prototype.update = function(players) {
       this.cnt += 1;
       if (this.state.alive) {
-        distance = this.get_distance(player);
-        if (distance < this.sight_range) {
-          this.state.active = true;
+        this.set_target(this.get_targets_in_range(players, this.sight_range));
+        this.move();
+        return this.act();
+      }
+    };
+    Enemy.prototype.move = function() {
+      var distance;
+      if (this.targeting) {
+        distance = this.get_distance(this.targeting);
+        if (distance > this.atack_range) {
+          if (this.x > this.targeting.x) {
+            this.x -= this.speed / 2;
+          }
+          if (this.x < this.targeting.x) {
+            this.x += this.speed / 2;
+          }
+          if (this.y < this.targeting.y) {
+            this.y += this.speed / 2;
+          }
+          if (this.y > this.targeting.y) {
+            return this.y -= this.speed / 2;
+          }
         } else {
-          this.state.active = false;
+          ;
         }
-        if (this.state.active) {
-          if (distance > this.atack_range) {
-            if (this.x > player.x) {
-              this.x -= this.speed / 2;
-            }
-            if (this.x < player.x) {
-              this.x += this.speed / 2;
-            }
-            if (this.y < player.y) {
-              this.y += this.speed / 2;
-            }
-            if (this.y > player.y) {
-              return this.y -= this.speed / 2;
-            }
-          } else {
-            this.status.wt += 1;
-            if (this.status.wt >= this.status.MAX_WT) {
-              this.atack(player);
-              return this.status.wt = 0;
-            }
-          }
-        } else {
-          if (this.cnt % 24 === 0) {
-            this.dir = Math.PI * 2 * Math.random();
-          }
-          if (this.cnt % 24 < 8) {
-            this.x += this.speed * Math.cos(this.dir);
-            return this.y += this.speed * Math.sin(this.dir);
-          }
+      } else {
+        if (this.cnt % 24 === 0) {
+          this.dir = Math.PI * 2 * Math.random();
+        }
+        if (this.cnt % 24 < 8) {
+          this.x += ~~(this.speed * Math.cos(this.dir));
+          return this.y += ~~(this.speed * Math.sin(this.dir));
         }
       }
     };
@@ -507,7 +533,7 @@
     function Scene(name) {
       this.name = name;
     }
-    Scene.prototype.process = function(keys, mouse) {
+    Scene.prototype.enter = function(keys, mouse) {
       return this.name;
     };
     Scene.prototype.render = function(g) {
@@ -522,7 +548,7 @@
       OpeningScene.__super__.constructor.call(this, "Opening");
       this.player = new Player(320, 240);
     }
-    OpeningScene.prototype.process = function(keys, mouse) {
+    OpeningScene.prototype.enter = function(keys, mouse) {
       if (keys.right) {
         return "Filed";
       }
@@ -550,27 +576,17 @@
       })();
       this.map = my.gen_map(20, 15);
     }
-    FieldScene.prototype.process = function(keys, mouse) {
-      var d, enemy, n, _ref;
-      this.player.process(keys, mouse);
-      this.player.state.active = false;
-      for (n = 0, _ref = this.enemies.length - 1; (0 <= _ref ? n <= _ref : n >= _ref); (0 <= _ref ? n += 1 : n -= 1)) {
-        enemy = this.enemies[n];
-        enemy.process(this.player);
-        d = my.distance(this.player.x, this.player.y, enemy.x, enemy.y);
-        if (d < this.player.atack_range && enemy.state.alive) {
-          if (this.player.status.MAX_WT > this.player.status.wt) {
-            this.player.state.active = true;
-          } else if (this.player.status.MAX_WT <= this.player.status.wt) {
-            this.player.status.wt = 0;
-            this.player.atack(enemy);
-          }
-        }
+    FieldScene.prototype.enter = function(keys, mouse) {
+      var e, p, _i, _j, _len, _len2, _ref, _ref2;
+      _ref = [this.player];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        p = _ref[_i];
+        p.update(this.enemies, keys, mouse);
       }
-      if (this.player.state.active && this.player.status.wt < this.player.status.MAX_WT) {
-        this.player.status.wt += 1;
-      } else {
-        this.player.status.wt = 0;
+      _ref2 = this.enemies;
+      for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
+        e = _ref2[_j];
+        e.update([this.player]);
       }
       return this.name;
     };
