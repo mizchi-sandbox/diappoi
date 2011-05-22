@@ -1,5 +1,5 @@
 (function() {
-  var Battler, Enemy, FieldScene, Follower, Game, OpeningScene, Player, Scene, Sprite, Status, conf, my;
+  var Battler, Enemy, FieldScene, Game, Map, OpeningScene, Player, Scene, Sprite, Status, conf, my;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -206,7 +206,95 @@
       yd = Math.pow(this.y - target.y, 2);
       return Math.sqrt(xd + yd);
     };
+    Sprite.prototype.getpos_relative = function(cam) {
+      var pos;
+      pos = {
+        vx: 320 + this.x - cam.x,
+        vy: 240 + this.y - cam.y
+      };
+      return pos;
+    };
+    Sprite.prototype.init_cv = function(g, color, alpha) {
+      if (color == null) {
+        color = "rgb(255,255,255)";
+      }
+      if (alpha == null) {
+        alpha = 1;
+      }
+      g.beginPath();
+      g.strokeStyle = color;
+      g.fillStyle = color;
+      return g.globalAlpha = alpha;
+    };
     return Sprite;
+  })();
+  Map = (function() {
+    __extends(Map, Sprite);
+    function Map(w, h, cell) {
+      this.w = w != null ? w : 10;
+      this.h = h != null ? h : 10;
+      this.cell = cell != null ? cell : 24;
+      Map.__super__.constructor.call(this, 0, 0, this.cell);
+      this._map = this.gen_map(this.w, this.h);
+    }
+    Map.prototype.gen_map = function(x, y) {
+      var i, j, map;
+      map = [];
+      for (i = 0; (0 <= x ? i < x : i > x); (0 <= x ? i += 1 : i -= 1)) {
+        map[i] = [];
+        for (j = 0; (0 <= y ? j < y : j > y); (0 <= y ? j += 1 : j -= 1)) {
+          if ((i === 0 || i === (x - 1)) || (j === 0 || j === (y - 1))) {
+            map[i][j] = 1;
+          } else {
+            map[i][j] = 0;
+          }
+        }
+      }
+      return map;
+    };
+    Map.prototype.render = function(g, cam) {
+      var alpha, color, i, j, pos, _ref, _results;
+      pos = this.getpos_relative(cam);
+      _results = [];
+      for (i = 0, _ref = this._map.length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
+        _results.push((function() {
+          var _ref, _results;
+          _results = [];
+          for (j = 0, _ref = this._map[i].length; (0 <= _ref ? j < _ref : j > _ref); (0 <= _ref ? j += 1 : j -= 1)) {
+            if (this._map[i][j]) {
+              my.init_cv(g, color = "rgb(0,0,0)", alpha = 0.5);
+            } else {
+              my.init_cv(g, color = "rgb(250,250,250)", alpha = 0.5);
+            }
+            _results.push(g.fillRect(pos.vx + i * this.cell, pos.vy + j * this.cell, this.cell, this.cell));
+          }
+          return _results;
+        }).call(this));
+      }
+      return _results;
+    };
+    Map.prototype.get_point = function(x, y) {
+      return {
+        x: ~~((x + 1 / 2) * this.cell),
+        y: ~~((y + 1 / 2) * this.cell)
+      };
+    };
+    Map.prototype.get_randpoint = function() {
+      var rx, ry;
+      rx = ~~(Math.random() * this.w);
+      ry = ~~(Math.random() * this.h);
+      if (this._map[rx][ry]) {
+        return this.get_randpoint();
+      }
+      return this.get_point(rx, ry);
+    };
+    Map.prototype.collide = function(target) {
+      var x, y;
+      x = ~~(target.x / this.cell);
+      y = ~~(target.y / this.cell);
+      return this._map(x, y);
+    };
+    return Map;
   })();
   Battler = (function() {
     __extends(Battler, Sprite);
@@ -221,7 +309,7 @@
         active: false
       };
       this.atack_range = 10;
-      this.sight_range = 80;
+      this.sight_range = 50;
       this.targeting = null;
       this.id = ~~(Math.random() * 100);
     }
@@ -325,7 +413,7 @@
     Battler.prototype._render_gages = function(g, x, y, w, h, rest) {
       my.init_cv(g, "rgb(0, 250, 100)");
       my.render_rest_gage(g, x, y + 15, w, h, this.status.hp / this.status.MAX_HP);
-      my.init_cv(g, "rgb(0, 100, 255)");
+      my.init_cv(g, "rgb(0, 100, e55)");
       return my.render_rest_gage(g, x, y + 25, w, h, this.status.wt / this.status.MAX_WT);
     };
     return Battler;
@@ -337,8 +425,6 @@
       this.x = x;
       this.y = y;
       Player.__super__.constructor.call(this, this.x, this.y);
-      this.vx = 0;
-      this.vy = 0;
       status = {
         hp: 120,
         wt: 20,
@@ -363,25 +449,21 @@
       var move, s;
       s = keys.right + keys.left + keys.up + keys.down;
       if (s > 1) {
-        move = this.speed * Math.sqrt(2) / 2;
+        move = ~~(this.speed * Math.sqrt(2) / 2);
       } else {
         move = this.speed;
       }
       if (keys.right) {
         this.x += move;
-        this.vx -= move;
       }
       if (keys.left) {
         this.x -= move;
-        this.vx += move;
       }
       if (keys.up) {
         this.y -= move;
-        this.vy += move;
       }
       if (keys.down) {
-        this.y += move;
-        return this.vy -= move;
+        return this.y += move;
       }
     };
     Player.prototype.render = function(g) {
@@ -404,20 +486,6 @@
       return this._render_gages(g, 320, 240, 40, 6, this.status.hp / this.status.MAX_HP);
     };
     return Player;
-  })();
-  Follower = (function() {
-    __extends(Follower, Player);
-    function Follower(x, y) {
-      this.x = x;
-      this.y = y;
-      Follower.__super__.constructor.call(this, this.x, this.y);
-    }
-    Follower.prototype.render = function(g, player) {
-      my.init_cv(g, "rgb(255, 0, 0)");
-      g.arc(320, 240, this.scale, 0, Math.PI * 2, true);
-      return g.stroke();
-    };
-    return Follower;
   })();
   Enemy = (function() {
     __extends(Enemy, Battler);
@@ -447,22 +515,26 @@
         return this.act();
       }
     };
-    Enemy.prototype.move = function() {
-      var distance;
+    Enemy.prototype.move = function(cmap) {
+      var distance, nx, ny;
       if (this.targeting) {
         distance = this.get_distance(this.targeting);
         if (distance > this.atack_range) {
           if (this.x > this.targeting.x) {
-            this.x -= this.speed / 2;
+            nx = this.x - this.speed / 2;
           }
           if (this.x < this.targeting.x) {
-            this.x += this.speed / 2;
+            nx = this.x + this.speed / 2;
           }
           if (this.y < this.targeting.y) {
-            this.y += this.speed / 2;
+            ny = this.y + this.speed / 2;
           }
           if (this.y > this.targeting.y) {
-            return this.y -= this.speed / 2;
+            ny = this.y - this.speed / 2;
+          }
+          if (!this._map.collide(this)) {
+            this.x = nx;
+            return this.y = ny;
           }
         } else {
           ;
@@ -477,9 +549,10 @@
         }
       }
     };
-    Enemy.prototype.render = function(g, player) {
-      var alpha, beat, color, ms;
+    Enemy.prototype.render = function(g, cam) {
+      var alpha, beat, color, ms, pos;
       my.init_cv(g);
+      pos = this.getpos_relative(cam);
       if (this.state.alive) {
         g.fillStyle = 'rgb(255, 255, 255)';
         beat = 20;
@@ -487,20 +560,20 @@
         if (ms > 0.5) {
           ms = 1 - ms;
         }
-        g.arc(this.x + player.vx, this.y + player.vy, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
+        g.arc(pos.vx, pos.vy, (1.3 + ms) * this.scale, 0, Math.PI * 2, true);
         g.fill();
         if (this.state.active) {
           my.init_cv(g, color = "rgb(255,0,0)");
-          g.arc(this.x + player.vx, this.y + player.vy, this.scale * 0.4, 0, Math.PI * 2, true);
+          g.arc(pos.vx, pos.vy, this.scale * 0.4, 0, Math.PI * 2, true);
           g.fill();
         }
         my.init_cv(g, color = "rgb(50,50,50)", alpha = 0.3);
-        g.arc(this.x + player.vx, this.y + player.vy, this.sight_range, 0, Math.PI * 2, true);
+        g.arc(pos.vx, pos.vy, this.sight_range, 0, Math.PI * 2, true);
         g.stroke();
-        return this._render_gages(g, this.x + player.vx, this.y + player.vy, 30, 6, this.status.wt / this.status.MAX_WT);
+        return this._render_gages(g, pos.vx, pos.vy, 30, 6, this.status.wt / this.status.MAX_WT);
       } else {
         g.fillStyle = 'rgb(55, 55, 55)';
-        g.arc(this.x + player.vx, this.y + player.vy, this.scale, 0, Math.PI * 2, true);
+        g.arc(pos.vx, pos.vy, this.scale, 0, Math.PI * 2, true);
         return g.fill();
       }
     };
@@ -540,18 +613,16 @@
   FieldScene = (function() {
     __extends(FieldScene, Scene);
     function FieldScene() {
-      var i;
+      var i, rpo, start_point;
       FieldScene.__super__.constructor.call(this, "Field");
-      this.player = new Player(320, 240);
-      this.enemies = (function() {
-        var _results;
-        _results = [];
-        for (i = 1; i <= 30; i++) {
-          _results.push(new Enemy(Math.random() * 640, Math.random() * 480));
-        }
-        return _results;
-      })();
-      this.map = my.gen_map(20, 15);
+      this.map = new Map(20, 15, 32);
+      start_point = this.map.get_point(1, 1);
+      this.player = new Player(start_point.x, start_point.y);
+      this.enemies = [];
+      for (i = 1; i <= 10; i++) {
+        rpo = this.map.get_randpoint();
+        this.enemies[this.enemies.length] = new Enemy(rpo.x, rpo.y);
+      }
     }
     FieldScene.prototype.enter = function(keys, mouse) {
       var e, p, _i, _j, _len, _len2, _ref, _ref2;
@@ -568,34 +639,17 @@
       return this.name;
     };
     FieldScene.prototype.render = function(g) {
-      var alpha, cell, color, enemy, i, j, _i, _len, _ref, _ref2, _results;
+      var cam, enemy, _i, _len, _ref;
+      cam = this.player;
+      this.map.render(g, cam);
       _ref = this.enemies;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         enemy = _ref[_i];
-        enemy.render(g, this.player);
+        enemy.render(g, cam);
       }
       this.player.render(g);
-      cell = 32;
-      my.init_cv(g, color = "rgb(255,255,255)");
-      g.font = "10px " + "mono";
       g.fillText("HP " + this.player.status.hp + "/" + this.player.status.MAX_HP, 15, 15);
-      _results = [];
-      for (i = 0, _ref2 = this.map.length - 1; (0 <= _ref2 ? i <= _ref2 : i >= _ref2); (0 <= _ref2 ? i += 1 : i -= 1)) {
-        _results.push((function() {
-          var _ref, _results;
-          _results = [];
-          for (j = 0, _ref = this.map[i].length - 1; (0 <= _ref ? j <= _ref : j >= _ref); (0 <= _ref ? j += 1 : j -= 1)) {
-            if (this.map[i][j]) {
-              my.init_cv(g, color = "rgb(100,100,100)", alpha = 0.3);
-            } else {
-              my.init_cv(g, color = "rgb(0,0,0)", alpha = 0.3);
-            }
-            _results.push(my.draw_cell(g, this.player.vx + i * cell, this.player.vy + j * cell, cell));
-          }
-          return _results;
-        }).call(this));
-      }
-      return _results;
+      return g.fillText("p: " + this.player.x + "." + this.player.y, 15, 25);
     };
     return FieldScene;
   })();
