@@ -42,62 +42,45 @@
   FieldScene = (function() {
     __extends(FieldScene, Scene);
     function FieldScene() {
-      var i;
+      var i, rpo, start_point;
       FieldScene.__super__.constructor.call(this, "Field");
-      this.player = new Player(320, 240);
-      this.enemies = (function() {
-        var _results;
-        _results = [];
-        for (i = 1; i <= 30; i++) {
-          _results.push(new Enemy(Math.random() * 640, Math.random() * 480));
-        }
-        return _results;
-      })();
-      this.map = my.gen_map(20, 15);
+      this.map = new Map(20, 15, 32);
+      start_point = this.map.get_point(8, 3);
+      this.player = new Player(start_point.x, start_point.y);
+      this.enemies = [];
+      for (i = 1; i <= 3; i++) {
+        rpo = this.map.get_randpoint();
+        this.enemies[this.enemies.length] = new Enemy(rpo.x, rpo.y);
+      }
     }
     FieldScene.prototype.enter = function(keys, mouse) {
       var e, p, _i, _j, _len, _len2, _ref, _ref2;
       _ref = [this.player];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         p = _ref[_i];
-        p.update(this.enemies, keys, mouse);
+        p.update(this.enemies, this.map, keys, mouse);
       }
       _ref2 = this.enemies;
       for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
         e = _ref2[_j];
-        e.update([this.player]);
+        e.update([this.player], this.map);
       }
       return this.name;
     };
     FieldScene.prototype.render = function(g) {
-      var alpha, cell, color, enemy, i, j, _i, _len, _ref, _ref2, _results;
+      var cam, e, enemy, _i, _len, _ref;
+      cam = this.player;
+      this.map.render(g, cam);
       _ref = this.enemies;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         enemy = _ref[_i];
-        enemy.render(g, this.player);
+        enemy.render(g, cam);
       }
       this.player.render(g);
-      cell = 32;
-      my.init_cv(g, color = "rgb(255,255,255)");
-      g.font = "10px " + "mono";
       g.fillText("HP " + this.player.status.hp + "/" + this.player.status.MAX_HP, 15, 15);
-      _results = [];
-      for (i = 0, _ref2 = this.map.length - 1; (0 <= _ref2 ? i <= _ref2 : i >= _ref2); (0 <= _ref2 ? i += 1 : i -= 1)) {
-        _results.push((function() {
-          var _ref, _results;
-          _results = [];
-          for (j = 0, _ref = this.map[i].length - 1; (0 <= _ref ? j <= _ref : j >= _ref); (0 <= _ref ? j += 1 : j -= 1)) {
-            if (this.map[i][j]) {
-              my.init_cv(g, color = "rgb(100,100,100)", alpha = 0.3);
-            } else {
-              my.init_cv(g, color = "rgb(0,0,0)", alpha = 0.3);
-            }
-            _results.push(my.draw_cell(g, this.player.vx + i * cell, this.player.vy + j * cell, cell));
-          }
-          return _results;
-        }).call(this));
-      }
-      return _results;
+      g.fillText("p: " + this.player.x + "." + this.player.y, 15, 25);
+      e = this.enemies[0];
+      return g.fillText("Enemy Pos :" + e.x + "/" + e.y + ":" + ~~(e.dir / Math.PI * 180), 15, 35);
     };
     return FieldScene;
   })();

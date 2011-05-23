@@ -10,7 +10,6 @@ class Scene
         @name,
         300,200)
 
-
 class OpeningScene extends Scene
   constructor: () ->
     super("Opening")
@@ -18,6 +17,7 @@ class OpeningScene extends Scene
 
   enter: (keys,mouse) ->
     if keys.right
+
       return "Filed"
     return @name
 
@@ -30,31 +30,41 @@ class OpeningScene extends Scene
 class FieldScene extends Scene
   constructor: () ->
     super("Field")
-    @player  =  new Player(320,240)
-    @enemies = (new Enemy(Math.random()*640, Math.random()*480) for i in [1..30])
-    @map = my.gen_map(20,15)
+    @map = new Map(20,15, 32)
+
+    start_point = @map.get_point(8,3)
+    @player  =  new Player(start_point.x ,start_point.y)
+    @enemies = []
+    for i in [1 .. 3]
+      rpo = @map.get_randpoint()
+      @enemies[@enemies.length] = new Enemy(rpo.x, rpo.y)
+    # enemy_point = @map.get_point(5,5)
+    # @enemies = (new Enemy(enemy_point.x , enemy_point.y) for i in [1..1])
 
   enter: (keys,mouse) ->
-    p.update(@enemies ,keys,mouse) for p in [@player]
-    e.update([@player]) for e in @enemies
+    p.update(@enemies ,@map , keys,mouse) for p in [@player]
+    e.update([@player], @map) for e in @enemies
     return @name
 
   render: (g)->
-    enemy.render(g,@player) for enemy in @enemies
+    cam = @player
+
+    @map.render(g, cam)
+    enemy.render(g,cam) for enemy in @enemies
     @player.render(g)
-    cell = 32
-    my.init_cv(g,color="rgb(255,255,255)")
-    g.font = "10px "+"mono"
+
+
     g.fillText(
         "HP "+@player.status.hp+"/"+@player.status.MAX_HP,
         15,15)
 
-    for i in [0..@map.length-1]
-        for j in [0..@map[i].length-1]
-            if @map[i][j]
-                my.init_cv(g,color="rgb(100,100,100)",alpha=0.3)
-            else
-                my.init_cv(g,color="rgb(0,0,0)",alpha=0.3)
-            my.draw_cell(g,
-                @player.vx+i*cell,@player.vy+j*cell,
-                cell)
+    g.fillText(
+        "p: "+@player.x+"."+@player.y
+        15,25)
+
+    e = @enemies[0]
+    g.fillText(
+        "Enemy Pos :"+e.x+"/"+e.y+":"+~~(e.dir/Math.PI*180)
+        15,35)
+
+
