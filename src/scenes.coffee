@@ -35,15 +35,26 @@ class FieldScene extends Scene
     start_point = @map.get_point(8,3)
     @player  =  new Player(start_point.x ,start_point.y)
     @enemies = []
-    for i in [1 .. 3]
-      rpo = @map.get_randpoint()
-      @enemies[@enemies.length] = new Enemy(rpo.x, rpo.y)
+    # for i in [1 .. 3]
+    #   rpo = @map.get_randpoint()
+    #   @enemies[@enemies.length] = new Enemy(rpo.x, rpo.y)
     # enemy_point = @map.get_point(5,5)
     # @enemies = (new Enemy(enemy_point.x , enemy_point.y) for i in [1..1])
 
   enter: (keys,mouse) ->
     p.update(@enemies ,@map , keys,mouse) for p in [@player]
     e.update([@player], @map) for e in @enemies
+
+    # monster repop
+    if @enemies.length < 4  # add monster
+      rpo = @map.get_randpoint()
+      @enemies[@enemies.length] = new Enemy(rpo.x, rpo.y)
+    else  # check dead
+      for i in [0 ... @enemies.length]
+        if not @enemies[i].state.alive
+          @enemies.splice(i,1)
+          break
+
     return @name
 
   render: (g)->

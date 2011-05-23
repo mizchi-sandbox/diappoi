@@ -640,19 +640,15 @@
   FieldScene = (function() {
     __extends(FieldScene, Scene);
     function FieldScene() {
-      var i, rpo, start_point;
+      var start_point;
       FieldScene.__super__.constructor.call(this, "Field");
       this.map = new Map(20, 15, 32);
       start_point = this.map.get_point(8, 3);
       this.player = new Player(start_point.x, start_point.y);
       this.enemies = [];
-      for (i = 1; i <= 3; i++) {
-        rpo = this.map.get_randpoint();
-        this.enemies[this.enemies.length] = new Enemy(rpo.x, rpo.y);
-      }
     }
     FieldScene.prototype.enter = function(keys, mouse) {
-      var e, p, _i, _j, _len, _len2, _ref, _ref2;
+      var e, i, p, rpo, _i, _j, _len, _len2, _ref, _ref2, _ref3;
       _ref = [this.player];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         p = _ref[_i];
@@ -662,6 +658,17 @@
       for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
         e = _ref2[_j];
         e.update([this.player], this.map);
+      }
+      if (this.enemies.length < 4) {
+        rpo = this.map.get_randpoint();
+        this.enemies[this.enemies.length] = new Enemy(rpo.x, rpo.y);
+      } else {
+        for (i = 0, _ref3 = this.enemies.length; (0 <= _ref3 ? i < _ref3 : i > _ref3); (0 <= _ref3 ? i += 1 : i -= 1)) {
+          if (!this.enemies[i].state.alive) {
+            this.enemies.splice(i, 1);
+            break;
+          }
+        }
       }
       return this.name;
     };
