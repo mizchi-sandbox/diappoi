@@ -207,22 +207,28 @@ class Player extends Battler
       move = @speed
 
     if keys.right
-      nx = @x + move
-    else if keys.left
-      nx = @x - move
-    else
-      nx = @x
+      if cmap.collide( @x+move , @y )
+        @x = (~~(@x/cmap.cell)+1)*cmap.cell-1
+      else
+        @x += move
+
+    if keys.left
+      if cmap.collide( @x-move , @y )
+        @x = (~~(@x/cmap.cell))*cmap.cell+1
+      else
+        @x -= move
 
     if keys.up
-      ny = @y - move
-    else if keys.down
-      ny = @y + move
-    else
-      ny = @y
+      if cmap.collide( @x , @y-move )
+        @y = (~~(@y/cmap.cell))*cmap.cell+1
+      else
+        @y -= move
 
-    if not cmap.collide( nx,ny )
-      @x = nx
-      @y = ny
+    if keys.down
+      if cmap.collide( @x , @y+move )
+        @y = (~~(@y/cmap.cell+1))*cmap.cell-1
+      else
+        @y += move
 
 
   render: (g)->

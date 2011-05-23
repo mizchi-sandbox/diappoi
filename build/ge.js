@@ -457,29 +457,39 @@
       }
     };
     Player.prototype.move = function(cmap, keys, mouse) {
-      var move, nx, ny;
+      var move;
       if (keys.right + keys.left + keys.up + keys.down > 1) {
         move = ~~(this.speed * Math.sqrt(2) / 2);
       } else {
         move = this.speed;
       }
       if (keys.right) {
-        nx = this.x + move;
-      } else if (keys.left) {
-        nx = this.x - move;
-      } else {
-        nx = this.x;
+        if (cmap.collide(this.x + move, this.y)) {
+          this.x = (~~(this.x / cmap.cell) + 1) * cmap.cell - 1;
+        } else {
+          this.x += move;
+        }
+      }
+      if (keys.left) {
+        if (cmap.collide(this.x - move, this.y)) {
+          this.x = (~~(this.x / cmap.cell)) * cmap.cell + 1;
+        } else {
+          this.x -= move;
+        }
       }
       if (keys.up) {
-        ny = this.y - move;
-      } else if (keys.down) {
-        ny = this.y + move;
-      } else {
-        ny = this.y;
+        if (cmap.collide(this.x, this.y - move)) {
+          this.y = (~~(this.y / cmap.cell)) * cmap.cell + 1;
+        } else {
+          this.y -= move;
+        }
       }
-      if (!cmap.collide(nx, ny)) {
-        this.x = nx;
-        return this.y = ny;
+      if (keys.down) {
+        if (cmap.collide(this.x, this.y + move)) {
+          return this.y = (~~(this.y / cmap.cell + 1)) * cmap.cell - 1;
+        } else {
+          return this.y += move;
+        }
       }
     };
     Player.prototype.render = function(g) {
