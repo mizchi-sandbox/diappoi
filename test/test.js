@@ -210,9 +210,21 @@
       var pos;
       pos = {
         vx: 320 + this.x - cam.x,
-        vy: 320 + this.y - cam.y
+        vy: 240 + this.y - cam.y
       };
       return pos;
+    };
+    Sprite.prototype.init_cv = function(g, color, alpha) {
+      if (color == null) {
+        color = "rgb(255,255,255)";
+      }
+      if (alpha == null) {
+        alpha = 1;
+      }
+      g.beginPath();
+      g.strokeStyle = color;
+      g.fillStyle = color;
+      return g.globalAlpha = alpha;
     };
     return Sprite;
   })();
@@ -231,10 +243,10 @@
       for (i = 0; (0 <= x ? i < x : i > x); (0 <= x ? i += 1 : i -= 1)) {
         map[i] = [];
         for (j = 0; (0 <= y ? j < y : j > y); (0 <= y ? j += 1 : j -= 1)) {
-          if (Math.random() > 0.5) {
-            map[i][j] = 0;
-          } else {
+          if ((i === 0 || i === (x - 1)) || (j === 0 || j === (y - 1))) {
             map[i][j] = 1;
+          } else {
+            map[i][j] = 0;
           }
         }
       }
@@ -249,9 +261,10 @@
           var _ref, _results;
           _results = [];
           for (j = 0, _ref = this._map[i].length; (0 <= _ref ? j < _ref : j > _ref); (0 <= _ref ? j += 1 : j -= 1)) {
-            my.init_cv(g, color = "rgb(250,250,250)", alpha = 1);
             if (this._map[i][j]) {
-              my.init_cv(g, color = "rgb(50,50,50)", alpha = 1);
+              my.init_cv(g, color = "rgb(0,0,0)", alpha = 0.5);
+            } else {
+              my.init_cv(g, color = "rgb(250,250,250)", alpha = 0.5);
             }
             _results.push(g.fillRect(pos.vx + i * this.cell, pos.vy + j * this.cell, this.cell, this.cell));
           }
@@ -260,11 +273,25 @@
       }
       return _results;
     };
-    Map.prototype.collide = function(target) {
-      var x, y;
-      x = ~~(target.x / this.cell);
-      y = ~~(target.y / this.cell);
-      return this._map(x, y);
+    Map.prototype.get_point = function(x, y) {
+      return {
+        x: ~~((x + 1 / 2) * this.cell),
+        y: ~~((y + 1 / 2) * this.cell)
+      };
+    };
+    Map.prototype.get_randpoint = function() {
+      var rx, ry;
+      rx = ~~(Math.random() * this.w);
+      ry = ~~(Math.random() * this.h);
+      if (this._map[rx][ry]) {
+        return this.get_randpoint();
+      }
+      return this.get_point(rx, ry);
+    };
+    Map.prototype.collide = function(x, y) {
+      x = ~~(x / this.cell);
+      y = ~~(y / this.cell);
+      return this._map[x][y];
     };
     return Map;
   })();
@@ -409,19 +436,18 @@
       this.dir = 0;
       this.cnt = 0;
     }
-    Player.prototype.update = function(enemies, keys, mouse) {
+    Player.prototype.update = function(enemies, map, keys, mouse) {
       this.cnt += 1;
       if (this.state.alive) {
         this.set_target(this.get_targets_in_range(enemies, this.sight_range));
-        this.move(keys, mouse);
+        this.move(map, keys, mouse);
         return this.act();
       }
     };
-    Player.prototype.move = function(keys) {
-      var move, s;
-      s = keys.right + keys.left + keys.up + keys.down;
-      if (s > 1) {
-        move = this.speed * Math.sqrt(2) / 2;
+    Player.prototype.move = function(cmap, keys, mouse) {
+      var move;
+      if (keys.right + keys.left + keys.up + keys.down > 1) {
+        move = ~~(this.speed * Math.sqrt(2) / 2);
       } else {
         move = this.speed;
       }
@@ -479,42 +505,48 @@
       this.dir = 0;
       this.cnt = ~~(Math.random() * 24);
     }
-    Enemy.prototype.update = function(players) {
+    Enemy.prototype.update = function(players, cmap) {
       this.cnt += 1;
       if (this.state.alive) {
         this.set_target(this.get_targets_in_range(players, this.sight_range));
-        this.move();
+        this.move(cmap);
         return this.act();
       }
     };
-    Enemy.prototype.move = function() {
-      var distance;
+    Enemy.prototype.move = function(cmap) {
+      var distance, nx, ny;
       if (this.targeting) {
         distance = this.get_distance(this.targeting);
         if (distance > this.atack_range) {
           if (this.x > this.targeting.x) {
-            this.x -= this.speed / 2;
+            nx = this.x - this.speed / 2;
           }
           if (this.x < this.targeting.x) {
-            this.x += this.speed / 2;
+            nx = this.x + this.speed / 2;
           }
           if (this.y < this.targeting.y) {
-            this.y += this.speed / 2;
+            ny = this.y + this.speed / 2;
           }
           if (this.y > this.targeting.y) {
-            return this.y -= this.speed / 2;
+            ny = this.y - this.speed / 2;
           }
         } else {
-          ;
+
         }
       } else {
         if (this.cnt % 24 === 0) {
           this.dir = Math.PI * 2 * Math.random();
         }
         if (this.cnt % 24 < 8) {
-          this.x += ~~(this.speed * Math.cos(this.dir));
-          return this.y += ~~(this.speed * Math.sin(this.dir));
+          nx = this.x + ~~(this.speed * Math.cos(this.dir));
+          ny = this.y + ~~(this.speed * Math.sin(this.dir));
         }
+      }
+      if (nx != null) {
+        this.x = nx;
+      }
+      if (ny != null) {
+        return this.y = ny;
       }
     };
     Enemy.prototype.render = function(g, cam) {
@@ -581,35 +613,37 @@
   FieldScene = (function() {
     __extends(FieldScene, Scene);
     function FieldScene() {
-      var i;
+      var enemy_point, i, start_point;
       FieldScene.__super__.constructor.call(this, "Field");
-      this.player = new Player(0, 0);
+      this.map = new Map(20, 15, 32);
+      start_point = this.map.get_point(1, 1);
+      this.player = new Player(start_point.x, start_point.y);
+      enemy_point = this.map.get_point(3, 1);
       this.enemies = (function() {
         var _results;
         _results = [];
         for (i = 1; i <= 1; i++) {
-          _results.push(new Enemy(50, 50));
+          _results.push(new Enemy(enemy_point.x, enemy_point.y));
         }
         return _results;
       })();
-      this.map = new Map(20, 15, 24);
     }
     FieldScene.prototype.enter = function(keys, mouse) {
       var e, p, _i, _j, _len, _len2, _ref, _ref2;
       _ref = [this.player];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         p = _ref[_i];
-        p.update(this.enemies, keys, mouse);
+        p.update(this.enemies, this.map, keys, mouse);
       }
       _ref2 = this.enemies;
       for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
         e = _ref2[_j];
-        e.update([this.player]);
+        e.update([this.player], this.map);
       }
       return this.name;
     };
     FieldScene.prototype.render = function(g) {
-      var cam, enemy, _i, _len, _ref;
+      var cam, e, enemy, _i, _len, _ref;
       cam = this.player;
       this.map.render(g, cam);
       _ref = this.enemies;
@@ -618,7 +652,10 @@
         enemy.render(g, cam);
       }
       this.player.render(g);
-      return g.fillText("HP " + this.player.status.hp + "/" + this.player.status.MAX_HP, 15, 15);
+      g.fillText("HP " + this.player.status.hp + "/" + this.player.status.MAX_HP, 15, 15);
+      g.fillText("p: " + this.player.x + "." + this.player.y, 15, 25);
+      e = this.enemies[0];
+      return g.fillText("Enemy Pos :" + e.x + "/" + e.y + ":" + this.map.collide(e), 15, 35);
     };
     return FieldScene;
   })();
@@ -657,77 +694,6 @@
         targets_inrange = p.get_targets_in_range(enemies);
         target = p.change_target(targets_inrange);
         return p.atack(target);
-      },
-      topic: "select two targets",
-      'select two': function() {
-        var e, enemies, i, p, targets_inrange, _i, _len, _results;
-        p = new Player(320, 240);
-        enemies = (function() {
-          var _results;
-          _results = [];
-          for (i = 1; i <= 30; i++) {
-            _results.push(new Enemy(~~(Math.random() * 640), ~~(Math.random() * 480)));
-          }
-          return _results;
-        })();
-        _results = [];
-        for (i = 0; i <= 100; i++) {
-          targets_inrange = p.get_targets_in_range(enemies);
-          for (_i = 0, _len = enemies.length; _i < _len; _i++) {
-            e = enemies[_i];
-            e.update([p]);
-          }
-          p.set_target(targets_inrange);
-          _results.push(p.targeting ? p.atack() : void 0);
-        }
-        return _results;
-      },
-      topic: "select update method",
-      'update': function() {
-        var e, enemies, i, p, _i, _len;
-        p = new Player(320, 240);
-        enemies = (function() {
-          var _results;
-          _results = [];
-          for (i = 1; i <= 100; i++) {
-            _results.push(new Enemy(~~(Math.random() * 640), ~~(Math.random() * 480)));
-          }
-          return _results;
-        })();
-        for (i = 1; i <= 10; i++) {
-          p.update(enemies, keys, mouse);
-          for (_i = 0, _len = enemies.length; _i < _len; _i++) {
-            e = enemies[_i];
-            e.update([p]);
-          }
-        }
-        console.log(p.status);
-        return console.log(enemies[0].targeting);
-      },
-      topic: "battle collide",
-      'many vs many': function() {
-        var e, enemies, i, p, players, _i, _j, _len, _len2;
-        players = [new Player(320, 240), new Player(320, 240)];
-        enemies = (function() {
-          var _results;
-          _results = [];
-          for (i = 1; i <= 3; i++) {
-            _results.push(new Enemy(320, 240));
-          }
-          return _results;
-        })();
-        for (i = 1; i <= 100; i++) {
-          for (_i = 0, _len = players.length; _i < _len; _i++) {
-            p = players[_i];
-            p.update(enemies, keys, mouse);
-          }
-          for (_j = 0, _len2 = enemies.length; _j < _len2; _j++) {
-            e = enemies[_j];
-            e.update(players);
-          }
-        }
-        console.log(p.status);
-        return console.log(enemies[0].status);
       },
       topic: "map collide",
       'set pos': function() {

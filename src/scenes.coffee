@@ -32,17 +32,18 @@ class FieldScene extends Scene
     super("Field")
     @map = new Map(20,15, 32)
 
-    start_point = @map.get_point(1,1)
+    start_point = @map.get_point(8,3)
     @player  =  new Player(start_point.x ,start_point.y)
     @enemies = []
-    for i in [1 .. 10]
+    for i in [1 .. 3]
       rpo = @map.get_randpoint()
       @enemies[@enemies.length] = new Enemy(rpo.x, rpo.y)
-    # @enemies = (new Enemy(50, 50) for i in [1..1])
+    # enemy_point = @map.get_point(5,5)
+    # @enemies = (new Enemy(enemy_point.x , enemy_point.y) for i in [1..1])
 
   enter: (keys,mouse) ->
-    p.update(@enemies ,keys,mouse) for p in [@player]
-    e.update([@player]) for e in @enemies
+    p.update(@enemies ,@map , keys,mouse) for p in [@player]
+    e.update([@player], @map) for e in @enemies
     return @name
 
   render: (g)->
@@ -60,3 +61,10 @@ class FieldScene extends Scene
     g.fillText(
         "p: "+@player.x+"."+@player.y
         15,25)
+
+    e = @enemies[0]
+    g.fillText(
+        "Enemy Pos :"+e.x+"/"+e.y+":"+~~(e.dir/Math.PI*180)
+        15,35)
+
+

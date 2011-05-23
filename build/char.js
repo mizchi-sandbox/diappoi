@@ -66,6 +66,16 @@
       g.fillStyle = color;
       return g.globalAlpha = alpha;
     };
+    Sprite.prototype.set_dir = function(x, y) {
+      var rx, ry;
+      rx = x - this.x;
+      ry = y - this.y;
+      if (rx >= 0) {
+        return this.dir = Math.atan(ry / rx);
+      } else {
+        return this.dir = Math.PI - Math.atan(ry / -rx);
+      }
+    };
     return Sprite;
   })();
   Map = (function() {
@@ -84,6 +94,8 @@
         map[i] = [];
         for (j = 0; (0 <= y ? j < y : j > y); (0 <= y ? j += 1 : j -= 1)) {
           if ((i === 0 || i === (x - 1)) || (j === 0 || j === (y - 1))) {
+            map[i][j] = 1;
+          } else if (Math.random() < 0.2) {
             map[i][j] = 1;
           } else {
             map[i][j] = 0;
@@ -128,11 +140,10 @@
       }
       return this.get_point(rx, ry);
     };
-    Map.prototype.collide = function(target) {
-      var x, y;
-      x = ~~(target.x / this.cell);
-      y = ~~(target.y / this.cell);
-      return this._map(x, y);
+    Map.prototype.collide = function(x, y) {
+      x = ~~(x / this.cell);
+      y = ~~(y / this.cell);
+      return this._map[x][y];
     };
     return Map;
   })();
@@ -277,33 +288,38 @@
       this.dir = 0;
       this.cnt = 0;
     }
-    Player.prototype.update = function(enemies, keys, mouse) {
+    Player.prototype.update = function(enemies, map, keys, mouse) {
       this.cnt += 1;
       if (this.state.alive) {
         this.set_target(this.get_targets_in_range(enemies, this.sight_range));
-        this.move(keys, mouse);
+        this.move(map, keys, mouse);
         return this.act();
       }
     };
-    Player.prototype.move = function(keys) {
-      var move, s;
-      s = keys.right + keys.left + keys.up + keys.down;
-      if (s > 1) {
+    Player.prototype.move = function(cmap, keys, mouse) {
+      var move, nx, ny;
+      if (keys.right + keys.left + keys.up + keys.down > 1) {
         move = ~~(this.speed * Math.sqrt(2) / 2);
       } else {
         move = this.speed;
       }
       if (keys.right) {
-        this.x += move;
-      }
-      if (keys.left) {
-        this.x -= move;
+        nx = this.x + move;
+      } else if (keys.left) {
+        nx = this.x - move;
+      } else {
+        nx = this.x;
       }
       if (keys.up) {
-        this.y -= move;
+        ny = this.y - move;
+      } else if (keys.down) {
+        ny = this.y + move;
+      } else {
+        ny = this.y;
       }
-      if (keys.down) {
-        return this.y += move;
+      if (!cmap.collide(nx, ny)) {
+        this.x = nx;
+        return this.y = ny;
       }
     };
     Player.prototype.render = function(g) {
@@ -347,11 +363,11 @@
       this.dir = 0;
       this.cnt = ~~(Math.random() * 24);
     }
-    Enemy.prototype.update = function(players) {
+    Enemy.prototype.update = function(players, cmap) {
       this.cnt += 1;
       if (this.state.alive) {
         this.set_target(this.get_targets_in_range(players, this.sight_range));
-        this.move();
+        this.move(cmap);
         return this.act();
       }
     };
@@ -360,37 +376,32 @@
       if (this.targeting) {
         distance = this.get_distance(this.targeting);
         if (distance > this.atack_range) {
-          if (this.x > this.targeting.x) {
-            nx = this.x - this.speed / 2;
-          }
-          if (this.x < this.targeting.x) {
-            nx = this.x + this.speed / 2;
-          }
-          if (this.y < this.targeting.y) {
-            ny = this.y + this.speed / 2;
-          }
-          if (this.y > this.targeting.y) {
-            ny = this.y - this.speed / 2;
-          }
-          if (!this._map.collide(this)) {
-            this.x = nx;
-            return this.y = ny;
-          }
+          this.set_dir(this.targeting.x, this.targeting.y);
+          nx = this.x + ~~(this.speed * Math.cos(this.dir));
+          ny = this.y + ~~(this.speed * Math.sin(this.dir));
         } else {
-          ;
+
         }
       } else {
         if (this.cnt % 24 === 0) {
           this.dir = Math.PI * 2 * Math.random();
         }
         if (this.cnt % 24 < 8) {
-          this.x += ~~(this.speed * Math.cos(this.dir));
-          return this.y += ~~(this.speed * Math.sin(this.dir));
+          nx = this.x + ~~(this.speed * Math.cos(this.dir));
+          ny = this.y + ~~(this.speed * Math.sin(this.dir));
+        }
+      }
+      if (!cmap.collide(nx, ny)) {
+        if (nx != null) {
+          this.x = nx;
+        }
+        if (ny != null) {
+          return this.y = ny;
         }
       }
     };
     Enemy.prototype.render = function(g, cam) {
-      var alpha, beat, color, ms, pos;
+      var alpha, beat, color, ms, nx, ny, pos;
       my.init_cv(g);
       pos = this.getpos_relative(cam);
       if (this.state.alive) {
@@ -409,6 +420,12 @@
         }
         my.init_cv(g, color = "rgb(50,50,50)", alpha = 0.3);
         g.arc(pos.vx, pos.vy, this.sight_range, 0, Math.PI * 2, true);
+        g.stroke();
+        nx = ~~(30 * Math.cos(this.dir));
+        ny = ~~(30 * Math.sin(this.dir));
+        my.init_cv(g, color = "rgb(255,0,0)");
+        g.moveTo(pos.vx, pos.vy);
+        g.lineTo(pos.vx + nx, pos.vy + ny);
         g.stroke();
         return this._render_gages(g, pos.vx, pos.vy, 30, 6, this.status.wt / this.status.MAX_WT);
       } else {

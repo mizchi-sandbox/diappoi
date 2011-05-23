@@ -114,6 +114,7 @@ class Status
     @hp = @MAX_HP
     @MAX_WT = params.wt or 10
     @wt = 0
+
     @atk = params.atk or 10
     @def = params.def or 1.0
     @res = params.res or 1.0
@@ -142,6 +143,14 @@ class Sprite
     g.fillStyle = color
     g.globalAlpha = alpha
 
+  set_dir: (x,y)->
+    rx = x - @x
+    ry = y - @y
+    if rx >= 0
+      @dir = Math.atan( ry / rx  )
+    else
+      @dir = Math.PI - Math.atan( ry / - rx  )
+
 class Map extends Sprite
   constructor: (@w=10,@h=10,@cell=24) ->
     super 0, 0, @cell
@@ -154,8 +163,8 @@ class Map extends Sprite
       for j in [0 ... y]
         if (i == 0 or i == (x-1) ) or (j == 0 or j == (y-1))
           map[i][j] = 1
-        # else if Math.random() > 0.5
-        #   map[i][j] = 1
+        else if Math.random() < 0.2
+          map[i][j] = 1
         else
           map[i][j] = 0
     return map
@@ -183,10 +192,10 @@ class Map extends Sprite
       return @get_randpoint()
     return @get_point(rx,ry )
 
-  collide: (target)->
-    x = ~~(target.x / @cell)
-    y = ~~(target.y / @cell)
-    return @_map x, y
+  collide: (x,y)->
+    x = ~~(x / @cell)
+    y = ~~(y / @cell)
+    return @_map[x][y]
 
 class Battler extends Sprite
   constructor: (@x=0,@y=0,@scale=10) ->
@@ -294,27 +303,37 @@ class Player extends Battler
     @dir = 0
     @cnt = 0
 
-  update: (enemies,keys,mouse)->
+  update: (enemies, map, keys,mouse)->
     @cnt += 1
     if @state.alive
       @set_target(@get_targets_in_range(enemies,@sight_range))
-      @move(keys,mouse)
+      @move(map, keys,mouse)
       @act()
 
-  move: (keys)->
-    s = keys.right+keys.left+keys.up+keys.down
-    if s > 1
+  move: (cmap , keys, mouse)->
+    if keys.right + keys.left + keys.up + keys.down > 1
       move = ~~(@speed * Math.sqrt(2)/2)
     else
       move = @speed
+
     if keys.right
-      @x += move
-    if keys.left
-      @x -= move
+      nx = @x + move
+    else if keys.left
+      nx = @x - move
+    else
+      nx = @x
+
     if keys.up
-      @y -= move
-    if keys.down
-      @y += move
+      ny = @y - move
+    else if keys.down
+      ny = @y + move
+    else
+      ny = @y
+
+    if not cmap.collide( nx,ny )
+      @x = nx
+      @y = ny
+
 
   render: (g)->
     beat = 20
@@ -351,32 +370,34 @@ class Enemy extends Battler
     @dir = 0
     @cnt = ~~(Math.random() * 24)
 
-  update: (players)->
+  update: (players, cmap)->
     @cnt += 1
     if @state.alive
       @set_target(@get_targets_in_range(players,@sight_range))
-      @move()
+      @move(cmap)
       @act()
 
   move: (cmap)->
     if @targeting
       distance = @get_distance(@targeting)
       if distance > @atack_range
-        nx = @x - @speed/2 if @x > @targeting.x
-        nx = @x + @speed/2 if @x < @targeting.x
-        ny = @y + @speed/2 if @y < @targeting.y
-        ny = @y - @speed/2 if @y > @targeting.y
-        if not @_map.collide( @ )
-          @x = nx
-          @y = ny
+        @set_dir(@targeting.x,@targeting.y)
+        nx = @x + ~~(@speed * Math.cos(@dir))
+        ny = @y + ~~(@speed * Math.sin(@dir))
+      else
+        # stay here
+    else # move freely
+      if @cnt % 24 ==  0
+        @dir = Math.PI * 2 * Math.random()
+      if @cnt % 24 < 8
+        nx = @x + ~~(@speed * Math.cos(@dir))
+        ny = @y + ~~(@speed * Math.sin(@dir))
 
-      else # stay here
-    else
-        if @cnt % 24 ==  0
-            @dir = Math.PI * 2 * Math.random()
-        if @cnt % 24 < 8
-            @x += ~~(@speed * Math.cos(@dir))
-            @y += ~~(@speed * Math.sin(@dir))
+    if not cmap.collide( nx,ny )
+      @x = nx if nx?
+      @y = ny if ny?
+
+
 
   render: (g,cam)->
     my.init_cv(g)
@@ -398,6 +419,15 @@ class Enemy extends Battler
         # sight circle
         my.init_cv(g , color = "rgb(50,50,50)",alpha=0.3)
         g.arc( pos.vx, pos.vy, @sight_range ,0,Math.PI*2,true)
+        g.stroke()
+
+
+        nx = ~~(30 * Math.cos(@dir))
+        ny = ~~(30 * Math.sin(@dir))
+        my.init_cv(g,color="rgb(255,0,0)")
+        g.moveTo( pos.vx , pos.vy )
+        g.lineTo(pos.vx+nx , pos.vy+ny)
+        # g.lineTo(pos.x+nx, pos.y+ny)
         g.stroke()
 
         @_render_gages(g , pos.vx , pos.vy ,30,6,@status.wt/@status.MAX_WT)
@@ -440,17 +470,18 @@ class FieldScene extends Scene
     super("Field")
     @map = new Map(20,15, 32)
 
-    start_point = @map.get_point(1,1)
+    start_point = @map.get_point(8,3)
     @player  =  new Player(start_point.x ,start_point.y)
     @enemies = []
-    for i in [1 .. 10]
+    for i in [1 .. 3]
       rpo = @map.get_randpoint()
       @enemies[@enemies.length] = new Enemy(rpo.x, rpo.y)
-    # @enemies = (new Enemy(50, 50) for i in [1..1])
+    # enemy_point = @map.get_point(5,5)
+    # @enemies = (new Enemy(enemy_point.x , enemy_point.y) for i in [1..1])
 
   enter: (keys,mouse) ->
-    p.update(@enemies ,keys,mouse) for p in [@player]
-    e.update([@player]) for e in @enemies
+    p.update(@enemies ,@map , keys,mouse) for p in [@player]
+    e.update([@player], @map) for e in @enemies
     return @name
 
   render: (g)->
@@ -468,6 +499,13 @@ class FieldScene extends Scene
     g.fillText(
         "p: "+@player.x+"."+@player.y
         15,25)
+
+    e = @enemies[0]
+    g.fillText(
+        "Enemy Pos :"+e.x+"/"+e.y+":"+~~(e.dir/Math.PI*180)
+        15,35)
+
+
 vows = require 'vows'
 assert = require 'assert'
 
@@ -500,46 +538,48 @@ vows.describe('Game Test').addBatch
       target =  p.change_target(targets_inrange)
       p.atack(target)
 
-    topic: "select two targets"
-    'select two': ()->
-      p = new Player(320,240)
-      enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..30])
-      for i in [0..100]
-        targets_inrange =  p.get_targets_in_range(enemies)
-        e.update([p]) for e in enemies
-        p.set_target(targets_inrange)
-        # p.change_target(targets_inrange)
-        if p.targeting
-          # console.log(p.targeting.id+ ":" +p.targeting.status.hp)
-          p.atack()
-        else
-          # console.log "no"
+    # topic: "select two targets"
+    # 'select two': ()->
+    #   p = new Player(320,240)
+    #   enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..30])
+    #   for i in [0..100]
+    #     targets_inrange =  p.get_targets_in_range(enemies)
+    #     e.update([p]) for e in enemies
+    #     p.set_target(targets_inrange)
+    #     # p.change_target(targets_inrange)
+    #     if p.targeting
+    #       # console.log(p.targeting.id+ ":" +p.targeting.status.hp)
+    #       p.atack()
+    #     else
+    #       # console.log "no"
 
-    topic: "select update method"
-    'update': ()->
-      p = new Player(320,240)
-      enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..100])
-      for i in [1..10]
-        p.update(enemies,keys,mouse)
-        e.update([p]) for e in enemies
-      console.log p.status
-      console.log enemies[0].targeting
+    # topic: "select update method"
+    # 'update': ()->
+    #   p = new Player(320,240)
+    #   enemies = ( new Enemy( ~~(Math.random()*640),~~(Math.random()*480)) for i in [1..100])
+    #   for i in [1..10]
+    #     p.update(enemies,keys,mouse)
+    #     e.update([p]) for e in enemies
+    #   console.log p.status
+    #   console.log enemies[0].targeting
 
-    topic: "battle collide"
-    'many vs many': ()->
-      players = [new Player(320,240) , new Player(320,240) ]
-      enemies = (new Enemy 320,240  for i in [1..3])
+    # topic: "battle collide"
+    # 'many vs many': ()->
+    #   players = [new Player(320,240) , new Player(320,240) ]
+    #   enemies = (new Enemy 320,240  for i in [1..3])
 
-      for i in [1..100]
-        p.update(enemies, keys,mouse) for p in players
-        e.update(players) for e in enemies
-      console.log p.status
-      console.log enemies[0].status
+    #   for i in [1..100]
+    #     p.update(enemies, keys,mouse) for p in players
+    #     e.update(players) for e in enemies
+    #   console.log p.status
+    #   console.log enemies[0].status
 
     topic: "map collide"
     'set pos': ()->
       p = new Player 320,240
       e = new Enemy 320,240
+
+
 
     #   players = new Player(320,240)
     #   for i in [1..100]

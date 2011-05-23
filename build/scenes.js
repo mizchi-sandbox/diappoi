@@ -45,10 +45,10 @@
       var i, rpo, start_point;
       FieldScene.__super__.constructor.call(this, "Field");
       this.map = new Map(20, 15, 32);
-      start_point = this.map.get_point(1, 1);
+      start_point = this.map.get_point(8, 3);
       this.player = new Player(start_point.x, start_point.y);
       this.enemies = [];
-      for (i = 1; i <= 10; i++) {
+      for (i = 1; i <= 3; i++) {
         rpo = this.map.get_randpoint();
         this.enemies[this.enemies.length] = new Enemy(rpo.x, rpo.y);
       }
@@ -58,17 +58,17 @@
       _ref = [this.player];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         p = _ref[_i];
-        p.update(this.enemies, keys, mouse);
+        p.update(this.enemies, this.map, keys, mouse);
       }
       _ref2 = this.enemies;
       for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
         e = _ref2[_j];
-        e.update([this.player]);
+        e.update([this.player], this.map);
       }
       return this.name;
     };
     FieldScene.prototype.render = function(g) {
-      var cam, enemy, _i, _len, _ref;
+      var cam, e, enemy, _i, _len, _ref;
       cam = this.player;
       this.map.render(g, cam);
       _ref = this.enemies;
@@ -78,7 +78,9 @@
       }
       this.player.render(g);
       g.fillText("HP " + this.player.status.hp + "/" + this.player.status.MAX_HP, 15, 15);
-      return g.fillText("p: " + this.player.x + "." + this.player.y, 15, 25);
+      g.fillText("p: " + this.player.x + "." + this.player.y, 15, 25);
+      e = this.enemies[0];
+      return g.fillText("Enemy Pos :" + e.x + "/" + e.y + ":" + ~~(e.dir / Math.PI * 180), 15, 35);
     };
     return FieldScene;
   })();

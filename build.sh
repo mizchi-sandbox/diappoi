@@ -32,8 +32,8 @@ TARGET_EXEC="exec"
 TARGET_TEST="test"
 BUILDOUT=ge.coffee
 BUILDOUT=ge.js
-TEST_BUILDOUT=test.coffee
-TEST_BUILDOUT_JS=test.js
+TEST_BUILDOUT=test_all.coffee
+TEST_BUILDOUT_JS=test_all.js
 
 echo ========== build ==========
 echo "##" ${BUILDOUT} "##" > base.coffee
