@@ -4,88 +4,14 @@ class Status
     @hp = @MAX_HP
     @MAX_WT = params.wt or 10
     @wt = 0
+    @MAX_SP = params.sp or 10
+    @sp = @MAX_SP
 
     @atk = params.atk or 10
     @def = params.def or 1.0
     @res = params.res or 1.0
+    @regenerate = params.regenerate or 3
 
-class Sprite
-  constructor: (@x=0,@y=0,@scale=10) ->
-  render: (g)->
-    g.beginPath()
-    g.arc(@x,@y, 15 - ms ,0,Math.PI*2,true)
-    g.stroke()
-
-  get_distance: (target)->
-    xd = Math.pow (@x-target.x) ,2
-    yd = Math.pow (@y-target.y) ,2
-    return Math.sqrt xd+yd
-
-  getpos_relative:(cam)->
-    pos =
-      vx : 320 + @x - cam.x
-      vy : 240 + @y - cam.y
-    return pos
-
-  init_cv: (g,color="rgb(255,255,255)",alpha=1)->
-    g.beginPath()
-    g.strokeStyle = color
-    g.fillStyle = color
-    g.globalAlpha = alpha
-
-  set_dir: (x,y)->
-    rx = x - @x
-    ry = y - @y
-    if rx >= 0
-      @dir = Math.atan( ry / rx  )
-    else
-      @dir = Math.PI - Math.atan( ry / - rx  )
-
-class Map extends Sprite
-  constructor: (@w=10,@h=10,@cell=24) ->
-    super 0, 0, @cell
-    @_map = @gen_map(@w,@h)
-
-  gen_map:(x,y)->
-    map = []
-    for i in [0 ... x]
-      map[i] = []
-      for j in [0 ... y]
-        if (i == 0 or i == (x-1) ) or (j == 0 or j == (y-1))
-          map[i][j] = 1
-        else if Math.random() < 0.2
-          map[i][j] = 1
-        else
-          map[i][j] = 0
-    return map
-
-  render: (g,cam)->
-    pos = @getpos_relative(cam)
-    for i in [0 ... @_map.length]
-      for j in [0 ... @_map[i].length]
-        if @_map[i][j]
-          my.init_cv(g , color = "rgb(0,0,0)",alpha=0.5)
-        else
-          my.init_cv(g , color = "rgb(250,250,250)",alpha=0.5)
-        g.fillRect(
-          pos.vx + i * @cell,
-          pos.vy + j * @cell,
-          @cell , @cell)
-
-  get_point: (x,y)->
-    return {x:~~((x+1/2) *  @cell ),y:~~((y+1/2) * @cell) }
-
-  get_randpoint: ()->
-    rx = ~~(Math.random()*@w)
-    ry = ~~(Math.random()*@h)
-    if @_map[rx][ry]
-      return @get_randpoint()
-    return @get_point(rx,ry )
-
-  collide: (x,y)->
-    x = ~~(x / @cell)
-    y = ~~(y / @cell)
-    return @_map[x][y]
 
 class Battler extends Sprite
   constructor: (@x=0,@y=0,@scale=10) ->
@@ -100,12 +26,29 @@ class Battler extends Sprite
     @targeting = null
     @id = ~~(Math.random() * 100)
 
+  update:()->
+    @cnt += 1
+    @regenerate()
+    @check_state()
 
-  update:(targets, keys , mouse)->
-    targets_inrange = @get_targets_in_range(targets,@sight_range)
-    target = @set_target(targets_inrange)
-    @move(target)
-    @act(target)
+  check_state:()->
+    if @state.poizon
+       @status.hp -= 1
+
+    if @status.hp < 1
+      @status.hp = 0
+      @state.alive = false
+
+    if @status.hp > @status.MAX_HP
+      @status.hp = @status.MAX_HP
+      @state.alive = true
+
+  regenerate: ()->
+    if @targeting then r = 2 else r = 1
+
+    if not (@cnt % (24/@status.regenerate*r)) and @state.alive
+      if @status.hp < @status.MAX_HP
+          @status.hp += 1
 
   act:(target=@targeting)->
     if @targeting
@@ -123,12 +66,11 @@ class Battler extends Sprite
       @status.wt = 0
 
   move:(x,y)-> #abstract
+  invoke: (target)->
 
   atack: (target=@targeting)->
     target.status.hp -= ~~(@status.atk * ( target.status.def + Math.random()/4 ))
-    if target.status.hp <= 0
-        target.state.alive = false
-        @targeting = null
+    target.check_state()
 
   set_target:(targets)->
     if targets.length == 0
@@ -136,25 +78,21 @@ class Battler extends Sprite
     else if not @targeting and targets.length > 0
       @targeting = targets[0]
 
-  change_target:(targets)->
+  change_target:(targets=@targeting)->
     # TODO: implement hate control
     if targets.length > 0
-      if not @targeting in targets # target go out
+      if not @targeting in targets # before target go out
         @targeting = targets[0]    #   focus anyone
-        return @targeting
       else if targets.length == 1  # one target in range
         @targeting = targets[0]    #   focus that target
-        return @targeting
-      else if targets.length > 1   # 2 over target
+      else if targets.length > 1   # over 2 target
         if @targeting              #   toggle target
           for i in [0...targets.length]
             if targets[i] is @targeting
-              if i < targets.length
-                @targeting = targets[i+1]
-                return @targeting
-              else
+              if targets.length == i+1
                 @targeting = targets[0]
-                return @targeting
+              else
+                @targeting = targets[i+1]
         else
           @targeting = targets[0]
           return @targeting
@@ -179,6 +117,22 @@ class Battler extends Sprite
     my.init_cv(g,"rgb(0, 100, e55)")
     my.render_rest_gage(g,x,y+25,w,h,@status.wt/@status.MAX_WT)
 
+  render_targeted: (g,cam)->
+    my.init_cv(g)
+    pos = @getpos_relative(cam)
+
+    beat = 24
+    ms = ~~(new Date()/100) % beat / beat
+    ms = 1 - ms if ms > 0.5
+
+    @init_cv(g,color="rgb(255,0,0)",alpha=0.7)
+    g.moveTo(pos.vx,pos.vy-12+ms*10)
+    g.lineTo(pos.vx-6-ms*5,pos.vy-20+ms*10)
+    g.lineTo(pos.vx+6+ms*5,pos.vy-20+ms*10)
+    g.lineTo(pos.vx,pos.vy-12+ms*10)
+
+    g.fill()
+
 class Player extends Battler
   constructor: (@x,@y) ->
     super(@x,@y)
@@ -188,19 +142,51 @@ class Player extends Battler
       atk : 10
       def: 0.8
     @status = new Status(status)
+
+    self = @
+
+    @binded_skill =
+      one: new Skill_Heal()
+      two: new Skill_Smash()
+      three: new Skill_Meteor()
+
     @speed = 6
     @atack_range = 50
     @dir = 0
     @cnt = 0
 
-  update: (enemies, map, keys,mouse)->
-    @cnt += 1
+  update: (enemies, map, keys,@mouse)->
+    super()
     if @state.alive
+      if keys.space
+        @change_target()
       @set_target(@get_targets_in_range(enemies,@sight_range))
       @move(map, keys,mouse)
-      @act()
+      @act(keys,enemies)
+
+  act: (keys,enemies)->
+     super()
+     @invoke(keys,enemies)
+
+  invoke: (keys,enemies)->
+    list = ["zero","one","two","three","four","five","six","seven","eight","nine"]
+    for i in list
+      if @binded_skill[i]
+        if keys[i]
+          @binded_skill[i].do(@,enemies)
+        else
+          @binded_skill[i].charge()
+
+  set_dir: (x,y)->
+    rx = x - 320
+    ry = y - 240
+    if rx >= 0
+      @dir = Math.atan( ry / rx  )
+    else
+      @dir = Math.PI - Math.atan( ry / - rx  )
 
   move: (cmap , keys, mouse)->
+    @dir = @set_dir(mouse.x , mouse.y)
     if keys.right + keys.left + keys.up + keys.down > 1
       move = ~~(@speed * Math.sqrt(2)/2)
     else
@@ -249,6 +235,34 @@ class Player extends Battler
     g.arc(320,240, @atack_range ,  0 , Math.PI*2,true)
     g.stroke()
     @_render_gages(g,320,240,40,6,@status.hp/@status.MAX_HP)
+    @targeting.render_targeted(g, @) if @targeting
+    @render_mouse(g)
+
+    # list = ["zero","one","two","three","four","five","six","seven","eight","nine"]
+    # for i in list
+    #   s = @binded_skill[i]
+    #   g.fillText("CT "+(m-~~((s.MAX_CT-s.ct)/24))+"/"+m ,10+70*c,460 )
+
+    c = 0
+    for k,v of @binded_skill
+      @init_cv(g)
+      m = ~~(v.MAX_CT/24)
+      g.fillText(v.name ,10+50*c,450 )
+      g.fillText((m-~~((v.MAX_CT-v.ct)/24))+"/"+m ,10+50*c,460 )
+      c++;
+
+  render_mouse: (g)->
+    my.init_cv(g,"rgb(200, 200, 50)")
+    g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
+    g.stroke()
+
+    # nx = ~~(30 * Math.cos(@dir))
+    # ny = ~~(30 * Math.sin(@dir))
+    # my.init_cv(g,color="rgb(255,0,0)",alpha=0.4)
+    # g.moveTo( 320 , 240 )
+    # g.arc(320,240, @atack_range , @dir-Math.PI/12, @dir+Math.PI/12,false)
+    # g.moveTo( 320 , 240 )
+    # g.fill()
 
 class Enemy extends Battler
   constructor: (@x,@y) ->
@@ -259,7 +273,7 @@ class Enemy extends Battler
       atk : 10
       def: 1.0
     @status = new Status(status)
-    @atack_range = 20
+    @atack_range = 30
     @sight_range = 80
 
     @speed = 6
@@ -267,7 +281,7 @@ class Enemy extends Battler
     @cnt = ~~(Math.random() * 24)
 
   update: (players, cmap)->
-    @cnt += 1
+    super()
     if @state.alive
       @set_target(@get_targets_in_range(players,@sight_range))
       @move(cmap)
@@ -299,34 +313,41 @@ class Enemy extends Battler
     my.init_cv(g)
     pos = @getpos_relative(cam)
     if @state.alive
-        g.fillStyle = 'rgb(255, 255, 255)'
-        beat = 20
-        ms = ~~(new Date()/100) % beat / beat
-        ms = 1 - ms if ms > 0.5
-        g.arc( pos.vx, pos.vy, ( 1.3 + ms ) * @scale ,0,Math.PI*2,true)
-        g.fill()
+      g.fillStyle = 'rgb(255, 255, 255)'
+      beat = 20
+      ms = ~~(new Date()/100) % beat / beat
+      ms = 1 - ms if ms > 0.5
+      g.arc( pos.vx, pos.vy, ( 1.3 + ms ) * @scale ,0,Math.PI*2,true)
+      g.fill()
 
-        # active circle
-        if @state.active
-            my.init_cv(g , color = "rgb(255,0,0)")
-            g.arc(pos.vx, pos.vy , @scale*0.4 ,0,Math.PI*2,true)
-            g.fill()
+      # active circle
+      if @targeting
+          my.init_cv(g , color = "rgb(255,0,0)")
+          g.arc(pos.vx, pos.vy , @scale*0.7 ,0,Math.PI*2,true)
+          g.fill()
 
-        # sight circle
-        my.init_cv(g , color = "rgb(50,50,50)",alpha=0.3)
-        g.arc( pos.vx, pos.vy, @sight_range ,0,Math.PI*2,true)
+      # sight circle
+      my.init_cv(g , color = "rgb(50,50,50)",alpha=0.3)
+      g.arc( pos.vx, pos.vy, @sight_range ,0,Math.PI*2,true)
+      g.stroke()
+
+
+      nx = ~~(30 * Math.cos(@dir))
+      ny = ~~(30 * Math.sin(@dir))
+      my.init_cv(g,color="rgb(255,0,0)")
+      g.moveTo( pos.vx , pos.vy )
+      g.lineTo(pos.vx+nx , pos.vy+ny)
+      g.stroke()
+
+      @_render_gages(g , pos.vx , pos.vy ,30,6,@status.wt/@status.MAX_WT)
+      if @targeting
+        @targeting.render_targeted(g,cam)
+        @init_cv(g,color="rgb(0,0,255)",alpha=0.5)
+        g.moveTo(pos.vx,pos.vy)
+        t = @targeting.getpos_relative(cam)
+        g.lineTo(t.vx,t.vy)
         g.stroke()
 
-
-        nx = ~~(30 * Math.cos(@dir))
-        ny = ~~(30 * Math.sin(@dir))
-        my.init_cv(g,color="rgb(255,0,0)")
-        g.moveTo( pos.vx , pos.vy )
-        g.lineTo(pos.vx+nx , pos.vy+ny)
-        # g.lineTo(pos.x+nx, pos.y+ny)
-        g.stroke()
-
-        @_render_gages(g , pos.vx , pos.vy ,30,6,@status.wt/@status.MAX_WT)
     else
         g.fillStyle = 'rgb(55, 55, 55)'
         g.arc(pos.vx,pos.vy, @scale ,0,Math.PI*2,true)

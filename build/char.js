@@ -1,5 +1,5 @@
 (function() {
-  var Battler, Enemy, Map, Player, Sprite, Status;
+  var Battler, Enemy, Player, Status;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -23,129 +23,14 @@
       this.hp = this.MAX_HP;
       this.MAX_WT = params.wt || 10;
       this.wt = 0;
+      this.MAX_SP = params.sp || 10;
+      this.sp = this.MAX_SP;
       this.atk = params.atk || 10;
       this.def = params.def || 1.0;
       this.res = params.res || 1.0;
+      this.regenerate = params.regenerate || 3;
     }
     return Status;
-  })();
-  Sprite = (function() {
-    function Sprite(x, y, scale) {
-      this.x = x != null ? x : 0;
-      this.y = y != null ? y : 0;
-      this.scale = scale != null ? scale : 10;
-    }
-    Sprite.prototype.render = function(g) {
-      g.beginPath();
-      g.arc(this.x, this.y, 15 - ms, 0, Math.PI * 2, true);
-      return g.stroke();
-    };
-    Sprite.prototype.get_distance = function(target) {
-      var xd, yd;
-      xd = Math.pow(this.x - target.x, 2);
-      yd = Math.pow(this.y - target.y, 2);
-      return Math.sqrt(xd + yd);
-    };
-    Sprite.prototype.getpos_relative = function(cam) {
-      var pos;
-      pos = {
-        vx: 320 + this.x - cam.x,
-        vy: 240 + this.y - cam.y
-      };
-      return pos;
-    };
-    Sprite.prototype.init_cv = function(g, color, alpha) {
-      if (color == null) {
-        color = "rgb(255,255,255)";
-      }
-      if (alpha == null) {
-        alpha = 1;
-      }
-      g.beginPath();
-      g.strokeStyle = color;
-      g.fillStyle = color;
-      return g.globalAlpha = alpha;
-    };
-    Sprite.prototype.set_dir = function(x, y) {
-      var rx, ry;
-      rx = x - this.x;
-      ry = y - this.y;
-      if (rx >= 0) {
-        return this.dir = Math.atan(ry / rx);
-      } else {
-        return this.dir = Math.PI - Math.atan(ry / -rx);
-      }
-    };
-    return Sprite;
-  })();
-  Map = (function() {
-    __extends(Map, Sprite);
-    function Map(w, h, cell) {
-      this.w = w != null ? w : 10;
-      this.h = h != null ? h : 10;
-      this.cell = cell != null ? cell : 24;
-      Map.__super__.constructor.call(this, 0, 0, this.cell);
-      this._map = this.gen_map(this.w, this.h);
-    }
-    Map.prototype.gen_map = function(x, y) {
-      var i, j, map;
-      map = [];
-      for (i = 0; (0 <= x ? i < x : i > x); (0 <= x ? i += 1 : i -= 1)) {
-        map[i] = [];
-        for (j = 0; (0 <= y ? j < y : j > y); (0 <= y ? j += 1 : j -= 1)) {
-          if ((i === 0 || i === (x - 1)) || (j === 0 || j === (y - 1))) {
-            map[i][j] = 1;
-          } else if (Math.random() < 0.2) {
-            map[i][j] = 1;
-          } else {
-            map[i][j] = 0;
-          }
-        }
-      }
-      return map;
-    };
-    Map.prototype.render = function(g, cam) {
-      var alpha, color, i, j, pos, _ref, _results;
-      pos = this.getpos_relative(cam);
-      _results = [];
-      for (i = 0, _ref = this._map.length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
-        _results.push((function() {
-          var _ref, _results;
-          _results = [];
-          for (j = 0, _ref = this._map[i].length; (0 <= _ref ? j < _ref : j > _ref); (0 <= _ref ? j += 1 : j -= 1)) {
-            if (this._map[i][j]) {
-              my.init_cv(g, color = "rgb(0,0,0)", alpha = 0.5);
-            } else {
-              my.init_cv(g, color = "rgb(250,250,250)", alpha = 0.5);
-            }
-            _results.push(g.fillRect(pos.vx + i * this.cell, pos.vy + j * this.cell, this.cell, this.cell));
-          }
-          return _results;
-        }).call(this));
-      }
-      return _results;
-    };
-    Map.prototype.get_point = function(x, y) {
-      return {
-        x: ~~((x + 1 / 2) * this.cell),
-        y: ~~((y + 1 / 2) * this.cell)
-      };
-    };
-    Map.prototype.get_randpoint = function() {
-      var rx, ry;
-      rx = ~~(Math.random() * this.w);
-      ry = ~~(Math.random() * this.h);
-      if (this._map[rx][ry]) {
-        return this.get_randpoint();
-      }
-      return this.get_point(rx, ry);
-    };
-    Map.prototype.collide = function(x, y) {
-      x = ~~(x / this.cell);
-      y = ~~(y / this.cell);
-      return this._map[x][y];
-    };
-    return Map;
   })();
   Battler = (function() {
     __extends(Battler, Sprite);
@@ -164,12 +49,36 @@
       this.targeting = null;
       this.id = ~~(Math.random() * 100);
     }
-    Battler.prototype.update = function(targets, keys, mouse) {
-      var target, targets_inrange;
-      targets_inrange = this.get_targets_in_range(targets, this.sight_range);
-      target = this.set_target(targets_inrange);
-      this.move(target);
-      return this.act(target);
+    Battler.prototype.update = function() {
+      this.cnt += 1;
+      this.regenerate();
+      return this.check_state();
+    };
+    Battler.prototype.check_state = function() {
+      if (this.state.poizon) {
+        this.status.hp -= 1;
+      }
+      if (this.status.hp < 1) {
+        this.status.hp = 0;
+        this.state.alive = false;
+      }
+      if (this.status.hp > this.status.MAX_HP) {
+        this.status.hp = this.status.MAX_HP;
+        return this.state.alive = true;
+      }
+    };
+    Battler.prototype.regenerate = function() {
+      var r;
+      if (this.targeting) {
+        r = 2;
+      } else {
+        r = 1;
+      }
+      if (!(this.cnt % (24 / this.status.regenerate * r)) && this.state.alive) {
+        if (this.status.hp < this.status.MAX_HP) {
+          return this.status.hp += 1;
+        }
+      }
     };
     Battler.prototype.act = function(target) {
       var d;
@@ -195,15 +104,13 @@
       }
     };
     Battler.prototype.move = function(x, y) {};
+    Battler.prototype.invoke = function(target) {};
     Battler.prototype.atack = function(target) {
       if (target == null) {
         target = this.targeting;
       }
       target.status.hp -= ~~(this.status.atk * (target.status.def + Math.random() / 4));
-      if (target.status.hp <= 0) {
-        target.state.alive = false;
-        return this.targeting = null;
-      }
+      return target.check_state();
     };
     Battler.prototype.set_target = function(targets) {
       if (targets.length === 0) {
@@ -214,26 +121,19 @@
     };
     Battler.prototype.change_target = function(targets) {
       var i, _ref, _ref2, _results;
+      if (targets == null) {
+        targets = this.targeting;
+      }
       if (targets.length > 0) {
         if (_ref = !this.targeting, __indexOf.call(targets, _ref) >= 0) {
-          this.targeting = targets[0];
-          return this.targeting;
+          return this.targeting = targets[0];
         } else if (targets.length === 1) {
-          this.targeting = targets[0];
-          return this.targeting;
+          return this.targeting = targets[0];
         } else if (targets.length > 1) {
           if (this.targeting) {
             _results = [];
             for (i = 0, _ref2 = targets.length; (0 <= _ref2 ? i < _ref2 : i > _ref2); (0 <= _ref2 ? i += 1 : i -= 1)) {
-              if (targets[i] === this.targeting) {
-                if (i < targets.length) {
-                  this.targeting = targets[i + 1];
-                  return this.targeting;
-                } else {
-                  this.targeting = targets[0];
-                  return this.targeting;
-                }
-              }
+              _results.push(targets[i] === this.targeting ? targets.length === i + 1 ? this.targeting = targets[0] : this.targeting = targets[i + 1] : void 0);
             }
             return _results;
           } else {
@@ -267,12 +167,28 @@
       my.init_cv(g, "rgb(0, 100, e55)");
       return my.render_rest_gage(g, x, y + 25, w, h, this.status.wt / this.status.MAX_WT);
     };
+    Battler.prototype.render_targeted = function(g, cam) {
+      var alpha, beat, color, ms, pos;
+      my.init_cv(g);
+      pos = this.getpos_relative(cam);
+      beat = 24;
+      ms = ~~(new Date() / 100) % beat / beat;
+      if (ms > 0.5) {
+        ms = 1 - ms;
+      }
+      this.init_cv(g, color = "rgb(255,0,0)", alpha = 0.7);
+      g.moveTo(pos.vx, pos.vy - 12 + ms * 10);
+      g.lineTo(pos.vx - 6 - ms * 5, pos.vy - 20 + ms * 10);
+      g.lineTo(pos.vx + 6 + ms * 5, pos.vy - 20 + ms * 10);
+      g.lineTo(pos.vx, pos.vy - 12 + ms * 10);
+      return g.fill();
+    };
     return Battler;
   })();
   Player = (function() {
     __extends(Player, Battler);
     function Player(x, y) {
-      var status;
+      var self, status;
       this.x = x;
       this.y = y;
       Player.__super__.constructor.call(this, this.x, this.y);
@@ -283,21 +199,56 @@
         def: 0.8
       };
       this.status = new Status(status);
+      self = this;
+      this.binded_skill = {
+        one: new Skill_Heal(),
+        two: new Skill_Smash(),
+        three: new Skill_Meteor()
+      };
       this.speed = 6;
       this.atack_range = 50;
       this.dir = 0;
       this.cnt = 0;
     }
     Player.prototype.update = function(enemies, map, keys, mouse) {
-      this.cnt += 1;
+      this.mouse = mouse;
+      Player.__super__.update.call(this);
       if (this.state.alive) {
+        if (keys.space) {
+          this.change_target();
+        }
         this.set_target(this.get_targets_in_range(enemies, this.sight_range));
         this.move(map, keys, mouse);
-        return this.act();
+        return this.act(keys, enemies);
+      }
+    };
+    Player.prototype.act = function(keys, enemies) {
+      Player.__super__.act.call(this);
+      return this.invoke(keys, enemies);
+    };
+    Player.prototype.invoke = function(keys, enemies) {
+      var i, list, _i, _len, _results;
+      list = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+      _results = [];
+      for (_i = 0, _len = list.length; _i < _len; _i++) {
+        i = list[_i];
+        _results.push(this.binded_skill[i] ? keys[i] ? this.binded_skill[i]["do"](this, enemies) : this.binded_skill[i].charge() : void 0);
+      }
+      return _results;
+    };
+    Player.prototype.set_dir = function(x, y) {
+      var rx, ry;
+      rx = x - 320;
+      ry = y - 240;
+      if (rx >= 0) {
+        return this.dir = Math.atan(ry / rx);
+      } else {
+        return this.dir = Math.PI - Math.atan(ry / -rx);
       }
     };
     Player.prototype.move = function(cmap, keys, mouse) {
       var move;
+      this.dir = this.set_dir(mouse.x, mouse.y);
       if (keys.right + keys.left + keys.up + keys.down > 1) {
         move = ~~(this.speed * Math.sqrt(2) / 2);
       } else {
@@ -333,7 +284,7 @@
       }
     };
     Player.prototype.render = function(g) {
-      var beat, ms, roll;
+      var beat, c, k, m, ms, roll, v, _ref, _results;
       beat = 20;
       my.init_cv(g, "rgb(0, 0, 162)");
       ms = ~~(new Date() / 100) % beat / beat;
@@ -349,7 +300,28 @@
       my.init_cv(g, "rgb(255, 0, 0)");
       g.arc(320, 240, this.atack_range, 0, Math.PI * 2, true);
       g.stroke();
-      return this._render_gages(g, 320, 240, 40, 6, this.status.hp / this.status.MAX_HP);
+      this._render_gages(g, 320, 240, 40, 6, this.status.hp / this.status.MAX_HP);
+      if (this.targeting) {
+        this.targeting.render_targeted(g, this);
+      }
+      this.render_mouse(g);
+      c = 0;
+      _ref = this.binded_skill;
+      _results = [];
+      for (k in _ref) {
+        v = _ref[k];
+        this.init_cv(g);
+        m = ~~(v.MAX_CT / 24);
+        g.fillText(v.name, 10 + 50 * c, 450);
+        g.fillText((m - ~~((v.MAX_CT - v.ct) / 24)) + "/" + m, 10 + 50 * c, 460);
+        _results.push(c++);
+      }
+      return _results;
+    };
+    Player.prototype.render_mouse = function(g) {
+      my.init_cv(g, "rgb(200, 200, 50)");
+      g.arc(this.mouse.x, this.mouse.y, this.scale, 0, Math.PI * 2, true);
+      return g.stroke();
     };
     return Player;
   })();
@@ -367,14 +339,14 @@
         def: 1.0
       };
       this.status = new Status(status);
-      this.atack_range = 20;
+      this.atack_range = 30;
       this.sight_range = 80;
       this.speed = 6;
       this.dir = 0;
       this.cnt = ~~(Math.random() * 24);
     }
     Enemy.prototype.update = function(players, cmap) {
-      this.cnt += 1;
+      Enemy.__super__.update.call(this);
       if (this.state.alive) {
         this.set_target(this.get_targets_in_range(players, this.sight_range));
         this.move(cmap);
@@ -411,7 +383,7 @@
       }
     };
     Enemy.prototype.render = function(g, cam) {
-      var alpha, beat, color, ms, nx, ny, pos;
+      var alpha, beat, color, ms, nx, ny, pos, t;
       my.init_cv(g);
       pos = this.getpos_relative(cam);
       if (this.state.alive) {
@@ -423,9 +395,9 @@
         }
         g.arc(pos.vx, pos.vy, (1.3 + ms) * this.scale, 0, Math.PI * 2, true);
         g.fill();
-        if (this.state.active) {
+        if (this.targeting) {
           my.init_cv(g, color = "rgb(255,0,0)");
-          g.arc(pos.vx, pos.vy, this.scale * 0.4, 0, Math.PI * 2, true);
+          g.arc(pos.vx, pos.vy, this.scale * 0.7, 0, Math.PI * 2, true);
           g.fill();
         }
         my.init_cv(g, color = "rgb(50,50,50)", alpha = 0.3);
@@ -437,7 +409,15 @@
         g.moveTo(pos.vx, pos.vy);
         g.lineTo(pos.vx + nx, pos.vy + ny);
         g.stroke();
-        return this._render_gages(g, pos.vx, pos.vy, 30, 6, this.status.wt / this.status.MAX_WT);
+        this._render_gages(g, pos.vx, pos.vy, 30, 6, this.status.wt / this.status.MAX_WT);
+        if (this.targeting) {
+          this.targeting.render_targeted(g, cam);
+          this.init_cv(g, color = "rgb(0,0,255)", alpha = 0.5);
+          g.moveTo(pos.vx, pos.vy);
+          t = this.targeting.getpos_relative(cam);
+          g.lineTo(t.vx, t.vy);
+          return g.stroke();
+        }
       } else {
         g.fillStyle = 'rgb(55, 55, 55)';
         g.arc(pos.vx, pos.vy, this.scale, 0, Math.PI * 2, true);

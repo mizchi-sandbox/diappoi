@@ -44,7 +44,7 @@
     function FieldScene() {
       var start_point;
       FieldScene.__super__.constructor.call(this, "Field");
-      this.map = new Map(20, 15, 32);
+      this.map = new Map(40, 40, 32);
       start_point = this.map.get_point(8, 3);
       this.player = new Player(start_point.x, start_point.y);
       this.enemies = [];
@@ -61,7 +61,7 @@
         e = _ref2[_j];
         e.update([this.player], this.map);
       }
-      if (this.enemies.length < 4) {
+      if (this.enemies.length < 20) {
         rpo = this.map.get_randpoint();
         this.enemies[this.enemies.length] = new Enemy(rpo.x, rpo.y);
       } else {
@@ -75,7 +75,7 @@
       return this.name;
     };
     FieldScene.prototype.render = function(g) {
-      var cam, e, enemy, _i, _len, _ref;
+      var cam, enemy, _i, _len, _ref;
       cam = this.player;
       this.map.render(g, cam);
       _ref = this.enemies;
@@ -84,10 +84,12 @@
         enemy.render(g, cam);
       }
       this.player.render(g);
+      my.init_cv(g);
       g.fillText("HP " + this.player.status.hp + "/" + this.player.status.MAX_HP, 15, 15);
       g.fillText("p: " + this.player.x + "." + this.player.y, 15, 25);
-      e = this.enemies[0];
-      return g.fillText("Enemy Pos :" + e.x + "/" + e.y + ":" + ~~(e.dir / Math.PI * 180), 15, 35);
+      if (this.player.targeting) {
+        return g.fillText("p: " + this.player.targeting.status.hp + "." + this.player.targeting.status.MAX_HP, 15, 35);
+      }
     };
     return FieldScene;
   })();

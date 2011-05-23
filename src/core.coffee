@@ -10,6 +10,17 @@ class Game
         right : 0
         up : 0
         down : 0
+        space : 0
+        one : 0
+        two : 0
+        three : 0
+        four : 0
+        five : 0
+        six : 0
+        seven : 0
+        eight : 0
+        nine : 0
+        zero : 0
     @mouse = x : 0, y : 0
     @scenes =
       # "Opening": new OpeningScene()
@@ -34,6 +45,17 @@ class Game
       when 83,40 then self.keys.down = to
       when 32 then self.keys.space = to
       when 17 then self.keys.ctrl = to
+
+      when 48 then self.keys.zero = to
+      when 49 then self.keys.one = to
+      when 50 then self.keys.two = to
+      when 51 then self.keys.three = to
+      when 52 then self.keys.four = to
+      when 53 then self.keys.five = to
+      when 54 then self.keys.sixe = to
+      when 55 then self.keys.seven = to
+      when 56 then self.keys.eight = to
+      when 57 then self.keys.nine = to
 
   draw: (scene) ->
     @g.clearRect(0,0,@config.WINDOW_WIDTH ,@config.WINDOW_HEIGHT)

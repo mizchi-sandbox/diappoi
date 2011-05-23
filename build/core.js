@@ -12,7 +12,18 @@
         left: 0,
         right: 0,
         up: 0,
-        down: 0
+        down: 0,
+        space: 0,
+        one: 0,
+        two: 0,
+        three: 0,
+        four: 0,
+        five: 0,
+        six: 0,
+        seven: 0,
+        eight: 0,
+        nine: 0,
+        zero: 0
       };
       this.mouse = {
         x: 0,
@@ -52,6 +63,26 @@
           return self.keys.space = to;
         case 17:
           return self.keys.ctrl = to;
+        case 48:
+          return self.keys.zero = to;
+        case 49:
+          return self.keys.one = to;
+        case 50:
+          return self.keys.two = to;
+        case 51:
+          return self.keys.three = to;
+        case 52:
+          return self.keys.four = to;
+        case 53:
+          return self.keys.five = to;
+        case 54:
+          return self.keys.sixe = to;
+        case 55:
+          return self.keys.seven = to;
+        case 56:
+          return self.keys.eight = to;
+        case 57:
+          return self.keys.nine = to;
       }
     };
     Game.prototype.draw = function(scene) {
