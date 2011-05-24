@@ -7,6 +7,8 @@ class Status
     @MAX_SP = params.sp or 10
     @sp = @MAX_SP
 
+    @exp = 0
+
     @atk = params.atk or 10
     @def = params.def or 1.0
     @res = params.res or 1.0
@@ -15,6 +17,7 @@ class Status
 
 class Battler extends Sprite
   constructor: (@x=0,@y=0,@scale=10) ->
+
     super @x, @y,@scale
     @status = new Status()
     @state =
@@ -24,7 +27,20 @@ class Battler extends Sprite
     @atack_range = 10
     @sight_range = 50
     @targeting = null
+    @dir = 0
     @id = ~~(Math.random() * 100)
+
+    @animation = []
+
+  add_animation:(actor,target,animation)->
+    @animation[@animation.length] = animation
+
+  render_animation:(g,cam)->
+    for n in [0...@animation.length]
+      if not @animation[n].render(g,cam)
+        @animation.splice(n,1)
+        @render_animation(g,cam)
+        break
 
   update:()->
     @cnt += 1
@@ -38,6 +54,7 @@ class Battler extends Sprite
     if @status.hp < 1
       @status.hp = 0
       @state.alive = false
+      # @state.targeting = null
 
     if @status.hp > @status.MAX_HP
       @status.hp = @status.MAX_HP
@@ -68,15 +85,19 @@ class Battler extends Sprite
   move:(x,y)-> #abstract
   invoke: (target)->
 
-  atack: (target=@targeting)->
-    target.status.hp -= ~~(@status.atk * ( target.status.def + Math.random()/4 ))
-    target.check_state()
+  atack: ()->
+    @targeting.status.hp -= ~~(@status.atk * ( @targeting.status.def + Math.random()/4 ))
+    @targeting.check_state()
 
   set_target:(targets)->
     if targets.length == 0
       @targeting = null
-    else if not @targeting and targets.length > 0
-      @targeting = targets[0]
+    # else if not @targeting and targets.length > 0
+    else if targets.length > 0
+      if not @targeting or not @targeting.alive
+        @targeting = targets[0]
+      else
+        @targeting
 
   change_target:(targets=@targeting)->
     # TODO: implement hate control
@@ -117,7 +138,7 @@ class Battler extends Sprite
     my.init_cv(g,"rgb(0, 100, e55)")
     my.render_rest_gage(g,x,y+25,w,h,@status.wt/@status.MAX_WT)
 
-  render_targeted: (g,cam)->
+  render_targeted: (g,cam,color="rgb(255,0,0)")->
     my.init_cv(g)
     pos = @getpos_relative(cam)
 
@@ -125,7 +146,7 @@ class Battler extends Sprite
     ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
 
-    @init_cv(g,color="rgb(255,0,0)",alpha=0.7)
+    @init_cv(g,color=color,alpha=0.7)
     g.moveTo(pos.vx,pos.vy-12+ms*10)
     g.lineTo(pos.vx-6-ms*5,pos.vy-20+ms*10)
     g.lineTo(pos.vx+6+ms*5,pos.vy-20+ms*10)
@@ -143,17 +164,14 @@ class Player extends Battler
       def: 0.8
     @status = new Status(status)
 
-    self = @
-
     @binded_skill =
       one: new Skill_Heal()
       two: new Skill_Smash()
       three: new Skill_Meteor()
 
+    @cnt = 0
     @speed = 6
     @atack_range = 50
-    @dir = 0
-    @cnt = 0
 
   update: (enemies, map, keys,@mouse)->
     super()
@@ -235,13 +253,8 @@ class Player extends Battler
     g.arc(320,240, @atack_range ,  0 , Math.PI*2,true)
     g.stroke()
     @_render_gages(g,320,240,40,6,@status.hp/@status.MAX_HP)
-    @targeting.render_targeted(g, @) if @targeting
+    @targeting.render_targeted(g, @,color="rgb(0,0,255)") if @targeting
     @render_mouse(g)
-
-    # list = ["zero","one","two","three","four","five","six","seven","eight","nine"]
-    # for i in list
-    #   s = @binded_skill[i]
-    #   g.fillText("CT "+(m-~~((s.MAX_CT-s.ct)/24))+"/"+m ,10+70*c,460 )
 
     c = 0
     for k,v of @binded_skill

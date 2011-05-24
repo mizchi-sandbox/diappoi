@@ -68,22 +68,24 @@
     __extends(Skill_Meteor, Skill);
     function Skill_Meteor(lv) {
       this.lv = lv != null ? lv : 1;
-      Skill_Meteor.__super__.constructor.call(this, 8, this.lv);
+      Skill_Meteor.__super__.constructor.call(this, 20, this.lv);
       this.name = "Meteor";
       this.range = 120;
     }
     Skill_Meteor.prototype["do"] = function(actor, targets) {
       var t, targets_on_focus, _i, _len;
       if (this.ct >= this.MAX_CT) {
-        targets_on_focus = actor.get_targets_in_range(targets = [], this.range);
-        console.log(targets_on_focus.length);
-        for (_i = 0, _len = targets_on_focus.length; _i < _len; _i++) {
-          t = targets_on_focus[_i];
-          t.status.hp -= 20;
-          t.check_state();
+        targets_on_focus = actor.get_targets_in_range(targets = targets, this.range);
+        if (targets_on_focus.length) {
+          console.log(targets_on_focus.length);
+          for (_i = 0, _len = targets_on_focus.length; _i < _len; _i++) {
+            t = targets_on_focus[_i];
+            t.status.hp -= 20;
+            t.check_state();
+          }
+          this.ct = 0;
+          return console.log("Meteor!");
         }
-        this.ct = 0;
-        return console.log("Meteor!");
       }
     };
     return Skill_Meteor;

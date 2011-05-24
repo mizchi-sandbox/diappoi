@@ -1,5 +1,5 @@
 (function() {
-  var Map, Sprite;
+  var Animation, Animation_Slash, Map, Sprite;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -125,5 +125,39 @@
       return this._map[x][y];
     };
     return Map;
+  })();
+  Animation = (function() {
+    __extends(Animation, Sprite);
+    function Animation(actor, target) {
+      Animation.__super__.constructor.call(this, 0, 0, this.cell);
+      this.timer = 0;
+    }
+    Animation.prototype.render = function(g, cam) {
+      var pos;
+      pos = this.getpos_relative(cam);
+      return this.timer++;
+    };
+    return Animation;
+  })();
+  Animation_Slash = (function() {
+    __extends(Animation_Slash, Animation);
+    function Animation_Slash(actor, target) {
+      Animation_Slash.__super__.constructor.call(this, 0, 0, this.cell);
+      this.timer = 0;
+    }
+    Animation_Slash.prototype.render = function(g, cam) {
+      var pos;
+      if (this.timer < 24) {
+        pos = this.getpos_relative(cam);
+        this.init_cv(g);
+        g.arc(pos.vx + 12 - this.timer, pos.vy + 12 - this.timer, 3, 0, Math.PI, false);
+        g.fill();
+        this.timer++;
+        return this;
+      } else {
+        return false;
+      }
+    };
+    return Animation_Slash;
   })();
 }).call(this);

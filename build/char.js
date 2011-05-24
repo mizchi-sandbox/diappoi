@@ -25,6 +25,7 @@
       this.wt = 0;
       this.MAX_SP = params.sp || 10;
       this.sp = this.MAX_SP;
+      this.exp = 0;
       this.atk = params.atk || 10;
       this.def = params.def || 1.0;
       this.res = params.res || 1.0;
@@ -47,8 +48,25 @@
       this.atack_range = 10;
       this.sight_range = 50;
       this.targeting = null;
+      this.dir = 0;
       this.id = ~~(Math.random() * 100);
+      this.animation = [];
     }
+    Battler.prototype.add_animation = function(actor, target, animation) {
+      return this.animation[this.animation.length] = animation;
+    };
+    Battler.prototype.render_animation = function(g, cam) {
+      var n, _ref, _results;
+      _results = [];
+      for (n = 0, _ref = this.animation.length; (0 <= _ref ? n < _ref : n > _ref); (0 <= _ref ? n += 1 : n -= 1)) {
+        if (!this.animation[n].render(g, cam)) {
+          this.animation.splice(n, 1);
+          this.render_animation(g, cam);
+          break;
+        }
+      }
+      return _results;
+    };
     Battler.prototype.update = function() {
       this.cnt += 1;
       this.regenerate();
@@ -105,18 +123,19 @@
     };
     Battler.prototype.move = function(x, y) {};
     Battler.prototype.invoke = function(target) {};
-    Battler.prototype.atack = function(target) {
-      if (target == null) {
-        target = this.targeting;
-      }
-      target.status.hp -= ~~(this.status.atk * (target.status.def + Math.random() / 4));
-      return target.check_state();
+    Battler.prototype.atack = function() {
+      this.targeting.status.hp -= ~~(this.status.atk * (this.targeting.status.def + Math.random() / 4));
+      return this.targeting.check_state();
     };
     Battler.prototype.set_target = function(targets) {
       if (targets.length === 0) {
         return this.targeting = null;
-      } else if (!this.targeting && targets.length > 0) {
-        return this.targeting = targets[0];
+      } else if (targets.length > 0) {
+        if (!this.targeting || !this.targeting.alive) {
+          return this.targeting = targets[0];
+        } else {
+          return this.targeting;
+        }
       }
     };
     Battler.prototype.change_target = function(targets) {
@@ -167,8 +186,11 @@
       my.init_cv(g, "rgb(0, 100, e55)");
       return my.render_rest_gage(g, x, y + 25, w, h, this.status.wt / this.status.MAX_WT);
     };
-    Battler.prototype.render_targeted = function(g, cam) {
-      var alpha, beat, color, ms, pos;
+    Battler.prototype.render_targeted = function(g, cam, color) {
+      var alpha, beat, ms, pos;
+      if (color == null) {
+        color = "rgb(255,0,0)";
+      }
       my.init_cv(g);
       pos = this.getpos_relative(cam);
       beat = 24;
@@ -176,7 +198,7 @@
       if (ms > 0.5) {
         ms = 1 - ms;
       }
-      this.init_cv(g, color = "rgb(255,0,0)", alpha = 0.7);
+      this.init_cv(g, color = color, alpha = 0.7);
       g.moveTo(pos.vx, pos.vy - 12 + ms * 10);
       g.lineTo(pos.vx - 6 - ms * 5, pos.vy - 20 + ms * 10);
       g.lineTo(pos.vx + 6 + ms * 5, pos.vy - 20 + ms * 10);
@@ -188,7 +210,7 @@
   Player = (function() {
     __extends(Player, Battler);
     function Player(x, y) {
-      var self, status;
+      var status;
       this.x = x;
       this.y = y;
       Player.__super__.constructor.call(this, this.x, this.y);
@@ -199,16 +221,14 @@
         def: 0.8
       };
       this.status = new Status(status);
-      self = this;
       this.binded_skill = {
         one: new Skill_Heal(),
         two: new Skill_Smash(),
         three: new Skill_Meteor()
       };
+      this.cnt = 0;
       this.speed = 6;
       this.atack_range = 50;
-      this.dir = 0;
-      this.cnt = 0;
     }
     Player.prototype.update = function(enemies, map, keys, mouse) {
       this.mouse = mouse;
@@ -284,7 +304,7 @@
       }
     };
     Player.prototype.render = function(g) {
-      var beat, c, k, m, ms, roll, v, _ref, _results;
+      var beat, c, color, k, m, ms, roll, v, _ref, _results;
       beat = 20;
       my.init_cv(g, "rgb(0, 0, 162)");
       ms = ~~(new Date() / 100) % beat / beat;
@@ -302,7 +322,7 @@
       g.stroke();
       this._render_gages(g, 320, 240, 40, 6, this.status.hp / this.status.MAX_HP);
       if (this.targeting) {
-        this.targeting.render_targeted(g, this);
+        this.targeting.render_targeted(g, this, color = "rgb(0,0,255)");
       }
       this.render_mouse(g);
       c = 0;

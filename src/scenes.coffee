@@ -8,7 +8,9 @@ class Scene
     @player.render(g)
     g.fillText(
         @name,
+
         300,200)
+
 
 class OpeningScene extends Scene
   constructor: () ->

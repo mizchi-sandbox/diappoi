@@ -77,3 +77,30 @@ class Map extends Sprite
     y = ~~(y / @cell)
     return @_map[x][y]
 
+
+class Animation extends Sprite
+  constructor: (actor,target) ->
+    super 0, 0, @cell
+    @timer = 0
+
+  render:(g,cam)->
+    pos = @getpos_relative(cam)
+    @timer++
+
+
+class Animation_Slash extends Animation
+  constructor: (actor,target) ->
+    super 0, 0, @cell
+    @timer = 0
+
+  render:(g,cam)->
+    if  @timer < 24
+      pos = @getpos_relative(cam)
+      @init_cv(g)
+      g.arc( pos.vx+12-@timer, pos.vy+12-@timer , 3 , 0, Math.PI, false)
+      g.fill()
+      @timer++
+      return @
+    else
+      return false
+
