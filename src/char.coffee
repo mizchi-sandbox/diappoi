@@ -14,7 +14,6 @@ class Status
     @res = params.res or 1.0
     @regenerate = params.regenerate or 3
 
-
 class Battler extends Sprite
   constructor: (@x=0,@y=0,@scale=10) ->
 
@@ -32,14 +31,14 @@ class Battler extends Sprite
 
     @animation = []
 
-  add_animation:(actor,target,animation)->
+  add_animation:(animation)->
     @animation[@animation.length] = animation
 
-  render_animation:(g,cam)->
+  render_animation:(g,x, y)->
     for n in [0...@animation.length]
-      if not @animation[n].render(g,cam)
+      if not @animation[n].render(g,x,y)
         @animation.splice(n,1)
-        @render_animation(g,cam)
+        @render_animation(g,x,y)
         break
 
   update:()->
@@ -87,6 +86,7 @@ class Battler extends Sprite
 
   atack: ()->
     @targeting.status.hp -= ~~(@status.atk * ( @targeting.status.def + Math.random()/4 ))
+    @targeting.add_animation(new Animation_Slash())
     @targeting.check_state()
 
   set_target:(targets)->
@@ -172,6 +172,9 @@ class Player extends Battler
     @cnt = 0
     @speed = 6
     @atack_range = 50
+    @mosue =
+      x: 0
+      y: 0
 
   update: (enemies, map, keys,@mouse)->
     super()
@@ -191,7 +194,7 @@ class Player extends Battler
     for i in list
       if @binded_skill[i]
         if keys[i]
-          @binded_skill[i].do(@,enemies)
+          @binded_skill[i].do(@,enemies,@mouse)
         else
           @binded_skill[i].charge()
 
@@ -256,6 +259,7 @@ class Player extends Battler
     @targeting.render_targeted(g, @,color="rgb(0,0,255)") if @targeting
     @render_mouse(g)
 
+    @render_animation(g, 320 , 240 )
     c = 0
     for k,v of @binded_skill
       @init_cv(g)
@@ -268,14 +272,6 @@ class Player extends Battler
     my.init_cv(g,"rgb(200, 200, 50)")
     g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
     g.stroke()
-
-    # nx = ~~(30 * Math.cos(@dir))
-    # ny = ~~(30 * Math.sin(@dir))
-    # my.init_cv(g,color="rgb(255,0,0)",alpha=0.4)
-    # g.moveTo( 320 , 240 )
-    # g.arc(320,240, @atack_range , @dir-Math.PI/12, @dir+Math.PI/12,false)
-    # g.moveTo( 320 , 240 )
-    # g.fill()
 
 class Enemy extends Battler
   constructor: (@x,@y) ->
@@ -321,7 +317,6 @@ class Enemy extends Battler
       @y = ny if ny?
 
 
-
   render: (g,cam)->
     my.init_cv(g)
     pos = @getpos_relative(cam)
@@ -344,7 +339,6 @@ class Enemy extends Battler
       g.arc( pos.vx, pos.vy, @sight_range ,0,Math.PI*2,true)
       g.stroke()
 
-
       nx = ~~(30 * Math.cos(@dir))
       ny = ~~(30 * Math.sin(@dir))
       my.init_cv(g,color="rgb(255,0,0)")
@@ -360,8 +354,9 @@ class Enemy extends Battler
         t = @targeting.getpos_relative(cam)
         g.lineTo(t.vx,t.vy)
         g.stroke()
-
     else
         g.fillStyle = 'rgb(55, 55, 55)'
         g.arc(pos.vx,pos.vy, @scale ,0,Math.PI*2,true)
         g.fill()
+
+    @render_animation(g, pos.vx , pos.vy )

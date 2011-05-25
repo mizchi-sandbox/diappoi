@@ -16,6 +16,7 @@ class Sprite
       vy : 240 + @y - cam.y
     return pos
 
+
   init_cv: (g,color="rgb(255,255,255)",alpha=1)->
     g.beginPath()
     g.strokeStyle = color
@@ -30,77 +31,32 @@ class Sprite
     else
       @dir = Math.PI - Math.atan( ry / - rx  )
 
-
-class Map extends Sprite
-  constructor: (@w=10,@h=10,@cell=24) ->
-    super 0, 0, @cell
-    @_map = @gen_map(@w,@h)
-
-  gen_map:(x,y)->
-    map = []
-    for i in [0 ... x]
-      map[i] = []
-      for j in [0 ... y]
-        if (i == 0 or i == (x-1) ) or (j == 0 or j == (y-1))
-          map[i][j] = 1
-        else if Math.random() < 0.2
-          map[i][j] = 1
-        else
-          map[i][j] = 0
-    return map
-
-  render: (g,cam)->
-    pos = @getpos_relative(cam)
-    for i in [0 ... @_map.length]
-      for j in [0 ... @_map[i].length]
-        if @_map[i][j]
-          my.init_cv(g , color = "rgb(0,0,0)",alpha=0.5)
-        else
-          my.init_cv(g , color = "rgb(250,250,250)",alpha=0.5)
-        g.fillRect(
-          pos.vx + i * @cell,
-          pos.vy + j * @cell,
-          @cell , @cell)
-
-  get_point: (x,y)->
-    return {x:~~((x+1/2) *  @cell ),y:~~((y+1/2) * @cell) }
-
-  get_randpoint: ()->
-    rx = ~~(Math.random()*@w)
-    ry = ~~(Math.random()*@h)
-    if @_map[rx][ry]
-      return @get_randpoint()
-    return @get_point(rx,ry )
-
-  collide: (x,y)->
-    x = ~~(x / @cell)
-    y = ~~(y / @cell)
-    return @_map[x][y]
-
-
 class Animation extends Sprite
   constructor: (actor,target) ->
-    super 0, 0, @cell
+    super 0, 0
     @timer = 0
 
-  render:(g,cam)->
-    pos = @getpos_relative(cam)
+  render:(g,x,y)->
     @timer++
 
 
 class Animation_Slash extends Animation
-  constructor: (actor,target) ->
-    super 0, 0, @cell
+  constructor: () ->
     @timer = 0
 
-  render:(g,cam)->
-    if  @timer < 24
-      pos = @getpos_relative(cam)
-      @init_cv(g)
-      g.arc( pos.vx+12-@timer, pos.vy+12-@timer , 3 , 0, Math.PI, false)
+  render:(g,x,y)->
+    if  @timer < 5
+      @init_cv(g,color="rgb(30,55,55)")
+      tx = x-10+@timer*3
+      ty = y-10+@timer*3
+      g.moveTo( tx ,ty )
+      g.lineTo( tx-8 ,ty-8 )
+      g.lineTo( tx-4 ,ty-8 )
+      g.lineTo( tx ,ty )
       g.fill()
       @timer++
       return @
     else
       return false
+
 

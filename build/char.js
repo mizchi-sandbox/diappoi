@@ -52,16 +52,16 @@
       this.id = ~~(Math.random() * 100);
       this.animation = [];
     }
-    Battler.prototype.add_animation = function(actor, target, animation) {
+    Battler.prototype.add_animation = function(animation) {
       return this.animation[this.animation.length] = animation;
     };
-    Battler.prototype.render_animation = function(g, cam) {
+    Battler.prototype.render_animation = function(g, x, y) {
       var n, _ref, _results;
       _results = [];
       for (n = 0, _ref = this.animation.length; (0 <= _ref ? n < _ref : n > _ref); (0 <= _ref ? n += 1 : n -= 1)) {
-        if (!this.animation[n].render(g, cam)) {
+        if (!this.animation[n].render(g, x, y)) {
           this.animation.splice(n, 1);
-          this.render_animation(g, cam);
+          this.render_animation(g, x, y);
           break;
         }
       }
@@ -125,6 +125,7 @@
     Battler.prototype.invoke = function(target) {};
     Battler.prototype.atack = function() {
       this.targeting.status.hp -= ~~(this.status.atk * (this.targeting.status.def + Math.random() / 4));
+      this.targeting.add_animation(new Animation_Slash());
       return this.targeting.check_state();
     };
     Battler.prototype.set_target = function(targets) {
@@ -229,6 +230,10 @@
       this.cnt = 0;
       this.speed = 6;
       this.atack_range = 50;
+      this.mosue = {
+        x: 0,
+        y: 0
+      };
     }
     Player.prototype.update = function(enemies, map, keys, mouse) {
       this.mouse = mouse;
@@ -252,7 +257,7 @@
       _results = [];
       for (_i = 0, _len = list.length; _i < _len; _i++) {
         i = list[_i];
-        _results.push(this.binded_skill[i] ? keys[i] ? this.binded_skill[i]["do"](this, enemies) : this.binded_skill[i].charge() : void 0);
+        _results.push(this.binded_skill[i] ? keys[i] ? this.binded_skill[i]["do"](this, enemies, this.mouse) : this.binded_skill[i].charge() : void 0);
       }
       return _results;
     };
@@ -325,6 +330,7 @@
         this.targeting.render_targeted(g, this, color = "rgb(0,0,255)");
       }
       this.render_mouse(g);
+      this.render_animation(g, 320, 240);
       c = 0;
       _ref = this.binded_skill;
       _results = [];
@@ -436,13 +442,14 @@
           g.moveTo(pos.vx, pos.vy);
           t = this.targeting.getpos_relative(cam);
           g.lineTo(t.vx, t.vy);
-          return g.stroke();
+          g.stroke();
         }
       } else {
         g.fillStyle = 'rgb(55, 55, 55)';
         g.arc(pos.vx, pos.vy, this.scale, 0, Math.PI * 2, true);
-        return g.fill();
+        g.fill();
       }
+      return this.render_animation(g, pos.vx, pos.vy);
     };
     return Enemy;
   })();

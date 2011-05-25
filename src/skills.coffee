@@ -1,5 +1,5 @@
 class Skill
-  constructor: (ct, @lv=1) ->
+  constructor: (ct=1, @lv=1) ->
     @MAX_CT = ct * 24
     @ct = @MAX_CT
   do:(actor)->
@@ -42,6 +42,25 @@ class Skill_Meteor extends Skill
     @range = 120
 
   do:(actor,targets)->
+    if @ct >= @MAX_CT
+      targets_on_focus = actor.get_targets_in_range(targets=targets , @range)
+      if targets_on_focus.length
+        console.log targets_on_focus.length
+        for t in targets_on_focus
+          t.status.hp -= 20
+          t.check_state()
+        @ct = 0
+        console.log "Meteor!"
+
+
+class Skill_ThrowBomb extends Skill
+  constructor: (@lv=1) ->
+    super(ct=10 , @lv)
+    @name = "Throw Bomb"
+    @range = 120
+    @effect_range = 30
+
+  do:(actor,targets,mouse)->
     if @ct >= @MAX_CT
       targets_on_focus = actor.get_targets_in_range(targets=targets , @range)
       if targets_on_focus.length

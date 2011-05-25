@@ -27,7 +27,7 @@
 SRC_DIR=src
 DIST_DIR=build
 TEST_DIR=test
-TARGET="core sprites char skills scenes"
+TARGET="core sprites maps char skills scenes"
 TARGET_EXEC="exec"
 TARGET_TEST="test"
 BUILDOUT=ge.coffee

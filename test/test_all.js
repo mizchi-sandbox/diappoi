@@ -1,5 +1,5 @@
 (function() {
-  var Animation, Animation_Slash, Battler, Enemy, FieldScene, Game, Map, OpeningScene, Player, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Sprite, Status, assert, keys, mouse, my, vows;
+  var Animation, Animation_Slash, Battler, Enemy, FieldScene, Game, Map, OpeningScene, Player, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, assert, base_block, keys, maps, mouse, my, rjoin, sjoin, vows;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -253,16 +253,111 @@
     };
     return Sprite;
   })();
+  Animation = (function() {
+    __extends(Animation, Sprite);
+    function Animation(actor, target) {
+      Animation.__super__.constructor.call(this, 0, 0);
+      this.timer = 0;
+    }
+    Animation.prototype.render = function(g, x, y) {
+      return this.timer++;
+    };
+    return Animation;
+  })();
+  Animation_Slash = (function() {
+    __extends(Animation_Slash, Animation);
+    function Animation_Slash() {
+      this.timer = 0;
+    }
+    Animation_Slash.prototype.render = function(g, x, y) {
+      var color, tx, ty;
+      if (this.timer < 5) {
+        this.init_cv(g, color = "rgb(30,55,55)");
+        tx = x - 10 + this.timer * 3;
+        ty = y - 10 + this.timer * 3;
+        g.moveTo(tx, ty);
+        g.lineTo(tx - 8, ty - 8);
+        g.lineTo(tx - 4, ty - 8);
+        g.lineTo(tx, ty);
+        g.fill();
+        this.timer++;
+        return this;
+      } else {
+        return false;
+      }
+    };
+    return Animation_Slash;
+  })();
   Map = (function() {
     __extends(Map, Sprite);
-    function Map(w, h, cell) {
-      this.w = w != null ? w : 10;
-      this.h = h != null ? h : 10;
-      this.cell = cell != null ? cell : 24;
+    function Map(cell) {
+      var m;
+      this.cell = cell != null ? cell : 32;
       Map.__super__.constructor.call(this, 0, 0, this.cell);
-      this._map = this.gen_map(this.w, this.h);
+      m = this.load(maps.debug);
+      this._map = m;
+      this.set_wall();
     }
-    Map.prototype.gen_map = function(x, y) {
+    Map.prototype.load = function(text) {
+      var i, list, map, max, row, tmap, y, _i, _j, _k, _len, _len2, _len3, _ref;
+      tmap = text.replaceAll(".", "0").replaceAll(" ", "1").split("\n");
+      map = [];
+      max = 0;
+      for (_i = 0, _len = tmap.length; _i < _len; _i++) {
+        row = tmap[_i];
+        if (max < row.length) {
+          max = row.length;
+        }
+      }
+      y = 0;
+      for (_j = 0, _len2 = tmap.length; _j < _len2; _j++) {
+        row = tmap[_j];
+        list = [];
+        _ref = row + 1;
+        for (_k = 0, _len3 = _ref.length; _k < _len3; _k++) {
+          i = _ref[_k];
+          list[list.length] = parseInt(i);
+        }
+        while (list.length < max) {
+          list.push(1);
+        }
+        map[y] = list;
+        y++;
+      }
+      return map;
+    };
+    Map.prototype.compile = function(data) {
+      return "";
+    };
+    Map.prototype.set_wall = function() {
+      var i, map, x, y, _i, _len;
+      map = this._map;
+      x = map.length;
+      y = map[0].length;
+      map[0] = (function() {
+        var _ref, _results;
+        _results = [];
+        for (i = 0, _ref = map[0].length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
+          _results.push(1);
+        }
+        return _results;
+      })();
+      map[map.length - 1] = (function() {
+        var _ref, _results;
+        _results = [];
+        for (i = 0, _ref = map[0].length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
+          _results.push(1);
+        }
+        return _results;
+      })();
+      for (_i = 0, _len = map.length; _i < _len; _i++) {
+        i = map[_i];
+        i[0] = 1;
+        i[i.length - 1] = 1;
+      }
+      return map;
+    };
+    Map.prototype.gen_random_map = function(x, y) {
       var i, j, map;
       map = [];
       for (i = 0; (0 <= x ? i < x : i > x); (0 <= x ? i += 1 : i -= 1)) {
@@ -278,6 +373,26 @@
         }
       }
       return map;
+    };
+    Map.prototype.get_point = function(x, y) {
+      return {
+        x: ~~((x + 1 / 2) * this.cell),
+        y: ~~((y + 1 / 2) * this.cell)
+      };
+    };
+    Map.prototype.get_randpoint = function() {
+      var rx, ry;
+      rx = ~~(Math.random() * this._map.length);
+      ry = ~~(Math.random() * this._map[0].length);
+      if (this._map[rx][ry]) {
+        return this.get_randpoint();
+      }
+      return this.get_point(rx, ry);
+    };
+    Map.prototype.collide = function(x, y) {
+      x = ~~(x / this.cell);
+      y = ~~(y / this.cell);
+      return this._map[x][y];
     };
     Map.prototype.render = function(g, cam) {
       var alpha, color, i, j, pos, _ref, _results;
@@ -300,62 +415,32 @@
       }
       return _results;
     };
-    Map.prototype.get_point = function(x, y) {
-      return {
-        x: ~~((x + 1 / 2) * this.cell),
-        y: ~~((y + 1 / 2) * this.cell)
-      };
-    };
-    Map.prototype.get_randpoint = function() {
-      var rx, ry;
-      rx = ~~(Math.random() * this.w);
-      ry = ~~(Math.random() * this.h);
-      if (this._map[rx][ry]) {
-        return this.get_randpoint();
-      }
-      return this.get_point(rx, ry);
-    };
-    Map.prototype.collide = function(x, y) {
-      x = ~~(x / this.cell);
-      y = ~~(y / this.cell);
-      return this._map[x][y];
-    };
     return Map;
   })();
-  Animation = (function() {
-    __extends(Animation, Sprite);
-    function Animation(actor, target) {
-      Animation.__super__.constructor.call(this, 0, 0, this.cell);
-      this.timer = 0;
+  maps = {
+    filed1: "\n                                           .........\n                                    ................... .\n                               ...........            ......\n                            ....                      ..........\n                         .....              .....        ...... .......\n                 ..........              .........        ............ .....\n                 ............          ...... . ....        ............ . ..\n             .....    ..    ...        ..  ..........       . ..................\n     ..     ......          .........................       . .......   ...... ..\n    .....    ...     ..        .......  ...............      ....        ........\n  ...... ......    .....         ..................... ..   ....         ........\n  .........   ......  ...............  ................... ....            ......\n ...........    ... ... .... .   ..   .. ........ ............             . .....\n ...........    ...... ...       ....................           ......\n............   .......... .    .......... ...... .. .       ...........\n .. ........ .......   ....   ...... .   ............      .... .......\n . ..............       .... .. .       ..............   ...... ..... ..\n  .............          .......       ......       ......... . ...... .\n  ..     .... ..         ... .       ....         .........   ...........\n ...       .......   ........       .. .        .... ....  ... ..........\n.. .         ......  .........      .............. ..  .....  ...    .....\n.....         ......................................      ....        ....\n .....       ........    ... ................... ....     ...        ....\n   ....   ........        ...........................  .....        .....\n   ...........  ..        ........ .............. ... .. .         .....\n       ......                 .........................           .. ..\n                                .....................          .......\n                                    ...................        ......\n                                        .............",
+    debug: "             ....\n          ...........\n        ..............\n      .... ........... .\n     .......     ........\n.........    ..     ......\n........   ......    .......\n.........   .....    .......\n .................. ........\n     .......................\n     ....................\n           .............\n              ......\n               .....\n              ....\n              ....\n              ....\n              ....\n              ....\n              ....\n             ....\n             ....\n             ....\n            ....\n            ....\n            ....\n            ....\n            ....\n\n"
+  };
+  base_block = [[1, 1, 0, 1, 1], [1, 0, 0, 1, 1], [0, 0, 0, 0, 0], [1, 0, 0, 0, 1], [1, 1, 0, 1, 1]];
+  rjoin = function(map1, map2) {
+    map1;    return map1.concat(map2);
+  };
+  sjoin = function(map1, map2) {
+    var buf, i, y, _ref;
+    if (!map1[0].length === map2[0].length) {
+      return false;
     }
-    Animation.prototype.render = function(g, cam) {
-      var pos;
-      pos = this.getpos_relative(cam);
-      return this.timer++;
-    };
-    return Animation;
-  })();
-  Animation_Slash = (function() {
-    __extends(Animation_Slash, Animation);
-    function Animation_Slash(actor, target) {
-      Animation_Slash.__super__.constructor.call(this, 0, 0, this.cell);
-      this.timer = 0;
+    y = 0;
+    buf = [];
+    for (i = 0, _ref = map1.length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
+      buf[i] = map1[i].concat(map2[i]);
+      y++;
     }
-    Animation_Slash.prototype.render = function(g, cam) {
-      var pos;
-      if (this.timer < 24) {
-        pos = this.getpos_relative(cam);
-        this.init_cv(g);
-        g.arc(pos.vx + 12 - this.timer, pos.vy + 12 - this.timer, 3, 0, Math.PI, false);
-        g.fill();
-        this.timer++;
-        return this;
-      } else {
-        return false;
-      }
-    };
-    return Animation_Slash;
-  })();
+    return buf;
+  };
+  String.prototype.replaceAll = function(org, dest) {
+    return this.split(org).join(dest);
+  };
   Status = (function() {
     function Status(params, lv) {
       if (params == null) {
@@ -395,16 +480,16 @@
       this.id = ~~(Math.random() * 100);
       this.animation = [];
     }
-    Battler.prototype.add_animation = function(actor, target, animation) {
+    Battler.prototype.add_animation = function(animation) {
       return this.animation[this.animation.length] = animation;
     };
-    Battler.prototype.render_animation = function(g, cam) {
+    Battler.prototype.render_animation = function(g, x, y) {
       var n, _ref, _results;
       _results = [];
       for (n = 0, _ref = this.animation.length; (0 <= _ref ? n < _ref : n > _ref); (0 <= _ref ? n += 1 : n -= 1)) {
-        if (!this.animation[n].render(g, cam)) {
+        if (!this.animation[n].render(g, x, y)) {
           this.animation.splice(n, 1);
-          this.render_animation(g, cam);
+          this.render_animation(g, x, y);
           break;
         }
       }
@@ -468,6 +553,7 @@
     Battler.prototype.invoke = function(target) {};
     Battler.prototype.atack = function() {
       this.targeting.status.hp -= ~~(this.status.atk * (this.targeting.status.def + Math.random() / 4));
+      this.targeting.add_animation(new Animation_Slash());
       return this.targeting.check_state();
     };
     Battler.prototype.set_target = function(targets) {
@@ -572,6 +658,10 @@
       this.cnt = 0;
       this.speed = 6;
       this.atack_range = 50;
+      this.mosue = {
+        x: 0,
+        y: 0
+      };
     }
     Player.prototype.update = function(enemies, map, keys, mouse) {
       this.mouse = mouse;
@@ -595,7 +685,7 @@
       _results = [];
       for (_i = 0, _len = list.length; _i < _len; _i++) {
         i = list[_i];
-        _results.push(this.binded_skill[i] ? keys[i] ? this.binded_skill[i]["do"](this, enemies) : this.binded_skill[i].charge() : void 0);
+        _results.push(this.binded_skill[i] ? keys[i] ? this.binded_skill[i]["do"](this, enemies, this.mouse) : this.binded_skill[i].charge() : void 0);
       }
       return _results;
     };
@@ -668,6 +758,7 @@
         this.targeting.render_targeted(g, this, color = "rgb(0,0,255)");
       }
       this.render_mouse(g);
+      this.render_animation(g, 320, 240);
       c = 0;
       _ref = this.binded_skill;
       _results = [];
@@ -779,18 +870,22 @@
           g.moveTo(pos.vx, pos.vy);
           t = this.targeting.getpos_relative(cam);
           g.lineTo(t.vx, t.vy);
-          return g.stroke();
+          g.stroke();
         }
       } else {
         g.fillStyle = 'rgb(55, 55, 55)';
         g.arc(pos.vx, pos.vy, this.scale, 0, Math.PI * 2, true);
-        return g.fill();
+        g.fill();
       }
+      return this.render_animation(g, pos.vx, pos.vy);
     };
     return Enemy;
   })();
   Skill = (function() {
     function Skill(ct, lv) {
+      if (ct == null) {
+        ct = 1;
+      }
       this.lv = lv != null ? lv : 1;
       this.MAX_CT = ct * 24;
       this.ct = this.MAX_CT;
@@ -871,6 +966,34 @@
     };
     return Skill_Meteor;
   })();
+  Skill_ThrowBomb = (function() {
+    __extends(Skill_ThrowBomb, Skill);
+    function Skill_ThrowBomb(lv) {
+      var ct;
+      this.lv = lv != null ? lv : 1;
+      Skill_ThrowBomb.__super__.constructor.call(this, ct = 10, this.lv);
+      this.name = "Throw Bomb";
+      this.range = 120;
+      this.effect_range = 30;
+    }
+    Skill_ThrowBomb.prototype["do"] = function(actor, targets, mouse) {
+      var t, targets_on_focus, _i, _len;
+      if (this.ct >= this.MAX_CT) {
+        targets_on_focus = actor.get_targets_in_range(targets = targets, this.range);
+        if (targets_on_focus.length) {
+          console.log(targets_on_focus.length);
+          for (_i = 0, _len = targets_on_focus.length; _i < _len; _i++) {
+            t = targets_on_focus[_i];
+            t.status.hp -= 20;
+            t.check_state();
+          }
+          this.ct = 0;
+          return console.log("Meteor!");
+        }
+      }
+    };
+    return Skill_ThrowBomb;
+  })();
   Scene = (function() {
     function Scene(name) {
       this.name = name;
@@ -900,6 +1023,7 @@
       this.player.render(g);
       return g.fillText("Opening", 300, 200);
     };
+    OpeningScene.prototype.render = function() {};
     return OpeningScene;
   })();
   FieldScene = (function() {
@@ -907,8 +1031,8 @@
     function FieldScene() {
       var start_point;
       FieldScene.__super__.constructor.call(this, "Field");
-      this.map = new Map(40, 40, 32);
-      start_point = this.map.get_point(8, 3);
+      this.map = new Map(32);
+      start_point = this.map.get_randpoint();
       this.player = new Player(start_point.x, start_point.y);
       this.enemies = [];
     }
@@ -924,7 +1048,7 @@
         e = _ref2[_j];
         e.update([this.player], this.map);
       }
-      if (this.enemies.length < 20) {
+      if (this.enemies.length < 1) {
         rpo = this.map.get_randpoint();
         this.enemies[this.enemies.length] = new Enemy(rpo.x, rpo.y);
       } else {
@@ -938,7 +1062,7 @@
       return this.name;
     };
     FieldScene.prototype.render = function(g) {
-      var cam, enemy, _i, _len, _ref;
+      var cam, enemy, mouse_x, mouse_y, _i, _len, _ref;
       cam = this.player;
       this.map.render(g, cam);
       _ref = this.enemies;
@@ -949,7 +1073,9 @@
       this.player.render(g);
       my.init_cv(g);
       g.fillText("HP " + this.player.status.hp + "/" + this.player.status.MAX_HP, 15, 15);
-      g.fillText("p: " + this.player.x + "." + this.player.y, 15, 25);
+      mouse_x = this.player.x + this.player.mouse.x - 320;
+      mouse_y = this.player.y + this.player.mouse.y - 240;
+      g.fillText("p: " + (this.player.x + this.player.mouse.x - 320) + "." + (this.player.y + this.player.mouse.y - 240), 15, 25);
       if (this.player.targeting) {
         return g.fillText("p: " + this.player.targeting.status.hp + "." + this.player.targeting.status.MAX_HP, 15, 35);
       }
@@ -972,31 +1098,8 @@
     'combat test': {
       topic: "atack",
       'test': function() {
-        var collision_map, e, p, _results;
-        p = new Player(320, 240);
-        e = new Enemy(Math.random() * 640, Math.random() * 480);
-        collision_map = my.gen_map(20, 15);
-        _results = [];
-        while (p.status.hp > 0 && e.state.alive) {
-          p.atack(e);
-          _results.push(e.atack(p));
-        }
-        return _results;
-      },
-      topic: "select one target",
-      'select one': function() {
-        var enemies, p, target, targets_inrange;
-        p = new Player(320, 240);
-        enemies = [new Enemy(320, 240), new Enemy(380, 240)];
-        targets_inrange = p.get_targets_in_range(enemies);
-        target = p.change_target(targets_inrange);
-        return p.atack(target);
-      },
-      topic: "map collide",
-      'set pos': function() {
-        var e, p;
-        p = new Player(320, 240);
-        return e = new Enemy(320, 240);
+        var map;
+        return map = new Map(32);
       }
     }
   })["export"](module);

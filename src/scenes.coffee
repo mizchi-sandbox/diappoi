@@ -8,7 +8,6 @@ class Scene
     @player.render(g)
     g.fillText(
         @name,
-
         300,200)
 
 
@@ -29,12 +28,15 @@ class OpeningScene extends Scene
         "Opening",
         300,200)
 
+  render:()->
+
+
 class FieldScene extends Scene
   constructor: () ->
     super("Field")
-    @map = new Map(40,40, 32)
+    @map = new Map(32)
 
-    start_point = @map.get_point(8,3)
+    start_point = @map.get_randpoint()
     @player  =  new Player(start_point.x ,start_point.y)
     @enemies = []
 
@@ -43,7 +45,7 @@ class FieldScene extends Scene
     e.update([@player], @map) for e in @enemies
 
     # monster repop
-    if @enemies.length < 20  # add monster
+    if @enemies.length < 1  # add monster
       rpo = @map.get_randpoint()
       @enemies[@enemies.length] = new Enemy(rpo.x, rpo.y)
     else  # check dead
@@ -51,7 +53,6 @@ class FieldScene extends Scene
         if not @enemies[i].state.alive
           @enemies.splice(i,1)
           break
-
     return @name
 
   render: (g)->
@@ -61,14 +62,16 @@ class FieldScene extends Scene
     enemy.render(g,cam) for enemy in @enemies
     @player.render(g)
 
-
     my.init_cv(g)
     g.fillText(
         "HP "+@player.status.hp+"/"+@player.status.MAX_HP,
         15,15)
 
+    mouse_x =@player.x+@player.mouse.x-320
+    mouse_y =@player.y+@player.mouse.y-240
+
     g.fillText(
-        "p: "+@player.x+"."+@player.y
+        "p: "+(@player.x+@player.mouse.x-320)+"."+(@player.y+@player.mouse.y-240)
         15,25)
 
     if @player.targeting

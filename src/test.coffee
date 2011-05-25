@@ -14,22 +14,8 @@ vows.describe('Game Test').addBatch
   'combat test':
     topic: "atack"
     'test': ()->
-      p = new Player 320,240
-      e = new Enemy Math.random()*640 ,Math.random()*480
-      collision_map = my.gen_map(20,15)
-
-      while p.status.hp > 0 and e.state.alive
-        p.atack(e)
-        e.atack(p)
-
-    topic: "select one target"
-    'select one': ()->
-      p = new Player(320,240)
-      enemies = [new Enemy(320,240) , new Enemy(380,240) ]
-      targets_inrange =  p.get_targets_in_range(enemies)
-      target =  p.change_target(targets_inrange)
-      p.atack(target)
-
+        map = new Map(32)
+        # console.log map._map
     # topic: "select two targets"
     # 'select two': ()->
     #   p = new Player(320,240)
@@ -66,11 +52,6 @@ vows.describe('Game Test').addBatch
     #   console.log p.status
     #   console.log enemies[0].status
 
-
-    topic: "map collide"
-    'set pos': ()->
-      p = new Player 320,240
-      e = new Enemy 320,240
 
     #   players = new Player(320,240)
     #   for i in [1..100]
