@@ -37,30 +37,38 @@ class FieldScene extends Scene
     @map = new Map(32)
 
     start_point = @map.get_randpoint()
-    @player  =  new Player(start_point.x ,start_point.y)
-    @enemies = []
+    @player  =  new Player(start_point.x ,start_point.y, 0)
+
+    @objs = [@player]
+    @max_object_count = 11
+    @fcnt = 0
 
   enter: (keys,mouse) ->
-    p.update(@enemies ,@map , keys,mouse) for p in [@player]
-    e.update([@player], @map) for e in @enemies
+    obj.update(@objs, @map,keys,mouse) for obj in @objs
 
-    # monster repop
-    if @enemies.length < 1  # add monster
+    if @objs.length < @max_object_count and @fcnt % 24*3 == 0
+      group = 0
+      if Math.random() > 0.15
+        group = 1
+      else
+        group = 0
+
       rpo = @map.get_randpoint()
-      @enemies[@enemies.length] = new Enemy(rpo.x, rpo.y)
+      @objs.push( new Enemy(rpo.x, rpo.y, group) )
     else  # check dead
-      for i in [0 ... @enemies.length]
-        if not @enemies[i].state.alive
-          @enemies.splice(i,1)
+      for i in [0 ... @objs.length]
+        if not @objs[i].state.alive
+          @objs.splice(i,1)
           break
+    @fcnt++
     return @name
 
   render: (g)->
     cam = @player
+    # cam = @objs[@objs.length-1]
 
     @map.render(g, cam)
-    enemy.render(g,cam) for enemy in @enemies
-    @player.render(g)
+    obj.render(g,cam) for obj in @objs
 
     my.init_cv(g)
     g.fillText(
@@ -83,5 +91,6 @@ class FieldScene extends Scene
     # g.fillText(
     #     "Enemy Pos :"+e.x+"/"+e.y+":"+~~(e.dir/Math.PI*180)
     #     15,35)
+
 
 

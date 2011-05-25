@@ -9,8 +9,8 @@ class Map extends Sprite
     # m = sjoin(m,m)
 
     @_map = m
-    @set_wall()
     @rotate90()
+    @set_wall()
 
   load : (text)->
     tmap = text.replaceAll(".","0").replaceAll(" ","1").split("\n")

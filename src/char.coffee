@@ -15,14 +15,15 @@ class Status
     @regenerate = params.regenerate or 3
 
 class Battler extends Sprite
-  constructor: (@x=0,@y=0,@scale=10) ->
+  constructor: (@x=0,@y=0,@group=0) ->
 
     super @x, @y,@scale
     @status = new Status()
+    @category = "battler"
     @state =
       alive : true
       active : false
-
+    @scale =10
     @atack_range = 10
     @sight_range = 50
     @targeting = null
@@ -122,12 +123,26 @@ class Battler extends Sprite
       return @targeting
 
   get_targets_in_range:(targets, range= @sight_range)->
-    buff = []
+
+    enemies = []
     for t in targets
+      if t.group != @group and t.category == "battler"
+        enemies.push( t )
+
+    buff = []
+    for t in enemies
       d = @get_distance(t)
       if d < range and t.state.alive
         buff[buff.length] = t
     return buff
+
+  get_leader:(targets, range= @sight_range)->
+    for t in targets
+      if t.state.leader and t.group == @group
+        if (@get_distance(t) < @sight_range)
+          return t
+    return null
+
 
   _render_gages:(g,x,y,w,h,rest) ->
     # HP bar
@@ -138,9 +153,8 @@ class Battler extends Sprite
     my.init_cv(g,"rgb(0, 100, e55)")
     my.render_rest_gage(g,x,y+25,w,h,@status.wt/@status.MAX_WT)
 
-  render_targeted: (g,cam,color="rgb(255,0,0)")->
+  render_targeted: (g,pos,color="rgb(255,0,0)")->
     my.init_cv(g)
-    pos = @getpos_relative(cam)
 
     beat = 24
     ms = ~~(new Date()/100) % beat / beat
@@ -155,8 +169,8 @@ class Battler extends Sprite
     g.fill()
 
 class Player extends Battler
-  constructor: (@x,@y) ->
-    super(@x,@y)
+  constructor: (@x,@y,@group=0) ->
+    super(@x,@y,@group)
     status =
       hp : 120
       wt : 20
@@ -168,7 +182,7 @@ class Player extends Battler
       one: new Skill_Heal()
       two: new Skill_Smash()
       three: new Skill_Meteor()
-
+    @state.leader =true
     @cnt = 0
     @speed = 6
     @atack_range = 50
@@ -238,12 +252,14 @@ class Player extends Battler
         @y += move
 
 
-  render: (g)->
+  render: (g,cam)->
+    pos = @getpos_relative(cam)
+
     beat = 20
     my.init_cv(g,"rgb(0, 0, 162)")
     ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
-    g.arc(320,240, ( 1.3 - ms ) * @scale ,0,Math.PI*2,true)
+    g.arc(pos.vx,pos.vy, ( 1.3 - ms ) * @scale ,0,Math.PI*2,true)
     g.stroke()
 
     roll = Math.PI * (@cnt % 20) / 10
@@ -253,13 +269,13 @@ class Player extends Battler
     g.stroke()
 
     my.init_cv(g,"rgb(255, 0, 0)")
-    g.arc(320,240, @atack_range ,  0 , Math.PI*2,true)
+    g.arc(pos.vx,pos.vy, @atack_range ,  0 , Math.PI*2,true)
     g.stroke()
-    @_render_gages(g,320,240,40,6,@status.hp/@status.MAX_HP)
-    @targeting.render_targeted(g, @,color="rgb(0,0,255)") if @targeting
+    @_render_gages(g,pos.vx,pos.vy,40,6,@status.hp/@status.MAX_HP)
+    @targeting.render_targeted(g, pos ,color="rgb(0,0,255)") if @targeting
     @render_mouse(g)
 
-    @render_animation(g, 320 , 240 )
+    @render_animation(g, pos.vx , pos.vy )
     c = 0
     for k,v of @binded_skill
       @init_cv(g)
@@ -274,8 +290,9 @@ class Player extends Battler
     g.stroke()
 
 class Enemy extends Battler
-  constructor: (@x,@y) ->
-    super(@x,@y,@scale=5)
+  constructor: (@x,@y,@group=1) ->
+    super(@x,@y,@group)
+    @scale = 5
     status =
       hp : 50
       wt : 22
@@ -289,14 +306,15 @@ class Enemy extends Battler
     @dir = 0
     @cnt = ~~(Math.random() * 24)
 
-  update: (players, cmap)->
+  update: (objs, cmap)->
     super()
     if @state.alive
-      @set_target(@get_targets_in_range(players,@sight_range))
-      @move(cmap)
+      @set_target(@get_targets_in_range(objs,@sight_range))
+      @move(cmap,objs)
       @act()
 
-  move: (cmap)->
+  move: (cmap,objs)->
+    # if target exist , trace
     if @targeting
       distance = @get_distance(@targeting)
       if distance > @atack_range
@@ -305,12 +323,28 @@ class Enemy extends Battler
         ny = @y + ~~(@speed * Math.sin(@dir))
       else
         # stay here
-    else # move freely
-      if @cnt % 24 ==  0
-        @dir = Math.PI * 2 * Math.random()
-      if @cnt % 24 < 8
-        nx = @x + ~~(@speed * Math.cos(@dir))
-        ny = @y + ~~(@speed * Math.sin(@dir))
+
+    else # if not target isnt exist , move freely
+      leader =  @get_leader(objs)
+      if leader
+        distance = @get_distance(leader)
+        if distance > 30
+          @set_dir(leader.x,leader.y)
+          nx = @x + ~~(@speed * Math.cos(@dir))
+          ny = @y + ~~(@speed * Math.sin(@dir))
+        else
+          if @cnt % 24 ==  0
+            @dir = Math.PI * 2 * Math.random()
+          if @cnt % 24 < 3
+            nx = @x + ~~(@speed * Math.cos(@dir))
+            ny = @y + ~~(@speed * Math.sin(@dir))
+
+      else
+        if @cnt % 24 ==  0
+          @dir = Math.PI * 2 * Math.random()
+        if @cnt % 24 < 8
+          nx = @x + ~~(@speed * Math.cos(@dir))
+          ny = @y + ~~(@speed * Math.sin(@dir))
 
     if not cmap.collide( nx,ny )
       @x = nx if nx?
@@ -321,12 +355,21 @@ class Enemy extends Battler
     my.init_cv(g)
     pos = @getpos_relative(cam)
     if @state.alive
-      g.fillStyle = 'rgb(255, 255, 255)'
+
+      color = ""
+      if @group == 0
+        color = "rgb(255,255,255)"
+      else if @group == 1
+        color = "rgb(55,55,55)"
+      @init_cv(g,color=color)
+
       beat = 20
       ms = ~~(new Date()/100) % beat / beat
       ms = 1 - ms if ms > 0.5
       g.arc( pos.vx, pos.vy, ( 1.3 + ms ) * @scale ,0,Math.PI*2,true)
       g.fill()
+
+
 
       # active circle
       if @targeting
@@ -348,7 +391,7 @@ class Enemy extends Battler
 
       @_render_gages(g , pos.vx , pos.vy ,30,6,@status.wt/@status.MAX_WT)
       if @targeting
-        @targeting.render_targeted(g,cam)
+        @targeting.render_targeted(g,pos)
         @init_cv(g,color="rgb(0,0,255)",alpha=0.5)
         g.moveTo(pos.vx,pos.vy)
         t = @targeting.getpos_relative(cam)

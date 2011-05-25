@@ -16,8 +16,8 @@
       Map.__super__.constructor.call(this, 0, 0, this.cell);
       m = this.load(maps.debug);
       this._map = m;
-      this.set_wall();
       this.rotate90();
+      this.set_wall();
     }
     Map.prototype.load = function(text) {
       var i, list, map, max, row, tmap, y, _i, _j, _k, _len, _len2, _len3, _ref;

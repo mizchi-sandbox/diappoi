@@ -47,44 +47,47 @@
       FieldScene.__super__.constructor.call(this, "Field");
       this.map = new Map(32);
       start_point = this.map.get_randpoint();
-      this.player = new Player(start_point.x, start_point.y);
-      this.enemies = [];
+      this.player = new Player(start_point.x, start_point.y, 0);
+      this.objs = [this.player];
+      this.max_object_count = 11;
+      this.fcnt = 0;
     }
     FieldScene.prototype.enter = function(keys, mouse) {
-      var e, i, p, rpo, _i, _j, _len, _len2, _ref, _ref2, _ref3;
-      _ref = [this.player];
+      var group, i, obj, rpo, _i, _len, _ref, _ref2;
+      _ref = this.objs;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        p = _ref[_i];
-        p.update(this.enemies, this.map, keys, mouse);
+        obj = _ref[_i];
+        obj.update(this.objs, this.map, keys, mouse);
       }
-      _ref2 = this.enemies;
-      for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
-        e = _ref2[_j];
-        e.update([this.player], this.map);
-      }
-      if (this.enemies.length < 1) {
+      if (this.objs.length < this.max_object_count && this.fcnt % 24 * 3 === 0) {
+        group = 0;
+        if (Math.random() > 0.15) {
+          group = 1;
+        } else {
+          group = 0;
+        }
         rpo = this.map.get_randpoint();
-        this.enemies[this.enemies.length] = new Enemy(rpo.x, rpo.y);
+        this.objs.push(new Enemy(rpo.x, rpo.y, group));
       } else {
-        for (i = 0, _ref3 = this.enemies.length; (0 <= _ref3 ? i < _ref3 : i > _ref3); (0 <= _ref3 ? i += 1 : i -= 1)) {
-          if (!this.enemies[i].state.alive) {
-            this.enemies.splice(i, 1);
+        for (i = 0, _ref2 = this.objs.length; (0 <= _ref2 ? i < _ref2 : i > _ref2); (0 <= _ref2 ? i += 1 : i -= 1)) {
+          if (!this.objs[i].state.alive) {
+            this.objs.splice(i, 1);
             break;
           }
         }
       }
+      this.fcnt++;
       return this.name;
     };
     FieldScene.prototype.render = function(g) {
-      var cam, enemy, mouse_x, mouse_y, _i, _len, _ref;
+      var cam, mouse_x, mouse_y, obj, _i, _len, _ref;
       cam = this.player;
       this.map.render(g, cam);
-      _ref = this.enemies;
+      _ref = this.objs;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        enemy = _ref[_i];
-        enemy.render(g, cam);
+        obj = _ref[_i];
+        obj.render(g, cam);
       }
-      this.player.render(g);
       my.init_cv(g);
       g.fillText("HP " + this.player.status.hp + "/" + this.player.status.MAX_HP, 15, 15);
       mouse_x = this.player.x + this.player.mouse.x - 320;

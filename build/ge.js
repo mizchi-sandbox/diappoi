@@ -296,8 +296,8 @@
       Map.__super__.constructor.call(this, 0, 0, this.cell);
       m = this.load(maps.debug);
       this._map = m;
-      this.set_wall();
       this.rotate90();
+      this.set_wall();
     }
     Map.prototype.load = function(text) {
       var i, list, map, max, row, tmap, y, _i, _j, _k, _len, _len2, _len3, _ref;
@@ -481,16 +481,18 @@
   })();
   Battler = (function() {
     __extends(Battler, Sprite);
-    function Battler(x, y, scale) {
+    function Battler(x, y, group) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
-      this.scale = scale != null ? scale : 10;
+      this.group = group != null ? group : 0;
       Battler.__super__.constructor.call(this, this.x, this.y, this.scale);
       this.status = new Status();
+      this.category = "battler";
       this.state = {
         alive: true,
         active: false
       };
+      this.scale = 10;
       this.atack_range = 10;
       this.sight_range = 50;
       this.targeting = null;
@@ -613,13 +615,20 @@
       }
     };
     Battler.prototype.get_targets_in_range = function(targets, range) {
-      var buff, d, t, _i, _len;
+      var buff, d, enemies, t, _i, _j, _len, _len2;
       if (range == null) {
         range = this.sight_range;
       }
-      buff = [];
+      enemies = [];
       for (_i = 0, _len = targets.length; _i < _len; _i++) {
         t = targets[_i];
+        if (t.group !== this.group && t.category === "battler") {
+          enemies.push(t);
+        }
+      }
+      buff = [];
+      for (_j = 0, _len2 = enemies.length; _j < _len2; _j++) {
+        t = enemies[_j];
         d = this.get_distance(t);
         if (d < range && t.state.alive) {
           buff[buff.length] = t;
@@ -627,19 +636,33 @@
       }
       return buff;
     };
+    Battler.prototype.get_leader = function(targets, range) {
+      var t, _i, _len;
+      if (range == null) {
+        range = this.sight_range;
+      }
+      for (_i = 0, _len = targets.length; _i < _len; _i++) {
+        t = targets[_i];
+        if (t.state.leader && t.group === this.group) {
+          if (this.get_distance(t) < this.sight_range) {
+            return t;
+          }
+        }
+      }
+      return null;
+    };
     Battler.prototype._render_gages = function(g, x, y, w, h, rest) {
       my.init_cv(g, "rgb(0, 250, 100)");
       my.render_rest_gage(g, x, y + 15, w, h, this.status.hp / this.status.MAX_HP);
       my.init_cv(g, "rgb(0, 100, e55)");
       return my.render_rest_gage(g, x, y + 25, w, h, this.status.wt / this.status.MAX_WT);
     };
-    Battler.prototype.render_targeted = function(g, cam, color) {
-      var alpha, beat, ms, pos;
+    Battler.prototype.render_targeted = function(g, pos, color) {
+      var alpha, beat, ms;
       if (color == null) {
         color = "rgb(255,0,0)";
       }
       my.init_cv(g);
-      pos = this.getpos_relative(cam);
       beat = 24;
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
@@ -656,11 +679,12 @@
   })();
   Player = (function() {
     __extends(Player, Battler);
-    function Player(x, y) {
+    function Player(x, y, group) {
       var status;
       this.x = x;
       this.y = y;
-      Player.__super__.constructor.call(this, this.x, this.y);
+      this.group = group != null ? group : 0;
+      Player.__super__.constructor.call(this, this.x, this.y, this.group);
       status = {
         hp: 120,
         wt: 20,
@@ -673,6 +697,7 @@
         two: new Skill_Smash(),
         three: new Skill_Meteor()
       };
+      this.state.leader = true;
       this.cnt = 0;
       this.speed = 6;
       this.atack_range = 50;
@@ -754,29 +779,30 @@
         }
       }
     };
-    Player.prototype.render = function(g) {
-      var beat, c, color, k, m, ms, roll, v, _ref, _results;
+    Player.prototype.render = function(g, cam) {
+      var beat, c, color, k, m, ms, pos, roll, v, _ref, _results;
+      pos = this.getpos_relative(cam);
       beat = 20;
       my.init_cv(g, "rgb(0, 0, 162)");
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
         ms = 1 - ms;
       }
-      g.arc(320, 240, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
+      g.arc(pos.vx, pos.vy, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
       g.stroke();
       roll = Math.PI * (this.cnt % 20) / 10;
       my.init_cv(g, "rgb(128, 100, 162)");
       g.arc(320, 240, this.scale * 0.5, roll, Math.PI + roll, true);
       g.stroke();
       my.init_cv(g, "rgb(255, 0, 0)");
-      g.arc(320, 240, this.atack_range, 0, Math.PI * 2, true);
+      g.arc(pos.vx, pos.vy, this.atack_range, 0, Math.PI * 2, true);
       g.stroke();
-      this._render_gages(g, 320, 240, 40, 6, this.status.hp / this.status.MAX_HP);
+      this._render_gages(g, pos.vx, pos.vy, 40, 6, this.status.hp / this.status.MAX_HP);
       if (this.targeting) {
-        this.targeting.render_targeted(g, this, color = "rgb(0,0,255)");
+        this.targeting.render_targeted(g, pos, color = "rgb(0,0,255)");
       }
       this.render_mouse(g);
-      this.render_animation(g, 320, 240);
+      this.render_animation(g, pos.vx, pos.vy);
       c = 0;
       _ref = this.binded_skill;
       _results = [];
@@ -799,11 +825,13 @@
   })();
   Enemy = (function() {
     __extends(Enemy, Battler);
-    function Enemy(x, y) {
+    function Enemy(x, y, group) {
       var status;
       this.x = x;
       this.y = y;
-      Enemy.__super__.constructor.call(this, this.x, this.y, this.scale = 5);
+      this.group = group != null ? group : 1;
+      Enemy.__super__.constructor.call(this, this.x, this.y, this.group);
+      this.scale = 5;
       status = {
         hp: 50,
         wt: 22,
@@ -817,16 +845,16 @@
       this.dir = 0;
       this.cnt = ~~(Math.random() * 24);
     }
-    Enemy.prototype.update = function(players, cmap) {
+    Enemy.prototype.update = function(objs, cmap) {
       Enemy.__super__.update.call(this);
       if (this.state.alive) {
-        this.set_target(this.get_targets_in_range(players, this.sight_range));
-        this.move(cmap);
+        this.set_target(this.get_targets_in_range(objs, this.sight_range));
+        this.move(cmap, objs);
         return this.act();
       }
     };
-    Enemy.prototype.move = function(cmap) {
-      var distance, nx, ny;
+    Enemy.prototype.move = function(cmap, objs) {
+      var distance, leader, nx, ny;
       if (this.targeting) {
         distance = this.get_distance(this.targeting);
         if (distance > this.atack_range) {
@@ -837,12 +865,30 @@
 
         }
       } else {
-        if (this.cnt % 24 === 0) {
-          this.dir = Math.PI * 2 * Math.random();
-        }
-        if (this.cnt % 24 < 8) {
-          nx = this.x + ~~(this.speed * Math.cos(this.dir));
-          ny = this.y + ~~(this.speed * Math.sin(this.dir));
+        leader = this.get_leader(objs);
+        if (leader) {
+          distance = this.get_distance(leader);
+          if (distance > 30) {
+            this.set_dir(leader.x, leader.y);
+            nx = this.x + ~~(this.speed * Math.cos(this.dir));
+            ny = this.y + ~~(this.speed * Math.sin(this.dir));
+          } else {
+            if (this.cnt % 24 === 0) {
+              this.dir = Math.PI * 2 * Math.random();
+            }
+            if (this.cnt % 24 < 3) {
+              nx = this.x + ~~(this.speed * Math.cos(this.dir));
+              ny = this.y + ~~(this.speed * Math.sin(this.dir));
+            }
+          }
+        } else {
+          if (this.cnt % 24 === 0) {
+            this.dir = Math.PI * 2 * Math.random();
+          }
+          if (this.cnt % 24 < 8) {
+            nx = this.x + ~~(this.speed * Math.cos(this.dir));
+            ny = this.y + ~~(this.speed * Math.sin(this.dir));
+          }
         }
       }
       if (!cmap.collide(nx, ny)) {
@@ -859,7 +905,13 @@
       my.init_cv(g);
       pos = this.getpos_relative(cam);
       if (this.state.alive) {
-        g.fillStyle = 'rgb(255, 255, 255)';
+        color = "";
+        if (this.group === 0) {
+          color = "rgb(255,255,255)";
+        } else if (this.group === 1) {
+          color = "rgb(55,55,55)";
+        }
+        this.init_cv(g, color = color);
         beat = 20;
         ms = ~~(new Date() / 100) % beat / beat;
         if (ms > 0.5) {
@@ -883,7 +935,7 @@
         g.stroke();
         this._render_gages(g, pos.vx, pos.vy, 30, 6, this.status.wt / this.status.MAX_WT);
         if (this.targeting) {
-          this.targeting.render_targeted(g, cam);
+          this.targeting.render_targeted(g, pos);
           this.init_cv(g, color = "rgb(0,0,255)", alpha = 0.5);
           g.moveTo(pos.vx, pos.vy);
           t = this.targeting.getpos_relative(cam);
@@ -1051,44 +1103,47 @@
       FieldScene.__super__.constructor.call(this, "Field");
       this.map = new Map(32);
       start_point = this.map.get_randpoint();
-      this.player = new Player(start_point.x, start_point.y);
-      this.enemies = [];
+      this.player = new Player(start_point.x, start_point.y, 0);
+      this.objs = [this.player];
+      this.max_object_count = 11;
+      this.fcnt = 0;
     }
     FieldScene.prototype.enter = function(keys, mouse) {
-      var e, i, p, rpo, _i, _j, _len, _len2, _ref, _ref2, _ref3;
-      _ref = [this.player];
+      var group, i, obj, rpo, _i, _len, _ref, _ref2;
+      _ref = this.objs;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        p = _ref[_i];
-        p.update(this.enemies, this.map, keys, mouse);
+        obj = _ref[_i];
+        obj.update(this.objs, this.map, keys, mouse);
       }
-      _ref2 = this.enemies;
-      for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
-        e = _ref2[_j];
-        e.update([this.player], this.map);
-      }
-      if (this.enemies.length < 1) {
+      if (this.objs.length < this.max_object_count && this.fcnt % 24 * 3 === 0) {
+        group = 0;
+        if (Math.random() > 0.15) {
+          group = 1;
+        } else {
+          group = 0;
+        }
         rpo = this.map.get_randpoint();
-        this.enemies[this.enemies.length] = new Enemy(rpo.x, rpo.y);
+        this.objs.push(new Enemy(rpo.x, rpo.y, group));
       } else {
-        for (i = 0, _ref3 = this.enemies.length; (0 <= _ref3 ? i < _ref3 : i > _ref3); (0 <= _ref3 ? i += 1 : i -= 1)) {
-          if (!this.enemies[i].state.alive) {
-            this.enemies.splice(i, 1);
+        for (i = 0, _ref2 = this.objs.length; (0 <= _ref2 ? i < _ref2 : i > _ref2); (0 <= _ref2 ? i += 1 : i -= 1)) {
+          if (!this.objs[i].state.alive) {
+            this.objs.splice(i, 1);
             break;
           }
         }
       }
+      this.fcnt++;
       return this.name;
     };
     FieldScene.prototype.render = function(g) {
-      var cam, enemy, mouse_x, mouse_y, _i, _len, _ref;
+      var cam, mouse_x, mouse_y, obj, _i, _len, _ref;
       cam = this.player;
       this.map.render(g, cam);
-      _ref = this.enemies;
+      _ref = this.objs;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        enemy = _ref[_i];
-        enemy.render(g, cam);
+        obj = _ref[_i];
+        obj.render(g, cam);
       }
-      this.player.render(g);
       my.init_cv(g);
       g.fillText("HP " + this.player.status.hp + "/" + this.player.status.MAX_HP, 15, 15);
       mouse_x = this.player.x + this.player.mouse.x - 320;

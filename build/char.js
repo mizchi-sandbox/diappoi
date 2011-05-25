@@ -35,16 +35,18 @@
   })();
   Battler = (function() {
     __extends(Battler, Sprite);
-    function Battler(x, y, scale) {
+    function Battler(x, y, group) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
-      this.scale = scale != null ? scale : 10;
+      this.group = group != null ? group : 0;
       Battler.__super__.constructor.call(this, this.x, this.y, this.scale);
       this.status = new Status();
+      this.category = "battler";
       this.state = {
         alive: true,
         active: false
       };
+      this.scale = 10;
       this.atack_range = 10;
       this.sight_range = 50;
       this.targeting = null;
@@ -167,13 +169,20 @@
       }
     };
     Battler.prototype.get_targets_in_range = function(targets, range) {
-      var buff, d, t, _i, _len;
+      var buff, d, enemies, t, _i, _j, _len, _len2;
       if (range == null) {
         range = this.sight_range;
       }
-      buff = [];
+      enemies = [];
       for (_i = 0, _len = targets.length; _i < _len; _i++) {
         t = targets[_i];
+        if (t.group !== this.group && t.category === "battler") {
+          enemies.push(t);
+        }
+      }
+      buff = [];
+      for (_j = 0, _len2 = enemies.length; _j < _len2; _j++) {
+        t = enemies[_j];
         d = this.get_distance(t);
         if (d < range && t.state.alive) {
           buff[buff.length] = t;
@@ -181,19 +190,33 @@
       }
       return buff;
     };
+    Battler.prototype.get_leader = function(targets, range) {
+      var t, _i, _len;
+      if (range == null) {
+        range = this.sight_range;
+      }
+      for (_i = 0, _len = targets.length; _i < _len; _i++) {
+        t = targets[_i];
+        if (t.state.leader && t.group === this.group) {
+          if (this.get_distance(t) < this.sight_range) {
+            return t;
+          }
+        }
+      }
+      return null;
+    };
     Battler.prototype._render_gages = function(g, x, y, w, h, rest) {
       my.init_cv(g, "rgb(0, 250, 100)");
       my.render_rest_gage(g, x, y + 15, w, h, this.status.hp / this.status.MAX_HP);
       my.init_cv(g, "rgb(0, 100, e55)");
       return my.render_rest_gage(g, x, y + 25, w, h, this.status.wt / this.status.MAX_WT);
     };
-    Battler.prototype.render_targeted = function(g, cam, color) {
-      var alpha, beat, ms, pos;
+    Battler.prototype.render_targeted = function(g, pos, color) {
+      var alpha, beat, ms;
       if (color == null) {
         color = "rgb(255,0,0)";
       }
       my.init_cv(g);
-      pos = this.getpos_relative(cam);
       beat = 24;
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
@@ -210,11 +233,12 @@
   })();
   Player = (function() {
     __extends(Player, Battler);
-    function Player(x, y) {
+    function Player(x, y, group) {
       var status;
       this.x = x;
       this.y = y;
-      Player.__super__.constructor.call(this, this.x, this.y);
+      this.group = group != null ? group : 0;
+      Player.__super__.constructor.call(this, this.x, this.y, this.group);
       status = {
         hp: 120,
         wt: 20,
@@ -227,6 +251,7 @@
         two: new Skill_Smash(),
         three: new Skill_Meteor()
       };
+      this.state.leader = true;
       this.cnt = 0;
       this.speed = 6;
       this.atack_range = 50;
@@ -308,29 +333,30 @@
         }
       }
     };
-    Player.prototype.render = function(g) {
-      var beat, c, color, k, m, ms, roll, v, _ref, _results;
+    Player.prototype.render = function(g, cam) {
+      var beat, c, color, k, m, ms, pos, roll, v, _ref, _results;
+      pos = this.getpos_relative(cam);
       beat = 20;
       my.init_cv(g, "rgb(0, 0, 162)");
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
         ms = 1 - ms;
       }
-      g.arc(320, 240, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
+      g.arc(pos.vx, pos.vy, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
       g.stroke();
       roll = Math.PI * (this.cnt % 20) / 10;
       my.init_cv(g, "rgb(128, 100, 162)");
       g.arc(320, 240, this.scale * 0.5, roll, Math.PI + roll, true);
       g.stroke();
       my.init_cv(g, "rgb(255, 0, 0)");
-      g.arc(320, 240, this.atack_range, 0, Math.PI * 2, true);
+      g.arc(pos.vx, pos.vy, this.atack_range, 0, Math.PI * 2, true);
       g.stroke();
-      this._render_gages(g, 320, 240, 40, 6, this.status.hp / this.status.MAX_HP);
+      this._render_gages(g, pos.vx, pos.vy, 40, 6, this.status.hp / this.status.MAX_HP);
       if (this.targeting) {
-        this.targeting.render_targeted(g, this, color = "rgb(0,0,255)");
+        this.targeting.render_targeted(g, pos, color = "rgb(0,0,255)");
       }
       this.render_mouse(g);
-      this.render_animation(g, 320, 240);
+      this.render_animation(g, pos.vx, pos.vy);
       c = 0;
       _ref = this.binded_skill;
       _results = [];
@@ -353,11 +379,13 @@
   })();
   Enemy = (function() {
     __extends(Enemy, Battler);
-    function Enemy(x, y) {
+    function Enemy(x, y, group) {
       var status;
       this.x = x;
       this.y = y;
-      Enemy.__super__.constructor.call(this, this.x, this.y, this.scale = 5);
+      this.group = group != null ? group : 1;
+      Enemy.__super__.constructor.call(this, this.x, this.y, this.group);
+      this.scale = 5;
       status = {
         hp: 50,
         wt: 22,
@@ -371,16 +399,16 @@
       this.dir = 0;
       this.cnt = ~~(Math.random() * 24);
     }
-    Enemy.prototype.update = function(players, cmap) {
+    Enemy.prototype.update = function(objs, cmap) {
       Enemy.__super__.update.call(this);
       if (this.state.alive) {
-        this.set_target(this.get_targets_in_range(players, this.sight_range));
-        this.move(cmap);
+        this.set_target(this.get_targets_in_range(objs, this.sight_range));
+        this.move(cmap, objs);
         return this.act();
       }
     };
-    Enemy.prototype.move = function(cmap) {
-      var distance, nx, ny;
+    Enemy.prototype.move = function(cmap, objs) {
+      var distance, leader, nx, ny;
       if (this.targeting) {
         distance = this.get_distance(this.targeting);
         if (distance > this.atack_range) {
@@ -391,12 +419,30 @@
 
         }
       } else {
-        if (this.cnt % 24 === 0) {
-          this.dir = Math.PI * 2 * Math.random();
-        }
-        if (this.cnt % 24 < 8) {
-          nx = this.x + ~~(this.speed * Math.cos(this.dir));
-          ny = this.y + ~~(this.speed * Math.sin(this.dir));
+        leader = this.get_leader(objs);
+        if (leader) {
+          distance = this.get_distance(leader);
+          if (distance > 30) {
+            this.set_dir(leader.x, leader.y);
+            nx = this.x + ~~(this.speed * Math.cos(this.dir));
+            ny = this.y + ~~(this.speed * Math.sin(this.dir));
+          } else {
+            if (this.cnt % 24 === 0) {
+              this.dir = Math.PI * 2 * Math.random();
+            }
+            if (this.cnt % 24 < 3) {
+              nx = this.x + ~~(this.speed * Math.cos(this.dir));
+              ny = this.y + ~~(this.speed * Math.sin(this.dir));
+            }
+          }
+        } else {
+          if (this.cnt % 24 === 0) {
+            this.dir = Math.PI * 2 * Math.random();
+          }
+          if (this.cnt % 24 < 8) {
+            nx = this.x + ~~(this.speed * Math.cos(this.dir));
+            ny = this.y + ~~(this.speed * Math.sin(this.dir));
+          }
         }
       }
       if (!cmap.collide(nx, ny)) {
@@ -413,7 +459,13 @@
       my.init_cv(g);
       pos = this.getpos_relative(cam);
       if (this.state.alive) {
-        g.fillStyle = 'rgb(255, 255, 255)';
+        color = "";
+        if (this.group === 0) {
+          color = "rgb(255,255,255)";
+        } else if (this.group === 1) {
+          color = "rgb(55,55,55)";
+        }
+        this.init_cv(g, color = color);
         beat = 20;
         ms = ~~(new Date() / 100) % beat / beat;
         if (ms > 0.5) {
@@ -437,7 +489,7 @@
         g.stroke();
         this._render_gages(g, pos.vx, pos.vy, 30, 6, this.status.wt / this.status.MAX_WT);
         if (this.targeting) {
-          this.targeting.render_targeted(g, cam);
+          this.targeting.render_targeted(g, pos);
           this.init_cv(g, color = "rgb(0,0,255)", alpha = 0.5);
           g.moveTo(pos.vx, pos.vy);
           t = this.targeting.getpos_relative(cam);

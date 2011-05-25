@@ -127,3 +127,10 @@ my =
     g.lineTo(x-w/2 +1, y-h/2+1)
     g.fill()
 
+  mklist :(list,func)->
+    buf = []
+    for i in list
+      buf.push(i) if func(i)
+    return buf
+
+
