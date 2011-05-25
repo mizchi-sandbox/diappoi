@@ -205,6 +205,7 @@ class Map extends Sprite
 
     @_map = m
     @set_wall()
+    @rotate90()
 
   load : (text)->
     tmap = text.replaceAll(".","0").replaceAll(" ","1").split("\n")
@@ -230,6 +231,14 @@ class Map extends Sprite
 
   compile:(data)->
     return ""
+
+  rotate90:()->
+    map = @_map
+    res = []
+    for i in [0...map[0].length]
+      res[i] = ( j[i] for j in map)
+    @_map = res
+
 
   set_wall:()->
     map = @_map
@@ -331,22 +340,7 @@ maps =
         ....................
               .............
                  ......
-                  .....
-                 ....
-                 ....
-                 ....
-                 ....
-                 ....
-                 ....
-                ....
-                ....
-                ....
-               ....
-               ....
-               ....
-               ....
-               ....
-
+                  ...
 
 """
 base_block = [
@@ -390,8 +384,6 @@ class Status
     @def = params.def or 1.0
     @res = params.res or 1.0
     @regenerate = params.regenerate or 3
-
-
 
 class Battler extends Sprite
   constructor: (@x=0,@y=0,@scale=10) ->
@@ -651,14 +643,6 @@ class Player extends Battler
     my.init_cv(g,"rgb(200, 200, 50)")
     g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
     g.stroke()
-
-    # nx = ~~(30 * Math.cos(@dir))
-    # ny = ~~(30 * Math.sin(@dir))
-    # my.init_cv(g,color="rgb(255,0,0)",alpha=0.4)
-    # g.moveTo( 320 , 240 )
-    # g.arc(320,240, @atack_range , @dir-Math.PI/12, @dir+Math.PI/12,false)
-    # g.moveTo( 320 , 240 )
-    # g.fill()
 
 class Enemy extends Battler
   constructor: (@x,@y) ->
