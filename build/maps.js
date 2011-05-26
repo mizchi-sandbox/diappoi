@@ -133,7 +133,7 @@
       return this._map[x][y];
     };
     Map.prototype.render = function(g, cam) {
-      var alpha, color, i, j, pos, _ref, _results;
+      var color, i, j, pos, w, x, y, _ref, _results;
       pos = this.getpos_relative(cam);
       _results = [];
       for (i = 0, _ref = this._map.length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
@@ -141,12 +141,23 @@
           var _ref, _results;
           _results = [];
           for (j = 0, _ref = this._map[i].length; (0 <= _ref ? j < _ref : j > _ref); (0 <= _ref ? j += 1 : j -= 1)) {
-            if (this._map[i][j]) {
-              my.init_cv(g, color = "rgb(0,0,0)", alpha = 0.5);
-            } else {
-              my.init_cv(g, color = "rgb(250,250,250)", alpha = 0.5);
-            }
-            _results.push(g.fillRect(pos.vx + i * this.cell, pos.vy + j * this.cell, this.cell, this.cell));
+            _results.push(this._map[i][j] ? (this.init_cv(g, color = "rgb(30,30,30)"), w = 8, x = pos.vx + i * this.cell, y = pos.vy + j * this.cell, g.moveTo(x, y + this.cell), g.lineTo(x + w, y + this.cell - w), g.lineTo(x + this.cell + w, y + this.cell - w), g.lineTo(x + this.cell, y + this.cell), g.lineTo(x, y + this.cell), g.fill(), this.init_cv(g, color = "rgb(40,40,40)"), g.moveTo(x, y + this.cell), g.lineTo(x, y), g.lineTo(x + w, y - w), g.lineTo(x + w, y - w + this.cell), g.lineTo(x, y + this.cell), g.fill()) : void 0);
+          }
+          return _results;
+        }).call(this));
+      }
+      return _results;
+    };
+    Map.prototype.render_after = function(g, cam) {
+      var alpha, color, i, j, pos, w, _ref, _results;
+      pos = this.getpos_relative(cam);
+      _results = [];
+      for (i = 0, _ref = this._map.length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
+        _results.push((function() {
+          var _ref, _results;
+          _results = [];
+          for (j = 0, _ref = this._map[i].length; (0 <= _ref ? j < _ref : j > _ref); (0 <= _ref ? j += 1 : j -= 1)) {
+            _results.push(this._map[i][j] ? (my.init_cv(g, color = "rgb(50,50,50)", alpha = 1), w = 5, g.fillRect(pos.vx + i * this.cell + w, pos.vy + j * this.cell - w, this.cell, this.cell)) : void 0);
           }
           return _results;
         }).call(this));

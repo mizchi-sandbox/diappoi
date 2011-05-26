@@ -37,15 +37,18 @@ class FieldScene extends Scene
     @map = new Map(32)
 
     start_point = @map.get_randpoint()
-    @player  =  new Player(start_point.x ,start_point.y, 0)
+    player  =  new Player(start_point.x ,start_point.y, 0)
 
-    @objs = [@player]
+    @objs = [player]
+    @set_camera( player )
+
     @max_object_count = 11
     @fcnt = 0
 
   enter: (keys,mouse) ->
     obj.update(@objs, @map,keys,mouse) for obj in @objs
 
+    # pop
     if @objs.length < @max_object_count and @fcnt % 24*3 == 0
       group = 0
       if Math.random() > 0.15
@@ -54,43 +57,43 @@ class FieldScene extends Scene
         group = 0
 
       rpo = @map.get_randpoint()
-      @objs.push( new Enemy(rpo.x, rpo.y, group) )
+      @objs.push( new Goblin(rpo.x, rpo.y, group) )
     else  # check dead
       for i in [0 ... @objs.length]
         if not @objs[i].state.alive
-          @objs.splice(i,1)
+          if @objs[i] is @camera
+            start_point = @map.get_randpoint()
+            player  =  new Player(start_point.x ,start_point.y, 0)
+            @objs.push(player)
+            @set_camera(player)
+            @objs.splice(i,1)
+          else
+            @objs.splice(i,1)
           break
     @fcnt++
     return @name
 
+  set_camera: (obj)->
+    @camera = obj
+
   render: (g)->
-    cam = @player
-    # cam = @objs[@objs.length-1]
+    @map.render(g, @camera)
+    obj.render(g,@camera) for obj in @objs
+    @map.render_after(g, @camera)
 
-    @map.render(g, cam)
-    obj.render(g,cam) for obj in @objs
-
-    my.init_cv(g)
-    g.fillText(
-        "HP "+@player.status.hp+"/"+@player.status.MAX_HP,
-        15,15)
-
-    mouse_x =@player.x+@player.mouse.x-320
-    mouse_y =@player.y+@player.mouse.y-240
-
-    g.fillText(
-        "p: "+(@player.x+@player.mouse.x-320)+"."+(@player.y+@player.mouse.y-240)
-        15,25)
-
-    if @player.targeting
-      g.fillText(
-          "p: "+@player.targeting.status.hp+"."+@player.targeting.status.MAX_HP
-          15,35)
-
-    # e = @enemies[0]
+    # my.init_cv(g)
     # g.fillText(
-    #     "Enemy Pos :"+e.x+"/"+e.y+":"+~~(e.dir/Math.PI*180)
-    #     15,35)
+    #     "HP "+@player.status.hp+"/"+@player.status.MAX_HP,
+    #     15,15)
 
+    # mouse_x =@player.x+@player.mouse.x-320
+    # mouse_y =@player.y+@player.mouse.y-240
 
+    # g.fillText(
+    #     "p: "+(@player.x+@player.mouse.x-320)+"."+(@player.y+@player.mouse.y-240)
+    #     15,25)
 
+    # if @player.targeting
+    #   g.fillText(
+    #       "p: "+@player.targeting.status.hp+"."+@player.targeting.status.MAX_HP
+    #       15,35)

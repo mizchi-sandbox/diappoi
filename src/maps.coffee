@@ -90,13 +90,50 @@ class Map extends Sprite
     for i in [0 ... @_map.length]
       for j in [0 ... @_map[i].length]
         if @_map[i][j]
-          my.init_cv(g , color = "rgb(0,0,0)",alpha=0.5)
+          # @init_cv(g , color = "rgb(100,100,100)",alpha=1)
+          # g.fillRect(
+          #   pos.vx + i * @cell,
+          #   pos.vy + j * @cell,
+          #   @cell , @cell)
+
+          @init_cv(g, color="rgb(30,30,30)")
+          w = 8
+          x = pos.vx+i*@cell
+          y = pos.vy+j*@cell
+          g.moveTo(x         ,y+@cell)
+          g.lineTo(x+w       ,y+@cell-w)
+          g.lineTo(x+@cell+w ,y+@cell-w)
+          g.lineTo(x+@cell   ,y+@cell)
+          g.lineTo(x         ,y+@cell)
+          g.fill()
+
+          @init_cv(g, color="rgb(40,40,40)")
+          g.moveTo(x  ,y+@cell)
+          g.lineTo(x  ,y)
+          g.lineTo(x+w,y-w)
+          g.lineTo(x+w,y-w+@cell)
+          g.lineTo(x  ,y+@cell)
+          g.fill()
+
         else
-          my.init_cv(g , color = "rgb(250,250,250)",alpha=0.5)
-        g.fillRect(
-          pos.vx + i * @cell,
-          pos.vy + j * @cell,
-          @cell , @cell)
+          # @init_cv(g , color = "rgb(250,250,250)",alpha=0.5)
+          # g.fillRect(
+          #   pos.vx + i * @cell,
+          #   pos.vy + j * @cell,
+          #   @cell , @cell)
+
+
+  render_after:(g,cam)->
+    pos = @getpos_relative(cam)
+    for i in [0 ... @_map.length]
+      for j in [0 ... @_map[i].length]
+        if @_map[i][j]
+          my.init_cv(g , color = "rgb(50,50,50)",alpha=1)
+          w = 5
+          g.fillRect(
+            pos.vx + i * @cell+w,
+            pos.vy + j * @cell-w,
+            @cell , @cell)
 
 maps =
   filed1 : """

@@ -172,23 +172,16 @@
       g.lineTo(x, y);
       return g.fill();
     },
-    render_rest_gage: function(g, x, y, w, h, percent) {
-      if (percent == null) {
-        percent = 1;
+    mklist: function(list, func) {
+      var buf, i, _i, _len;
+      buf = [];
+      for (_i = 0, _len = list.length; _i < _len; _i++) {
+        i = list[_i];
+        if (func(i)) {
+          buf.push(i);
+        }
       }
-      g.moveTo(x - w / 2, y - h / 2);
-      g.lineTo(x + w / 2, y - h / 2);
-      g.lineTo(x + w / 2, y + h / 2);
-      g.lineTo(x - w / 2, y + h / 2);
-      g.lineTo(x - w / 2, y - h / 2);
-      g.stroke();
-      g.beginPath();
-      g.moveTo(x - w / 2 + 1, y - h / 2 + 1);
-      g.lineTo(x - w / 2 + w * percent, y - h / 2 + 1);
-      g.lineTo(x - w / 2 + w * percent, y + h / 2 - 1);
-      g.lineTo(x - w / 2 + 1, y + h / 2 - 1);
-      g.lineTo(x - w / 2 + 1, y - h / 2 + 1);
-      return g.fill();
+      return buf;
     }
   };
 }).call(this);

@@ -6,7 +6,6 @@ class Status
     @wt = 0
     @MAX_SP = params.sp or 10
     @sp = @MAX_SP
-
     @exp = 0
 
     @atk = params.atk or 10
@@ -33,7 +32,7 @@ class Battler extends Sprite
     @animation = []
 
   add_animation:(animation)->
-    @animation[@animation.length] = animation
+    @animation.push(animation)
 
   render_animation:(g,x, y)->
     for n in [0...@animation.length]
@@ -54,11 +53,15 @@ class Battler extends Sprite
     if @status.hp < 1
       @status.hp = 0
       @state.alive = false
-      # @state.targeting = null
+      @state.targeting = null
 
     if @status.hp > @status.MAX_HP
       @status.hp = @status.MAX_HP
       @state.alive = true
+
+    if @targeting
+      if not @targeting.state.alive
+        @targeting = null
 
   regenerate: ()->
     if @targeting then r = 2 else r = 1
@@ -91,14 +94,14 @@ class Battler extends Sprite
     @targeting.check_state()
 
   set_target:(targets)->
-    if targets.length == 0
-      @targeting = null
-    # else if not @targeting and targets.length > 0
-    else if targets.length > 0
+    # if targets.length == 0
+    #   @targeting = null
+    if targets.length > 0
       if not @targeting or not @targeting.alive
         @targeting = targets[0]
       else
         @targeting
+
 
   change_target:(targets=@targeting)->
     # TODO: implement hate control
@@ -123,7 +126,6 @@ class Battler extends Sprite
       return @targeting
 
   get_targets_in_range:(targets, range= @sight_range)->
-
     enemies = []
     for t in targets
       if t.group != @group and t.category == "battler"
@@ -144,14 +146,33 @@ class Battler extends Sprite
     return null
 
 
-  _render_gages:(g,x,y,w,h,rest) ->
-    # HP bar
-    my.init_cv(g,"rgb(0, 250, 100)")
-    my.render_rest_gage(g,x,y+15,w,h,@status.hp/@status.MAX_HP)
+  # _render_gages:(g,x,y,w,h,rest) ->
+  #   # HP bar
+  #   my.init_cv(g,"rgb(0, 250, 100)")
+  #   my.render_rest_gage(g,x,y+15,w,h,@status.hp/@status.MAX_HP)
 
-    # WT bar
-    my.init_cv(g,"rgb(0, 100, e55)")
-    my.render_rest_gage(g,x,y+25,w,h,@status.wt/@status.MAX_WT)
+  #   # WT bar
+  #   my.init_cv(g,"rgb(0, 100, e55)")
+  #   my.render_rest_gage(g,x,y+25,w,h,@status.wt/@status.MAX_WT)
+
+  _render_gages:( g, x , y, w, h ,percent=1) ->
+    my.init_cv(g,"rgb(0, 250, 100)")
+    # frame
+    g.moveTo(x-w/2 , y-h/2)
+    g.lineTo(x+w/2 , y-h/2)
+    g.lineTo(x+w/2 , y+h/2)
+    g.lineTo(x-w/2 , y+h/2)
+    g.lineTo(x-w/2 , y-h/2)
+    g.stroke()
+
+    # rest
+    g.beginPath()
+    g.moveTo(x-w/2 +1, y-h/2+1)
+    g.lineTo(x-w/2+w*percent, y-h/2+1)
+    g.lineTo(x-w/2+w*percent, y+h/2-1)
+    g.lineTo(x-w/2 +1, y+h/2-1)
+    g.lineTo(x-w/2 +1, y-h/2+1)
+    g.fill()
 
   render_targeted: (g,pos,color="rgb(255,0,0)")->
     my.init_cv(g)
@@ -271,9 +292,11 @@ class Player extends Battler
     my.init_cv(g,"rgb(255, 0, 0)")
     g.arc(pos.vx,pos.vy, @atack_range ,  0 , Math.PI*2,true)
     g.stroke()
-    @_render_gages(g,pos.vx,pos.vy,40,6,@status.hp/@status.MAX_HP)
+    # @_render_gages(g,pos.vx, pos.vy,40,6,@status.hp/@status.MAX_HP)
+    @_render_gages(g,pos.vx, pos.vy+15,40 , 6 , @status.hp/@status.MAX_HP)
+    @_render_gages(g,pos.vx, pos.vy+22,40 , 6 , @status.wt/@status.MAX_WT)
     @targeting.render_targeted(g, pos ,color="rgb(0,0,255)") if @targeting
-    @render_mouse(g)
+    @render_mouse(g) if @mouse
 
     @render_animation(g, pos.vx , pos.vy )
     c = 0
@@ -289,7 +312,7 @@ class Player extends Battler
     g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
     g.stroke()
 
-class Enemy extends Battler
+class Monster extends Battler
   constructor: (@x,@y,@group=1) ->
     super(@x,@y,@group)
     @scale = 5
@@ -313,43 +336,47 @@ class Enemy extends Battler
       @move(cmap,objs)
       @act()
 
+  trace: (to_x , to_y)->
+    @set_dir(to_x,to_y)
+    nx = @x + ~~(@speed * Math.cos(@dir))
+    ny = @y + ~~(@speed * Math.sin(@dir))
+    return [nx ,ny]
+
   move: (cmap,objs)->
     # if target exist , trace
+    leader =  @get_leader(objs)
+    destination = null
+
     if @targeting
+      # target 発見時
       distance = @get_distance(@targeting)
       if distance > @atack_range
-        @set_dir(@targeting.x,@targeting.y)
-        nx = @x + ~~(@speed * Math.cos(@dir))
-        ny = @y + ~~(@speed * Math.sin(@dir))
+        [nx,ny] = @trace( @targeting.x , @targeting.y )
       else
-        # stay here
 
-    else # if not target isnt exist , move freely
-      leader =  @get_leader(objs)
-      if leader
-        distance = @get_distance(leader)
-        if distance > 30
-          @set_dir(leader.x,leader.y)
-          nx = @x + ~~(@speed * Math.cos(@dir))
-          ny = @y + ~~(@speed * Math.sin(@dir))
-        else
-          if @cnt % 24 ==  0
-            @dir = Math.PI * 2 * Math.random()
-          if @cnt % 24 < 3
-            nx = @x + ~~(@speed * Math.cos(@dir))
-            ny = @y + ~~(@speed * Math.sin(@dir))
-
+    else if leader
+      distance = @get_distance(leader)
+      # リーダー 発見時
+      if distance > @sight_range/2
+        [nx,ny] = @trace( leader.x , leader.y )
       else
         if @cnt % 24 ==  0
           @dir = Math.PI * 2 * Math.random()
-        if @cnt % 24 < 8
+        else if @cnt % 24 < 3
           nx = @x + ~~(@speed * Math.cos(@dir))
           ny = @y + ~~(@speed * Math.sin(@dir))
+
+    else
+      # ターゲット不在時
+      if @cnt % 24 ==  0
+        @dir = Math.PI * 2 * Math.random()
+      if @cnt % 24 < 8
+        nx = @x + ~~(@speed * Math.cos(@dir))
+        ny = @y + ~~(@speed * Math.sin(@dir))
 
     if not cmap.collide( nx,ny )
       @x = nx if nx?
       @y = ny if ny?
-
 
   render: (g,cam)->
     my.init_cv(g)
@@ -369,8 +396,6 @@ class Enemy extends Battler
       g.arc( pos.vx, pos.vy, ( 1.3 + ms ) * @scale ,0,Math.PI*2,true)
       g.fill()
 
-
-
       # active circle
       if @targeting
           my.init_cv(g , color = "rgb(255,0,0)")
@@ -389,7 +414,9 @@ class Enemy extends Battler
       g.lineTo(pos.vx+nx , pos.vy+ny)
       g.stroke()
 
-      @_render_gages(g , pos.vx , pos.vy ,30,6,@status.wt/@status.MAX_WT)
+      @_render_gages(g,pos.vx, pos.vy+15,40 , 6 , @status.hp/@status.MAX_HP)
+      @_render_gages(g,pos.vx, pos.vy+22,40 , 6 , @status.wt/@status.MAX_WT)
+
       if @targeting
         @targeting.render_targeted(g,pos)
         @init_cv(g,color="rgb(0,0,255)",alpha=0.5)
@@ -403,3 +430,17 @@ class Enemy extends Battler
         g.fill()
 
     @render_animation(g, pos.vx , pos.vy )
+
+class Goblin extends Monster
+  constructor: (@x,@y,@group=1) ->
+    super(@x,@y,@group)
+
+  update: (objs, cmap)->
+    super(objs,cmap)
+
+  move: (cmap,objs)->
+    super(cmap,objs)
+
+  render: (g,cam)->
+    super(g,cam)
+

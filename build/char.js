@@ -1,5 +1,5 @@
 (function() {
-  var Battler, Enemy, Player, Status;
+  var Battler, Goblin, Monster, Player, Status;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -55,7 +55,7 @@
       this.animation = [];
     }
     Battler.prototype.add_animation = function(animation) {
-      return this.animation[this.animation.length] = animation;
+      return this.animation.push(animation);
     };
     Battler.prototype.render_animation = function(g, x, y) {
       var n, _ref, _results;
@@ -81,10 +81,16 @@
       if (this.status.hp < 1) {
         this.status.hp = 0;
         this.state.alive = false;
+        this.state.targeting = null;
       }
       if (this.status.hp > this.status.MAX_HP) {
         this.status.hp = this.status.MAX_HP;
-        return this.state.alive = true;
+        this.state.alive = true;
+      }
+      if (this.targeting) {
+        if (!this.targeting.state.alive) {
+          return this.targeting = null;
+        }
       }
     };
     Battler.prototype.regenerate = function() {
@@ -131,9 +137,7 @@
       return this.targeting.check_state();
     };
     Battler.prototype.set_target = function(targets) {
-      if (targets.length === 0) {
-        return this.targeting = null;
-      } else if (targets.length > 0) {
+      if (targets.length > 0) {
         if (!this.targeting || !this.targeting.alive) {
           return this.targeting = targets[0];
         } else {
@@ -205,11 +209,24 @@
       }
       return null;
     };
-    Battler.prototype._render_gages = function(g, x, y, w, h, rest) {
+    Battler.prototype._render_gages = function(g, x, y, w, h, percent) {
+      if (percent == null) {
+        percent = 1;
+      }
       my.init_cv(g, "rgb(0, 250, 100)");
-      my.render_rest_gage(g, x, y + 15, w, h, this.status.hp / this.status.MAX_HP);
-      my.init_cv(g, "rgb(0, 100, e55)");
-      return my.render_rest_gage(g, x, y + 25, w, h, this.status.wt / this.status.MAX_WT);
+      g.moveTo(x - w / 2, y - h / 2);
+      g.lineTo(x + w / 2, y - h / 2);
+      g.lineTo(x + w / 2, y + h / 2);
+      g.lineTo(x - w / 2, y + h / 2);
+      g.lineTo(x - w / 2, y - h / 2);
+      g.stroke();
+      g.beginPath();
+      g.moveTo(x - w / 2 + 1, y - h / 2 + 1);
+      g.lineTo(x - w / 2 + w * percent, y - h / 2 + 1);
+      g.lineTo(x - w / 2 + w * percent, y + h / 2 - 1);
+      g.lineTo(x - w / 2 + 1, y + h / 2 - 1);
+      g.lineTo(x - w / 2 + 1, y - h / 2 + 1);
+      return g.fill();
     };
     Battler.prototype.render_targeted = function(g, pos, color) {
       var alpha, beat, ms;
@@ -351,11 +368,14 @@
       my.init_cv(g, "rgb(255, 0, 0)");
       g.arc(pos.vx, pos.vy, this.atack_range, 0, Math.PI * 2, true);
       g.stroke();
-      this._render_gages(g, pos.vx, pos.vy, 40, 6, this.status.hp / this.status.MAX_HP);
+      this._render_gages(g, pos.vx, pos.vy + 15, 40, 6, this.status.hp / this.status.MAX_HP);
+      this._render_gages(g, pos.vx, pos.vy + 22, 40, 6, this.status.wt / this.status.MAX_WT);
       if (this.targeting) {
         this.targeting.render_targeted(g, pos, color = "rgb(0,0,255)");
       }
-      this.render_mouse(g);
+      if (this.mouse) {
+        this.render_mouse(g);
+      }
       this.render_animation(g, pos.vx, pos.vy);
       c = 0;
       _ref = this.binded_skill;
@@ -377,14 +397,14 @@
     };
     return Player;
   })();
-  Enemy = (function() {
-    __extends(Enemy, Battler);
-    function Enemy(x, y, group) {
+  Monster = (function() {
+    __extends(Monster, Battler);
+    function Monster(x, y, group) {
       var status;
       this.x = x;
       this.y = y;
       this.group = group != null ? group : 1;
-      Enemy.__super__.constructor.call(this, this.x, this.y, this.group);
+      Monster.__super__.constructor.call(this, this.x, this.y, this.group);
       this.scale = 5;
       status = {
         hp: 50,
@@ -399,50 +419,51 @@
       this.dir = 0;
       this.cnt = ~~(Math.random() * 24);
     }
-    Enemy.prototype.update = function(objs, cmap) {
-      Enemy.__super__.update.call(this);
+    Monster.prototype.update = function(objs, cmap) {
+      Monster.__super__.update.call(this);
       if (this.state.alive) {
         this.set_target(this.get_targets_in_range(objs, this.sight_range));
         this.move(cmap, objs);
         return this.act();
       }
     };
-    Enemy.prototype.move = function(cmap, objs) {
-      var distance, leader, nx, ny;
+    Monster.prototype.trace = function(to_x, to_y) {
+      var nx, ny;
+      this.set_dir(to_x, to_y);
+      nx = this.x + ~~(this.speed * Math.cos(this.dir));
+      ny = this.y + ~~(this.speed * Math.sin(this.dir));
+      return [nx, ny];
+    };
+    Monster.prototype.move = function(cmap, objs) {
+      var destination, distance, leader, nx, ny, _ref, _ref2;
+      leader = this.get_leader(objs);
+      destination = null;
       if (this.targeting) {
         distance = this.get_distance(this.targeting);
         if (distance > this.atack_range) {
-          this.set_dir(this.targeting.x, this.targeting.y);
-          nx = this.x + ~~(this.speed * Math.cos(this.dir));
-          ny = this.y + ~~(this.speed * Math.sin(this.dir));
+          _ref = this.trace(this.targeting.x, this.targeting.y), nx = _ref[0], ny = _ref[1];
         } else {
 
         }
-      } else {
-        leader = this.get_leader(objs);
-        if (leader) {
-          distance = this.get_distance(leader);
-          if (distance > 30) {
-            this.set_dir(leader.x, leader.y);
-            nx = this.x + ~~(this.speed * Math.cos(this.dir));
-            ny = this.y + ~~(this.speed * Math.sin(this.dir));
-          } else {
-            if (this.cnt % 24 === 0) {
-              this.dir = Math.PI * 2 * Math.random();
-            }
-            if (this.cnt % 24 < 3) {
-              nx = this.x + ~~(this.speed * Math.cos(this.dir));
-              ny = this.y + ~~(this.speed * Math.sin(this.dir));
-            }
-          }
+      } else if (leader) {
+        distance = this.get_distance(leader);
+        if (distance > this.sight_range / 2) {
+          _ref2 = this.trace(leader.x, leader.y), nx = _ref2[0], ny = _ref2[1];
         } else {
           if (this.cnt % 24 === 0) {
             this.dir = Math.PI * 2 * Math.random();
-          }
-          if (this.cnt % 24 < 8) {
+          } else if (this.cnt % 24 < 3) {
             nx = this.x + ~~(this.speed * Math.cos(this.dir));
             ny = this.y + ~~(this.speed * Math.sin(this.dir));
           }
+        }
+      } else {
+        if (this.cnt % 24 === 0) {
+          this.dir = Math.PI * 2 * Math.random();
+        }
+        if (this.cnt % 24 < 8) {
+          nx = this.x + ~~(this.speed * Math.cos(this.dir));
+          ny = this.y + ~~(this.speed * Math.sin(this.dir));
         }
       }
       if (!cmap.collide(nx, ny)) {
@@ -454,7 +475,7 @@
         }
       }
     };
-    Enemy.prototype.render = function(g, cam) {
+    Monster.prototype.render = function(g, cam) {
       var alpha, beat, color, ms, nx, ny, pos, t;
       my.init_cv(g);
       pos = this.getpos_relative(cam);
@@ -487,7 +508,8 @@
         g.moveTo(pos.vx, pos.vy);
         g.lineTo(pos.vx + nx, pos.vy + ny);
         g.stroke();
-        this._render_gages(g, pos.vx, pos.vy, 30, 6, this.status.wt / this.status.MAX_WT);
+        this._render_gages(g, pos.vx, pos.vy + 15, 40, 6, this.status.hp / this.status.MAX_HP);
+        this._render_gages(g, pos.vx, pos.vy + 22, 40, 6, this.status.wt / this.status.MAX_WT);
         if (this.targeting) {
           this.targeting.render_targeted(g, pos);
           this.init_cv(g, color = "rgb(0,0,255)", alpha = 0.5);
@@ -503,6 +525,25 @@
       }
       return this.render_animation(g, pos.vx, pos.vy);
     };
-    return Enemy;
+    return Monster;
+  })();
+  Goblin = (function() {
+    __extends(Goblin, Monster);
+    function Goblin(x, y, group) {
+      this.x = x;
+      this.y = y;
+      this.group = group != null ? group : 1;
+      Goblin.__super__.constructor.call(this, this.x, this.y, this.group);
+    }
+    Goblin.prototype.update = function(objs, cmap) {
+      return Goblin.__super__.update.call(this, objs, cmap);
+    };
+    Goblin.prototype.move = function(cmap, objs) {
+      return Goblin.__super__.move.call(this, cmap, objs);
+    };
+    Goblin.prototype.render = function(g, cam) {
+      return Goblin.__super__.render.call(this, g, cam);
+    };
+    return Goblin;
   })();
 }).call(this);

@@ -109,24 +109,6 @@ my =
     g.lineTo(x , y)
     g.fill()
 
-  render_rest_gage:( g, x , y, w, h ,percent=1) ->
-    # frame
-    g.moveTo(x-w/2 , y-h/2)
-    g.lineTo(x+w/2 , y-h/2)
-    g.lineTo(x+w/2 , y+h/2)
-    g.lineTo(x-w/2 , y+h/2)
-    g.lineTo(x-w/2 , y-h/2)
-    g.stroke()
-
-    # rest
-    g.beginPath()
-    g.moveTo(x-w/2 +1, y-h/2+1)
-    g.lineTo(x-w/2+w*percent, y-h/2+1)
-    g.lineTo(x-w/2+w*percent, y+h/2-1)
-    g.lineTo(x-w/2 +1, y+h/2-1)
-    g.lineTo(x-w/2 +1, y-h/2+1)
-    g.fill()
-
   mklist :(list,func)->
     buf = []
     for i in list
