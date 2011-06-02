@@ -34,10 +34,8 @@
       return this.name;
     };
     OpeningScene.prototype.render = function(g) {
-      this.player.render(g);
       return g.fillText("Opening", 300, 200);
     };
-    OpeningScene.prototype.render = function() {};
     return OpeningScene;
   })();
   FieldScene = (function() {
@@ -69,6 +67,9 @@
         }
         rpo = this.map.get_randpoint();
         this.objs.push(new Goblin(rpo.x, rpo.y, group));
+        if (Math.random() < 0.3) {
+          this.objs[this.objs.length - 1].state.leader = 1;
+        }
       } else {
         for (i = 0, _ref2 = this.objs.length; (0 <= _ref2 ? i < _ref2 : i > _ref2); (0 <= _ref2 ? i += 1 : i -= 1)) {
           if (!this.objs[i].state.alive) {
@@ -92,14 +93,20 @@
       return this.camera = obj;
     };
     FieldScene.prototype.render = function(g) {
-      var obj, _i, _len, _ref;
+      var obj, player, _i, _len, _ref;
       this.map.render(g, this.camera);
       _ref = this.objs;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         obj = _ref[_i];
         obj.render(g, this.camera);
       }
-      return this.map.render_after(g, this.camera);
+      this.map.render_after(g, this.camera);
+      player = this.camera;
+      if (player) {
+        player.render_skill_gage(g);
+        my.init_cv(g);
+        return g.fillText("HP " + player.status.hp + "/" + player.status.MAX_HP, 15, 15);
+      }
     };
     return FieldScene;
   })();

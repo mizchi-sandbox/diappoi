@@ -10,11 +10,83 @@ mouse =
   x : 320
   y : 240
 
+class NodeList extends Array
+  constructor:(list)->
+    c=0
+    for i in list
+      @[c] = i
+      c++
+  get:(n)-> return @[n]
+
+  find:(x,y)->
+    l = []
+    for t in @
+      if t.pos == [x,y]
+        l.push(t)
+    if l != []
+      return l[0]
+    else
+      return null
+
+  remove_node : (node)->
+    @splice( @indexOf(node) ,1 )
+
+class Node
+  constructor:(start , goal , x,y)->
+    @pos    = [x,y]
+    @start = start
+    @goal = goal
+    @fs     = 0
+    @owner_list  = null
+    @parent_node = null
+    @hs     = Math.pow(x-@goal[0],2)+Math.pow(y-@goal[1],2)
+
+  is_goal:(self)->
+    return @goal == @pos
+
 vows.describe('Game Test').addBatch
   'combat test':
     topic: "atack"
     'test': ()->
-        map = new Map(32)
+      map = new Map(32)
+      start = map.get_randpoint()
+      goal = map.get_randpoint()
+      arr = []
+      console.log arr
+
+      open_list = []
+      close_list = []
+      start_node    = new Node(start,goal, start[0],start[1])
+      start_node.fs = start_node.hs
+      open_list.push(start_node)
+      console.log open_list
+
+      search_to =[
+        [-1,-1], [ 0,-1], [ 1,-1]
+        [-1, 0], [ 0, 0], [ 1, 0]
+        [-1, 1], [ 0, 1], [ 1, 1]
+      ]
+      cnode = start_node
+
+      for i in search_to
+        [nx,ny] = [i[0]+cnode.pos[0] , i[1]+cnode.pos[0]]
+        t = map._map[nx][ny]
+        console.log "#{nx} #{ny} #{t} "
+
+
+      # while true
+      #   if open_list == []
+      #     console.log "There is no route until reaching a goal."
+      #     return
+
+      #   n = open_list[0]
+      #   for i in open_list
+      #     if i.fs<n.fs
+      #       n = i
+      #   console.log open_list.indexOf(n)
+      #   open_list.splice(open_list.indexOf(n),1)
+      #   close_list.push(n)
+
         # console.log map._map
     # topic: "select two targets"
     # 'select two': ()->

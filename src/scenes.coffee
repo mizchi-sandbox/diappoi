@@ -23,13 +23,9 @@ class OpeningScene extends Scene
     return @name
 
   render: (g)->
-    @player.render(g)
     g.fillText(
         "Opening",
         300,200)
-
-  render:()->
-
 
 class FieldScene extends Scene
   constructor: () ->
@@ -58,6 +54,9 @@ class FieldScene extends Scene
 
       rpo = @map.get_randpoint()
       @objs.push( new Goblin(rpo.x, rpo.y, group) )
+      if Math.random() < 0.3
+        @objs[@objs.length-1].state.leader = 1
+
     else  # check dead
       for i in [0 ... @objs.length]
         if not @objs[i].state.alive
@@ -81,17 +80,24 @@ class FieldScene extends Scene
     obj.render(g,@camera) for obj in @objs
     @map.render_after(g, @camera)
 
-    # my.init_cv(g)
-    # g.fillText(
-    #     "HP "+@player.status.hp+"/"+@player.status.MAX_HP,
-    #     15,15)
+    player = @camera
+
+    if player
+      player.render_skill_gage(g)
+      my.init_cv(g)
+      g.fillText(
+          "HP "+player.status.hp+"/"+player.status.MAX_HP,
+          15,15)
+
+      # if player.mouse
+      #   g.fillText(
+      #       "p: "+(player.x+player.mouse.x-320)+"."+(player.y+player.mouse.y-240)
+      #       15,25)
 
     # mouse_x =@player.x+@player.mouse.x-320
     # mouse_y =@player.y+@player.mouse.y-240
 
-    # g.fillText(
-    #     "p: "+(@player.x+@player.mouse.x-320)+"."+(@player.y+@player.mouse.y-240)
-    #     15,25)
+
 
     # if @player.targeting
     #   g.fillText(

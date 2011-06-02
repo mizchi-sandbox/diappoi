@@ -1,5 +1,5 @@
 (function() {
-  var Map, base_block, maps, rjoin, sjoin;
+  var Map, base_block, maps;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -171,23 +171,4 @@
     debug: "             ....\n          ...........\n        ..............\n      .... ........... .\n     .......     ........\n.........    ..     ......\n........   ......    .......\n.........   .....    .......\n .................. ........\n     .......................\n     ....................\n           .............\n              ......\n               ...\n"
   };
   base_block = [[1, 1, 0, 1, 1], [1, 0, 0, 1, 1], [0, 0, 0, 0, 0], [1, 0, 0, 0, 1], [1, 1, 0, 1, 1]];
-  rjoin = function(map1, map2) {
-    map1;    return map1.concat(map2);
-  };
-  sjoin = function(map1, map2) {
-    var buf, i, y, _ref;
-    if (!map1[0].length === map2[0].length) {
-      return false;
-    }
-    y = 0;
-    buf = [];
-    for (i = 0, _ref = map1.length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
-      buf[i] = map1[i].concat(map2[i]);
-      y++;
-    }
-    return buf;
-  };
-  String.prototype.replaceAll = function(org, dest) {
-    return this.split(org).join(dest);
-  };
 }).call(this);

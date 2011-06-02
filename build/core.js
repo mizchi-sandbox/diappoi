@@ -1,5 +1,5 @@
 (function() {
-  var Game, my;
+  var Game, my, rjoin, sjoin;
   Game = (function() {
     function Game(conf) {
       var canvas;
@@ -183,5 +183,27 @@
       }
       return buf;
     }
+  };
+  rjoin = function(map1, map2) {
+    map1;    return map1.concat(map2);
+  };
+  sjoin = function(map1, map2) {
+    var buf, i, y, _ref;
+    if (!map1[0].length === map2[0].length) {
+      return false;
+    }
+    y = 0;
+    buf = [];
+    for (i = 0, _ref = map1.length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
+      buf[i] = map1[i].concat(map2[i]);
+      y++;
+    }
+    return buf;
+  };
+  String.prototype.replaceAll = function(org, dest) {
+    return this.split(org).join(dest);
+  };
+  Array.prototype.remove = function(n) {
+    return this.splice(n, 1);
   };
 }).call(this);

@@ -23,13 +23,6 @@ class Sprite
     g.fillStyle = color
     g.globalAlpha = alpha
 
-  set_dir: (x,y)->
-    rx = x - @x
-    ry = y - @y
-    if rx >= 0
-      @dir = Math.atan( ry / rx  )
-    else
-      @dir = Math.PI - Math.atan( ry / - rx  )
 
 class Animation extends Sprite
   constructor: (actor,target) ->

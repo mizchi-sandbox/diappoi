@@ -45,7 +45,6 @@ class Game
       when 83,40 then self.keys.down = to
       when 32 then self.keys.space = to
       when 17 then self.keys.ctrl = to
-
       when 48 then self.keys.zero = to
       when 49 then self.keys.one = to
       when 50 then self.keys.two = to
@@ -114,5 +113,32 @@ my =
     for i in list
       buf.push(i) if func(i)
     return buf
+
+
+rjoin = (map1,map2)->
+  map1
+  return map1.concat(map2)
+
+sjoin = (map1,map2)->
+  if not map1[0].length == map2[0].length
+    return false
+  y = 0
+  buf = []
+  for i in [0...map1.length]
+    buf[i] = map1[i].concat(map2[i])
+    y++
+  return buf
+
+String::replaceAll = (org, dest) ->
+  return @split(org).join(dest)
+
+Array::remove = (n)->
+  @splice(n,1)
+
+randint = (from,to) ->
+  if not to?
+    to = from
+    from = 0
+  return ~~( Math.random()*(to-from+1))+from
 
 

@@ -80,6 +80,17 @@ class Map extends Sprite
       return @get_randpoint()
     return @get_point(rx,ry )
 
+  get_randpoint: ()->
+    rx = ~~(Math.random()*@_map.length)
+    ry = ~~(Math.random()*@_map[0].length)
+    if @_map[rx][ry]
+      return @get_randpoint()
+    return [rx,ry]
+  get_cell: (x,y)->
+    x = ~~(x / @cell)
+    y = ~~(y / @cell)
+    return {x:x,y:y}
+
   collide: (x,y)->
     x = ~~(x / @cell)
     y = ~~(y / @cell)
@@ -90,11 +101,6 @@ class Map extends Sprite
     for i in [0 ... @_map.length]
       for j in [0 ... @_map[i].length]
         if @_map[i][j]
-          # @init_cv(g , color = "rgb(100,100,100)",alpha=1)
-          # g.fillRect(
-          #   pos.vx + i * @cell,
-          #   pos.vy + j * @cell,
-          #   @cell , @cell)
 
           @init_cv(g, color="rgb(30,30,30)")
           w = 8
@@ -192,21 +198,4 @@ base_block = [
   [ 1,0,0,0,1 ]
   [ 1,1,0,1,1 ]
   ]
-
-rjoin = (map1,map2)->
-  map1
-  return map1.concat(map2)
-
-sjoin = (map1,map2)->
-  if not map1[0].length == map2[0].length
-    return false
-  y = 0
-  buf = []
-  for i in [0...map1.length]
-    buf[i] = map1[i].concat(map2[i])
-    y++
-  return buf
-
-String.prototype.replaceAll = (org, dest) ->
-  return @split(org).join(dest)
 
