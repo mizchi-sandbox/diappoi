@@ -88,7 +88,9 @@ class FieldScene extends Scene
       g.fillText(
           "HP "+player.status.hp+"/"+player.status.MAX_HP,
           15,15)
-
+      g.fillText(
+          " "+player.x+"/"+player.y,
+          15,35)
       # if player.mouse
       #   g.fillText(
       #       "p: "+(player.x+player.mouse.x-320)+"."+(player.y+player.mouse.y-240)

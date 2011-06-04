@@ -399,11 +399,10 @@ class Monster extends Battler
       d = cmap.get_point( c.x+randint(-1,1) ,c.y+randint(-1,1) )
 
       @distination = [d.x,d.y]
-      console.log
       # @dir = Math.PI * 2 * Math.random()
 
     if @distination # @cnt % 24 < 8
-      console.log @distination
+      console.log @distination + "hello"
       [to_x , to_y] = @distination
       return @trace()
     return [@x,@y]
