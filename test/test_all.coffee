@@ -1088,7 +1088,7 @@ class FieldScene extends Scene
     @objs = [player]
     @set_camera( player )
 
-    @max_object_count = 5
+    @max_object_count = 2
     @fcnt = 0
 
   enter: (keys,mouse) ->
@@ -1097,7 +1097,7 @@ class FieldScene extends Scene
     # pop
     if @objs.length < @max_object_count and @fcnt % 24*3 == 0
       group = 0
-      if Math.random() > 0.15
+      if Math.random() > 0.05
         group = 1
       else
         group = 0
@@ -1173,13 +1173,6 @@ vows.describe('Game Test').addBatch
       map = new Map(32)
       buf =  map.search_route( map.get_rand_cell_xy() , map.get_rand_cell_xy() )
       p buf
-
-      # open_list.sort( (a,b)->a.fs-b.fs )
-      # min_node = ns[0]
-      # ns.splice( min_node,1 )
-      # p ns
-      # p min_node
-
 
     # topic: "atack" # 'test': ()->
     #   map = new Map(32)

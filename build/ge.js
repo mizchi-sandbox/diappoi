@@ -1315,7 +1315,7 @@
       player = new Player(start_point.x, start_point.y, 0);
       this.objs = [player];
       this.set_camera(player);
-      this.max_object_count = 5;
+      this.max_object_count = 2;
       this.fcnt = 0;
     }
     FieldScene.prototype.enter = function(keys, mouse) {
@@ -1327,7 +1327,7 @@
       }
       if (this.objs.length < this.max_object_count && this.fcnt % 24 * 3 === 0) {
         group = 0;
-        if (Math.random() > 0.15) {
+        if (Math.random() > 0.05) {
           group = 1;
         } else {
           group = 0;
