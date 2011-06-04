@@ -34,8 +34,6 @@ class Map extends Sprite
 
     return map
 
-  compile:(data)->
-    return ""
 
   rotate90:()->
     map = @_map

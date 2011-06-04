@@ -23,14 +23,21 @@ class Game
         zero : 0
     @mouse = x : 0, y : 0
     @scenes =
-      # "Opening": new OpeningScene()
+      "Opening": new OpeningScene()
       "Field": new FieldScene()
-    @curr_scene = @scenes["Field"]
+    @scene_name = "Opening"
+    # @curr_scene = @scenes["Opening"]
 
   enter: ->
-    next_scene = @curr_scene.enter(@keys,@mouse)
-    @curr_scene = @scenes[next_scene]
-    @draw(@curr_scene)
+    @scene_name = @scenes[@scene_name].enter(@keys,@mouse)
+    @draw(@scenes[@scene_name])
+
+    # while 1
+    #   next = @scenes[@scene_name].enter(@keys,@mouse)
+    #   if next == @scene_name
+    #     @scene_name = @scenes[next].enter(@keys,@mouse)
+    #     break
+    # @draw(@scenes[@scene_name])
 
   start: (self) ->
     setInterval ->

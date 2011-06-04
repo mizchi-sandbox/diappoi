@@ -25,14 +25,21 @@ class Game
         zero : 0
     @mouse = x : 0, y : 0
     @scenes =
-      # "Opening": new OpeningScene()
+      "Opening": new OpeningScene()
       "Field": new FieldScene()
-    @curr_scene = @scenes["Field"]
+    @scene_name = "Opening"
+    # @curr_scene = @scenes["Opening"]
 
   enter: ->
-    next_scene = @curr_scene.enter(@keys,@mouse)
-    @curr_scene = @scenes[next_scene]
-    @draw(@curr_scene)
+    @scene_name = @scenes[@scene_name].enter(@keys,@mouse)
+    @draw(@scenes[@scene_name])
+
+    # while 1
+    #   next = @scenes[@scene_name].enter(@keys,@mouse)
+    #   if next == @scene_name
+    #     @scene_name = @scenes[next].enter(@keys,@mouse)
+    #     break
+    # @draw(@scenes[@scene_name])
 
   start: (self) ->
     setInterval ->
@@ -248,8 +255,6 @@ class Map extends Sprite
 
     return map
 
-  compile:(data)->
-    return ""
 
   rotate90:()->
     map = @_map
@@ -785,8 +790,8 @@ class Player extends Battler
       y: 0
 
   update: (objs, cmap, keys,@mouse)->
-    if keys.space
-      @change_target()
+    # if keys.space
+    #   @set_target(objs)
     super(objs,cmap , keys,@mouse)
 
   set_mouse_dir: (x,y)->
@@ -884,6 +889,7 @@ class Monster extends Battler
     @dir = 0
     @cnt = ~~(Math.random() * 24)
     @distination = [@x,@y]
+    @_path = []
 
   update: (objs, cmap)->
     super(objs, cmap)
@@ -898,7 +904,7 @@ class Monster extends Battler
     wide = 32/4
     if @x-wide<@distination[0]<@x+wide and @y-wide<@distination[1]<@y+wide
       c = cmap.get_cell(@x,@y)
-      d = cmap.get_point( c.x+randint(-2,2) ,c.y+randint(-2,2) )
+      d = cmap.get_point( c.x+randint(-1,1) ,c.y+randint(-1,1) )
       if not cmap.collide( d.x ,d.y )
         @distination = [d.x,d.y]
 
@@ -910,28 +916,81 @@ class Monster extends Battler
     return [@x,@y]
     # return [nx ,ny]             #
 
+  # move: (objs ,cmap)->
+  #   # if target exist , trace
+  #   leader =  @get_leader(objs)
+  #   destination = null
+
+  #   if @targeting
+  #     # target 発見時
+  #     distance = @get_distance(@targeting)
+  #     if distance > @status.atack_range
+  #       [nx,ny] = @trace( @targeting.x , @targeting.y )
+  #     else
+
+  #   else if leader
+  #     distance = @get_distance(leader)
+  #     # リーダー 発見時
+  #     if distance > @status.sight_range/2
+  #       [nx,ny] = @trace( leader.x , leader.y )
+  #     else if leader is @
+  #       [nx,ny] = @wander(cmap)
+  #     else
+  #   else
+  #     [nx,ny] = @wander(cmap)
+
+  #   if not cmap.collide( nx,ny )
+  #     @x = nx if nx?
+  #     @y = ny if ny?
+
+  #   # reset distination if this cant move
+  #   if @x == @_lx and @y == @_ly
+  #     @distination = [@x,@y]
+
+  #   @_lx = @x
+  #   @_ly = @y
+
+  set_path:(cmap)->
+    from = cmap.get_cell( @x ,@y)
+    to = cmap.get_cell( @targeting.x ,@targeting.y)
+    if buf = cmap.search_route( [from.x,from.y] ,[to.x,to.y] )
+      @_path = buf
+      @to = @_path.shift()
+    else
+      @targeting = null
+
   move: (objs ,cmap)->
     # if target exist , trace
     leader =  @get_leader(objs)
-    destination = null
+    # console.log @_path
 
     if @targeting
-      # target 発見時
-      distance = @get_distance(@targeting)
-      if distance > @status.atack_range
-        [nx,ny] = @trace( @targeting.x , @targeting.y )
-      else
+      d = @get_distance(@targeting)
+      if d < @status.atack_range
+        return
 
-    else if leader
-      distance = @get_distance(leader)
-      # リーダー 発見時
-      if distance > @status.sight_range/2
-        [nx,ny] = @trace( leader.x , leader.y )
-      else if leader is @
-        [nx,ny] = @wander(cmap)
-      else
+    if @targeting and @to and not @cnt%24
+      @set_path(cmap)
+
+    else if @to
+      dp = cmap.get_point(@to[0],@to[1])
+      [nx,ny] = @trace( dp.x , dp.y )
+      wide = 7
+      if dp.x-wide<nx<dp.x+wide and dp.y-wide<ny<dp.y+wide
+        if @_path.length > 0
+          @to = @_path.shift()
+        else
+          @to = null
     else
-      [nx,ny] = @wander(cmap)
+      if @targeting
+        @set_path(cmap)
+      else
+        c = cmap.get_cell(@x,@y)
+        c.x += randint(-1,1)
+        c.y += randint(-1,1)
+        # @_path = [[c.x,c.y]]
+        @to = [c.x,c.y]
+        # [nx,ny] = @wander(cmap)
 
     if not cmap.collide( nx,ny )
       @x = nx if nx?
@@ -939,8 +998,12 @@ class Monster extends Battler
 
     # reset distination if this cant move
     if @x == @_lx and @y == @_ly
-      @distination = [@x,@y]
-
+      c = cmap.get_cell(@x,@y)
+      c.x += randint(-1,1)
+      c.y += randint(-1,1)
+      @to = [c.x,c.y]
+    #   cp = cmap.get_cell(@x,@y)
+    #   @distination = [cp.x,cp.y]
     @_lx = @x
     @_ly = @y
 
@@ -951,6 +1014,7 @@ class Goblin extends Monster
       wt  : 30
       atk : 10
       def : 1.0
+      sight_range : 120
     super(@x,@y,@group,status)
 
   update: (objs, cmap)->
@@ -1066,15 +1130,18 @@ class OpeningScene extends Scene
     @player  =  new Player(320,240)
 
   enter: (keys,mouse) ->
-    if keys.right
-
-      return "Filed"
+    if keys.space
+      return "Field"
     return @name
 
   render: (g)->
+    my.init_cv(g)
     g.fillText(
         "Opening",
         300,200)
+    g.fillText(
+        "Press Space",
+        300,240)
 
 class FieldScene extends Scene
   constructor: () ->
@@ -1088,7 +1155,7 @@ class FieldScene extends Scene
     @objs = [player]
     @set_camera( player )
 
-    @max_object_count = 2
+    @max_object_count = 4
     @fcnt = 0
 
   enter: (keys,mouse) ->
@@ -1132,7 +1199,7 @@ class FieldScene extends Scene
     player = @camera
 
     if player
-      # player.render_skill_gage(g)
+      player.render_skill_gage(g)
       my.init_cv(g)
       g.fillText(
           "HP "+player.status.hp+"/"+player.status.MAX_HP,
@@ -1171,8 +1238,14 @@ vows.describe('Game Test').addBatch
     topic: "extended array"
     'test1': ()->
       map = new Map(32)
-      buf =  map.search_route( map.get_rand_cell_xy() , map.get_rand_cell_xy() )
-      p buf
+      s = map.get_rand_cell_xy()
+      g = map.get_rand_cell_xy()
+      path =  map.search_route( s , g )
+      p s
+      while path?.length >0
+        pos = path.shift()
+        dp = map.get_point(pos[0],pos[1])
+        p dp
 
     # topic: "atack" # 'test': ()->
     #   map = new Map(32)

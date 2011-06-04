@@ -43,15 +43,14 @@
         y: 0
       };
       this.scenes = {
+        "Opening": new OpeningScene(),
         "Field": new FieldScene()
       };
-      this.curr_scene = this.scenes["Field"];
+      this.scene_name = "Opening";
     }
     Game.prototype.enter = function() {
-      var next_scene;
-      next_scene = this.curr_scene.enter(this.keys, this.mouse);
-      this.curr_scene = this.scenes[next_scene];
-      return this.draw(this.curr_scene);
+      this.scene_name = this.scenes[this.scene_name].enter(this.keys, this.mouse);
+      return this.draw(this.scenes[this.scene_name]);
     };
     Game.prototype.start = function(self) {
       return setInterval(function() {
@@ -355,9 +354,6 @@
         y++;
       }
       return map;
-    };
-    Map.prototype.compile = function(data) {
-      return "";
     };
     Map.prototype.rotate90 = function() {
       var i, j, map, res, _ref;
@@ -927,9 +923,6 @@
     }
     Player.prototype.update = function(objs, cmap, keys, mouse) {
       this.mouse = mouse;
-      if (keys.space) {
-        this.change_target();
-      }
       return Player.__super__.update.call(this, objs, cmap, keys, this.mouse);
     };
     Player.prototype.set_mouse_dir = function(x, y) {
@@ -1054,6 +1047,7 @@
       this.dir = 0;
       this.cnt = ~~(Math.random() * 24);
       this.distination = [this.x, this.y];
+      this._path = [];
     }
     Monster.prototype.update = function(objs, cmap) {
       return Monster.__super__.update.call(this, objs, cmap);
@@ -1070,7 +1064,7 @@
       wide = 32 / 4;
       if ((this.x - wide < (_ref = this.distination[0]) && _ref < this.x + wide) && (this.y - wide < (_ref2 = this.distination[1]) && _ref2 < this.y + wide)) {
         c = cmap.get_cell(this.x, this.y);
-        d = cmap.get_point(c.x + randint(-2, 2), c.y + randint(-2, 2));
+        d = cmap.get_point(c.x + randint(-1, 1), c.y + randint(-1, 1));
         if (!cmap.collide(d.x, d.y)) {
           this.distination = [d.x, d.y];
         }
@@ -1081,28 +1075,48 @@
       }
       return [this.x, this.y];
     };
+    Monster.prototype.set_path = function(cmap) {
+      var buf, from, to;
+      from = cmap.get_cell(this.x, this.y);
+      to = cmap.get_cell(this.targeting.x, this.targeting.y);
+      if (buf = cmap.search_route([from.x, from.y], [to.x, to.y])) {
+        this._path = buf;
+        return this.to = this._path.shift();
+      } else {
+        return this.targeting = null;
+      }
+    };
     Monster.prototype.move = function(objs, cmap) {
-      var destination, distance, leader, nx, ny, _ref, _ref2, _ref3, _ref4;
+      var c, d, dp, leader, nx, ny, wide, _ref;
       leader = this.get_leader(objs);
-      destination = null;
       if (this.targeting) {
-        distance = this.get_distance(this.targeting);
-        if (distance > this.status.atack_range) {
-          _ref = this.trace(this.targeting.x, this.targeting.y), nx = _ref[0], ny = _ref[1];
-        } else {
-
+        d = this.get_distance(this.targeting);
+        if (d < this.status.atack_range) {
+          return;
         }
-      } else if (leader) {
-        distance = this.get_distance(leader);
-        if (distance > this.status.sight_range / 2) {
-          _ref2 = this.trace(leader.x, leader.y), nx = _ref2[0], ny = _ref2[1];
-        } else if (leader === this) {
-          _ref3 = this.wander(cmap), nx = _ref3[0], ny = _ref3[1];
-        } else {
-
+      }
+      if (this.targeting && this.to && !this.cnt % 24) {
+        this.set_path(cmap);
+      } else if (this.to) {
+        dp = cmap.get_point(this.to[0], this.to[1]);
+        _ref = this.trace(dp.x, dp.y), nx = _ref[0], ny = _ref[1];
+        wide = 7;
+        if ((dp.x - wide < nx && nx < dp.x + wide) && (dp.y - wide < ny && ny < dp.y + wide)) {
+          if (this._path.length > 0) {
+            this.to = this._path.shift();
+          } else {
+            this.to = null;
+          }
         }
       } else {
-        _ref4 = this.wander(cmap), nx = _ref4[0], ny = _ref4[1];
+        if (this.targeting) {
+          this.set_path(cmap);
+        } else {
+          c = cmap.get_cell(this.x, this.y);
+          c.x += randint(-1, 1);
+          c.y += randint(-1, 1);
+          this.to = [c.x, c.y];
+        }
       }
       if (!cmap.collide(nx, ny)) {
         if (nx != null) {
@@ -1113,7 +1127,10 @@
         }
       }
       if (this.x === this._lx && this.y === this._ly) {
-        this.distination = [this.x, this.y];
+        c = cmap.get_cell(this.x, this.y);
+        c.x += randint(-1, 1);
+        c.y += randint(-1, 1);
+        this.to = [c.x, c.y];
       }
       this._lx = this.x;
       return this._ly = this.y;
@@ -1131,7 +1148,8 @@
         hp: 50,
         wt: 30,
         atk: 10,
-        def: 1.0
+        def: 1.0,
+        sight_range: 120
       };
       Goblin.__super__.constructor.call(this, this.x, this.y, this.group, status);
     }
@@ -1295,13 +1313,15 @@
       this.player = new Player(320, 240);
     }
     OpeningScene.prototype.enter = function(keys, mouse) {
-      if (keys.right) {
-        return "Filed";
+      if (keys.space) {
+        return "Field";
       }
       return this.name;
     };
     OpeningScene.prototype.render = function(g) {
-      return g.fillText("Opening", 300, 200);
+      my.init_cv(g);
+      g.fillText("Opening", 300, 200);
+      return g.fillText("Press Space", 300, 240);
     };
     return OpeningScene;
   })();
@@ -1315,7 +1335,7 @@
       player = new Player(start_point.x, start_point.y, 0);
       this.objs = [player];
       this.set_camera(player);
-      this.max_object_count = 2;
+      this.max_object_count = 4;
       this.fcnt = 0;
     }
     FieldScene.prototype.enter = function(keys, mouse) {
@@ -1370,6 +1390,7 @@
       this.map.render_after(g, this.camera);
       player = this.camera;
       if (player) {
+        player.render_skill_gage(g);
         my.init_cv(g);
         return g.fillText("HP " + player.status.hp + "/" + player.status.MAX_HP, 15, 15);
       }

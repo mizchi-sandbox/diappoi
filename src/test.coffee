@@ -17,8 +17,14 @@ vows.describe('Game Test').addBatch
     topic: "extended array"
     'test1': ()->
       map = new Map(32)
-      buf =  map.search_route( map.get_rand_cell_xy() , map.get_rand_cell_xy() )
-      p buf
+      s = map.get_rand_cell_xy()
+      g = map.get_rand_cell_xy()
+      path =  map.search_route( s , g )
+      p s
+      while path?.length >0
+        pos = path.shift()
+        dp = map.get_point(pos[0],pos[1])
+        p dp
 
     # topic: "atack" # 'test': ()->
     #   map = new Map(32)

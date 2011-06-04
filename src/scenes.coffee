@@ -10,22 +10,24 @@ class Scene
         @name,
         300,200)
 
-
 class OpeningScene extends Scene
   constructor: () ->
     super("Opening")
     @player  =  new Player(320,240)
 
   enter: (keys,mouse) ->
-    if keys.right
-
-      return "Filed"
+    if keys.space
+      return "Field"
     return @name
 
   render: (g)->
+    my.init_cv(g)
     g.fillText(
         "Opening",
         300,200)
+    g.fillText(
+        "Press Space",
+        300,240)
 
 class FieldScene extends Scene
   constructor: () ->
@@ -39,7 +41,7 @@ class FieldScene extends Scene
     @objs = [player]
     @set_camera( player )
 
-    @max_object_count = 2
+    @max_object_count = 4
     @fcnt = 0
 
   enter: (keys,mouse) ->
@@ -83,7 +85,7 @@ class FieldScene extends Scene
     player = @camera
 
     if player
-      # player.render_skill_gage(g)
+      player.render_skill_gage(g)
       my.init_cv(g)
       g.fillText(
           "HP "+player.status.hp+"/"+player.status.MAX_HP,
