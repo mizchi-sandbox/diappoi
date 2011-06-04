@@ -1,5 +1,5 @@
 (function() {
-  var Animation, Animation_Slash, Battler, FieldScene, Game, Goblin, Map, Monster, OpeningScene, Player, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, base_block, conf, maps, my, randint, rjoin, sjoin;
+  var Animation, Animation_Slash, Battler, FieldScene, Game, Goblin, Map, Monster, Node, OpeningScene, Player, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, base_block, clone, conf, maps, my, randint, rjoin, sjoin;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -216,15 +216,32 @@
   String.prototype.replaceAll = function(org, dest) {
     return this.split(org).join(dest);
   };
-  Array.prototype.remove = function(n) {
-    return this.splice(n, 1);
-  };
   randint = function(from, to) {
     if (!(to != null)) {
       to = from;
       from = 0;
     }
     return ~~(Math.random() * (to - from + 1)) + from;
+  };
+  Array.prototype.find = function(pos) {
+    var i, _i, _len;
+    for (_i = 0, _len = this.length; _i < _len; _i++) {
+      i = this[_i];
+      if (i.pos[0] === pos[0] && i.pos[1] === pos[1]) {
+        return i;
+      }
+    }
+    return null;
+  };
+  Array.prototype.remove = function(obj) {
+    this.splice(this.indexOf(obj), 1);
+    return this;
+  };
+  clone = function(obj) {
+    var F;
+    F = function() {};
+    F.prototype = obj;
+    return new F;
   };
   Sprite = (function() {
     function Sprite(x, y, scale) {
@@ -441,6 +458,67 @@
       y = ~~(y / this.cell);
       return this._map[x][y];
     };
+    Map.prototype.search_route = function(start, goal) {
+      var c, close_list, dist, i, max_depth, min_node, n, n_gs, nx, ny, obj, open_list, path, search_to, start_node, _i, _len, _ref;
+      path = [];
+      Node.prototype.start = start;
+      Node.prototype.goal = goal;
+      open_list = [];
+      close_list = [];
+      start_node = new Node(Node.prototype.start);
+      start_node.fs = start_node.hs;
+      open_list.push(start_node);
+      search_to = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+      max_depth = 20;
+      c = 0;
+      while (c < max_depth) {
+        if (!open_list) {
+          return 1;
+        }
+        open_list.sort(function(a, b) {
+          return a.fs - b.fs;
+        });
+        min_node = open_list[0];
+        close_list.push(open_list.shift());
+        if (min_node.pos[0] === min_node.goal[0] && min_node.pos[1] === min_node.goal[1]) {
+          path = [];
+          n = min_node;
+          while (n.parent) {
+            path.push(n.pos);
+            n = n.parent;
+          }
+          return path.reverse();
+        }
+        n_gs = min_node.fs - min_node.hs;
+        for (_i = 0, _len = search_to.length; _i < _len; _i++) {
+          i = search_to[_i];
+          _ref = [i[0] + min_node.pos[0], i[1] + min_node.pos[1]], nx = _ref[0], ny = _ref[1];
+          if (!this._map[nx][ny]) {
+            dist = Math.pow(min_node.pos[0] - nx, 2) + Math.pow(min_node.pos[1] - ny, 2);
+            if (obj = open_list.find([nx, ny])) {
+              if (obj.fs > n_gs + obj.hs + dist) {
+                obj.fs = n_gs + obj.hs + dist;
+                obj.parent = min_node;
+              }
+            } else if (obj = close_list.find([nx, ny])) {
+              if (obj.fs > n_gs + obj.hs + dist) {
+                obj.fs = n_gs + obj.hs + dist;
+                obj.parent = min_node;
+                open_list.push(obj);
+                close_list.remove(obj);
+              }
+            } else {
+              n = new Node([nx, ny]);
+              n.fs = n_gs + n.hs + dist;
+              n.parent = min_node;
+              open_list.push(n);
+            }
+          }
+        }
+        c++;
+      }
+      return null;
+    };
     Map.prototype.render = function(g, cam) {
       var color, i, j, pos, w, x, y, _ref, _results;
       pos = this.getpos_relative(cam);
@@ -474,6 +552,21 @@
       return _results;
     };
     return Map;
+  })();
+  Node = (function() {
+    Node.prototype.start = [null, null];
+    Node.prototype.goal = [null, null];
+    function Node(pos) {
+      this.pos = pos;
+      this.owner_list = null;
+      this.parent = null;
+      this.hs = Math.pow(pos[0] - this.goal[0], 2) + Math.pow(pos[1] - this.goal[1], 2);
+      this.fs = 0;
+    }
+    Node.prototype.is_goal = function(self) {
+      return this.goal === this.pos;
+    };
+    return Node;
   })();
   maps = {
     filed1: "\n                                           .........\n                                    ................... .\n                               ...........            ......\n                            ....                      ..........\n                         .....              .....        ...... .......\n                 ..........              .........        ............ .....\n                 ............          ...... . ....        ............ . ..\n             .....    ..    ...        ..  ..........       . ..................\n     ..     ......          .........................       . .......   ...... ..\n    .....    ...     ..        .......  ...............      ....        ........\n  ...... ......    .....         ..................... ..   ....         ........\n  .........   ......  ...............  ................... ....            ......\n ...........    ... ... .... .   ..   .. ........ ............             . .....\n ...........    ...... ...       ....................           ......\n............   .......... .    .......... ...... .. .       ...........\n .. ........ .......   ....   ...... .   ............      .... .......\n . ..............       .... .. .       ..............   ...... ..... ..\n  .............          .......       ......       ......... . ...... .\n  ..     .... ..         ... .       ....         .........   ...........\n ...       .......   ........       .. .        .... ....  ... ..........\n.. .         ......  .........      .............. ..  .....  ...    .....\n.....         ......................................      ....        ....\n .....       ........    ... ................... ....     ...        ....\n   ....   ........        ...........................  .....        .....\n   ...........  ..        ........ .............. ... .. .         .....\n       ......                 .........................           .. ..\n                                .....................          .......\n                                    ...................        ......\n                                        .............",
@@ -979,12 +1072,10 @@
         c = cmap.get_cell(this.x, this.y);
         d = cmap.get_point(c.x + randint(-2, 2), c.y + randint(-2, 2));
         if (!cmap.collide(d.x, d.y)) {
-          console.log(d);
           this.distination = [d.x, d.y];
         }
       }
       if (this.distination) {
-        console.log(this.distination);
         _ref3 = this.distination, to_x = _ref3[0], to_y = _ref3[1];
         return this.trace(to_x, to_y);
       }
@@ -1005,8 +1096,10 @@
         distance = this.get_distance(leader);
         if (distance > this.status.sight_range / 2) {
           _ref2 = this.trace(leader.x, leader.y), nx = _ref2[0], ny = _ref2[1];
-        } else {
+        } else if (leader === this) {
           _ref3 = this.wander(cmap), nx = _ref3[0], ny = _ref3[1];
+        } else {
+
         }
       } else {
         _ref4 = this.wander(cmap), nx = _ref4[0], ny = _ref4[1];

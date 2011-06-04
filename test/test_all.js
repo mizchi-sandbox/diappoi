@@ -1,5 +1,5 @@
 (function() {
-  var Animation, Animation_Slash, Battler, FieldScene, Game, Goblin, Map, Monster, Node, NodeList, OpeningScene, Player, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, assert, base_block, keys, maps, mouse, my, randint, rjoin, sjoin, vows;
+  var Animation, Animation_Slash, Battler, FieldScene, Game, Goblin, Map, Monster, Node, OpeningScene, Player, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, assert, base_block, clone, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -216,15 +216,32 @@
   String.prototype.replaceAll = function(org, dest) {
     return this.split(org).join(dest);
   };
-  Array.prototype.remove = function(n) {
-    return this.splice(n, 1);
-  };
   randint = function(from, to) {
     if (!(to != null)) {
       to = from;
       from = 0;
     }
     return ~~(Math.random() * (to - from + 1)) + from;
+  };
+  Array.prototype.find = function(pos) {
+    var i, _i, _len;
+    for (_i = 0, _len = this.length; _i < _len; _i++) {
+      i = this[_i];
+      if (i.pos[0] === pos[0] && i.pos[1] === pos[1]) {
+        return i;
+      }
+    }
+    return null;
+  };
+  Array.prototype.remove = function(obj) {
+    this.splice(this.indexOf(obj), 1);
+    return this;
+  };
+  clone = function(obj) {
+    var F;
+    F = function() {};
+    F.prototype = obj;
+    return new F;
   };
   Sprite = (function() {
     function Sprite(x, y, scale) {
@@ -441,6 +458,67 @@
       y = ~~(y / this.cell);
       return this._map[x][y];
     };
+    Map.prototype.search_route = function(start, goal) {
+      var c, close_list, dist, i, max_depth, min_node, n, n_gs, nx, ny, obj, open_list, path, search_to, start_node, _i, _len, _ref;
+      path = [];
+      Node.prototype.start = start;
+      Node.prototype.goal = goal;
+      open_list = [];
+      close_list = [];
+      start_node = new Node(Node.prototype.start);
+      start_node.fs = start_node.hs;
+      open_list.push(start_node);
+      search_to = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+      max_depth = 20;
+      c = 0;
+      while (c < max_depth) {
+        if (!open_list) {
+          return 1;
+        }
+        open_list.sort(function(a, b) {
+          return a.fs - b.fs;
+        });
+        min_node = open_list[0];
+        close_list.push(open_list.shift());
+        if (min_node.pos[0] === min_node.goal[0] && min_node.pos[1] === min_node.goal[1]) {
+          path = [];
+          n = min_node;
+          while (n.parent) {
+            path.push(n.pos);
+            n = n.parent;
+          }
+          return path.reverse();
+        }
+        n_gs = min_node.fs - min_node.hs;
+        for (_i = 0, _len = search_to.length; _i < _len; _i++) {
+          i = search_to[_i];
+          _ref = [i[0] + min_node.pos[0], i[1] + min_node.pos[1]], nx = _ref[0], ny = _ref[1];
+          if (!this._map[nx][ny]) {
+            dist = Math.pow(min_node.pos[0] - nx, 2) + Math.pow(min_node.pos[1] - ny, 2);
+            if (obj = open_list.find([nx, ny])) {
+              if (obj.fs > n_gs + obj.hs + dist) {
+                obj.fs = n_gs + obj.hs + dist;
+                obj.parent = min_node;
+              }
+            } else if (obj = close_list.find([nx, ny])) {
+              if (obj.fs > n_gs + obj.hs + dist) {
+                obj.fs = n_gs + obj.hs + dist;
+                obj.parent = min_node;
+                open_list.push(obj);
+                close_list.remove(obj);
+              }
+            } else {
+              n = new Node([nx, ny]);
+              n.fs = n_gs + n.hs + dist;
+              n.parent = min_node;
+              open_list.push(n);
+            }
+          }
+        }
+        c++;
+      }
+      return null;
+    };
     Map.prototype.render = function(g, cam) {
       var color, i, j, pos, w, x, y, _ref, _results;
       pos = this.getpos_relative(cam);
@@ -474,6 +552,21 @@
       return _results;
     };
     return Map;
+  })();
+  Node = (function() {
+    Node.prototype.start = [null, null];
+    Node.prototype.goal = [null, null];
+    function Node(pos) {
+      this.pos = pos;
+      this.owner_list = null;
+      this.parent = null;
+      this.hs = Math.pow(pos[0] - this.goal[0], 2) + Math.pow(pos[1] - this.goal[1], 2);
+      this.fs = 0;
+    }
+    Node.prototype.is_goal = function(self) {
+      return this.goal === this.pos;
+    };
+    return Node;
   })();
   maps = {
     filed1: "\n                                           .........\n                                    ................... .\n                               ...........            ......\n                            ....                      ..........\n                         .....              .....        ...... .......\n                 ..........              .........        ............ .....\n                 ............          ...... . ....        ............ . ..\n             .....    ..    ...        ..  ..........       . ..................\n     ..     ......          .........................       . .......   ...... ..\n    .....    ...     ..        .......  ...............      ....        ........\n  ...... ......    .....         ..................... ..   ....         ........\n  .........   ......  ...............  ................... ....            ......\n ...........    ... ... .... .   ..   .. ........ ............             . .....\n ...........    ...... ...       ....................           ......\n............   .......... .    .......... ...... .. .       ...........\n .. ........ .......   ....   ...... .   ............      .... .......\n . ..............       .... .. .       ..............   ...... ..... ..\n  .............          .......       ......       ......... . ...... .\n  ..     .... ..         ... .       ....         .........   ...........\n ...       .......   ........       .. .        .... ....  ... ..........\n.. .         ......  .........      .............. ..  .....  ...    .....\n.....         ......................................      ....        ....\n .....       ........    ... ................... ....     ...        ....\n   ....   ........        ...........................  .....        .....\n   ...........  ..        ........ .............. ... .. .         .....\n       ......                 .........................           .. ..\n                                .....................          .......\n                                    ...................        ......\n                                        .............",
@@ -960,6 +1053,7 @@
       this.scale = 5;
       this.dir = 0;
       this.cnt = ~~(Math.random() * 24);
+      this.distination = [this.x, this.y];
     }
     Monster.prototype.update = function(objs, cmap) {
       return Monster.__super__.update.call(this, objs, cmap);
@@ -972,16 +1066,18 @@
       return [nx, ny];
     };
     Monster.prototype.wander = function(cmap) {
-      var c, d, to_x, to_y, _ref;
-      if (this.cnt % 24 === 0) {
+      var c, d, to_x, to_y, wide, _ref, _ref2, _ref3;
+      wide = 32 / 4;
+      if ((this.x - wide < (_ref = this.distination[0]) && _ref < this.x + wide) && (this.y - wide < (_ref2 = this.distination[1]) && _ref2 < this.y + wide)) {
         c = cmap.get_cell(this.x, this.y);
-        d = cmap.get_point(c.x + randint(-1, 1), c.y + randint(-1, 1));
-        this.distination = [d.x, d.y];
+        d = cmap.get_point(c.x + randint(-2, 2), c.y + randint(-2, 2));
+        if (!cmap.collide(d.x, d.y)) {
+          this.distination = [d.x, d.y];
+        }
       }
       if (this.distination) {
-        console.log(this.distination);
-        _ref = this.distination, to_x = _ref[0], to_y = _ref[1];
-        return this.trace();
+        _ref3 = this.distination, to_x = _ref3[0], to_y = _ref3[1];
+        return this.trace(to_x, to_y);
       }
       return [this.x, this.y];
     };
@@ -1000,8 +1096,10 @@
         distance = this.get_distance(leader);
         if (distance > this.status.sight_range / 2) {
           _ref2 = this.trace(leader.x, leader.y), nx = _ref2[0], ny = _ref2[1];
-        } else {
+        } else if (leader === this) {
           _ref3 = this.wander(cmap), nx = _ref3[0], ny = _ref3[1];
+        } else {
+
         }
       } else {
         _ref4 = this.wander(cmap), nx = _ref4[0], ny = _ref4[1];
@@ -1011,9 +1109,14 @@
           this.x = nx;
         }
         if (ny != null) {
-          return this.y = ny;
+          this.y = ny;
         }
       }
+      if (this.x === this._lx && this.y === this._ly) {
+        this.distination = [this.x, this.y];
+      }
+      this._lx = this.x;
+      return this._ly = this.y;
     };
     return Monster;
   })();
@@ -1209,10 +1312,10 @@
       FieldScene.__super__.constructor.call(this, "Field");
       this.map = new Map(32);
       start_point = this.map.get_rand_xy();
-      player = new Goblin(start_point.x, start_point.y, 0);
+      player = new Player(start_point.x, start_point.y, 0);
       this.objs = [player];
       this.set_camera(player);
-      this.max_object_count = 2;
+      this.max_object_count = 5;
       this.fcnt = 0;
     }
     FieldScene.prototype.enter = function(keys, mouse) {
@@ -1267,10 +1370,8 @@
       this.map.render_after(g, this.camera);
       player = this.camera;
       if (player) {
-        player.render_skill_gage(g);
         my.init_cv(g);
-        g.fillText("HP " + player.status.hp + "/" + player.status.MAX_HP, 15, 15);
-        return g.fillText(" " + player.x + "/" + player.y, 15, 35);
+        return g.fillText("HP " + player.status.hp + "/" + player.status.MAX_HP, 15, 15);
       }
     };
     return FieldScene;
@@ -1287,90 +1388,15 @@
     x: 320,
     y: 240
   };
-  NodeList = (function() {
-    __extends(NodeList, Array);
-    function NodeList(list) {
-      var c, i, _i, _len;
-      c = 0;
-      for (_i = 0, _len = list.length; _i < _len; _i++) {
-        i = list[_i];
-        this[c] = i;
-        c++;
-      }
-    }
-    NodeList.prototype.get = function(n) {
-      return this[n];
-    };
-    NodeList.prototype.find = function(x, y) {
-      var l, t, _i, _len;
-      l = [];
-      for (_i = 0, _len = this.length; _i < _len; _i++) {
-        t = this[_i];
-        if (t.pos === [x, y]) {
-          l.push(t);
-        }
-      }
-      if (l !== []) {
-        return l[0];
-      } else {
-        return null;
-      }
-    };
-    NodeList.prototype.remove_node = function(node) {
-      return this.splice(this.indexOf(node), 1);
-    };
-    return NodeList;
-  })();
-  Node = (function() {
-    function Node(start, goal, x, y) {
-      this.pos = [x, y];
-      this.start = start;
-      this.goal = goal;
-      this.fs = 0;
-      this.owner_list = null;
-      this.parent_node = null;
-      this.hs = Math.pow(x - this.goal[0], 2) + Math.pow(y - this.goal[1], 2);
-    }
-    Node.prototype.is_goal = function(self) {
-      return this.goal === this.pos;
-    };
-    return Node;
-  })();
+  p = console.log;
   vows.describe('Game Test').addBatch({
     'combat test': {
-      topic: "atack",
-      'test': function() {
-        var arr, close_list, cnode, goal, i, map, nx, ny, open_list, search_to, start, start_node, t, _i, _len, _ref, _results;
+      topic: "extended array",
+      'test1': function() {
+        var buf, map;
         map = new Map(32);
-        start = map.get_randpoint();
-        goal = map.get_randpoint();
-        arr = [];
-        console.log(arr);
-        open_list = [];
-        close_list = [];
-        start_node = new Node(start, goal, start[0], start[1]);
-        start_node.fs = start_node.hs;
-        open_list.push(start_node);
-        console.log(open_list);
-        search_to = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
-        cnode = start_node;
-        _results = [];
-        for (_i = 0, _len = search_to.length; _i < _len; _i++) {
-          i = search_to[_i];
-          _ref = [i[0] + cnode.pos[0], i[1] + cnode.pos[0]], nx = _ref[0], ny = _ref[1];
-          t = map._map[nx][ny];
-          _results.push(console.log("" + nx + " " + ny + " " + t + " "));
-        }
-        return _results;
-      },
-      topic: "a2",
-      'ok': function() {
-        var map, player, start_point;
-        map = new Map(32);
-        start_point = map.get_randpoint();
-        console.log("start point is " + start_point);
-        player = new Player(start_point[0], start_point[1], 0);
-        return console.log(player.x + "/" + player.y);
+        buf = map.search_route(map.get_rand_cell_xy(), map.get_rand_cell_xy());
+        return p(buf);
       }
     }
   })["export"](module);

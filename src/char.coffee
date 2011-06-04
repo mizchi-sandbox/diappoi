@@ -399,13 +399,11 @@ class Monster extends Battler
       c = cmap.get_cell(@x,@y)
       d = cmap.get_point( c.x+randint(-2,2) ,c.y+randint(-2,2) )
       if not cmap.collide( d.x ,d.y )
-        console.log d
         @distination = [d.x,d.y]
 
     # @dir = Math.PI * 2 * Math.random()
 
     if @distination # @cnt % 24 < 8
-      console.log @distination
       [to_x , to_y] = @distination
       return @trace(to_x,to_y)
     return [@x,@y]
@@ -428,8 +426,9 @@ class Monster extends Battler
       # リーダー 発見時
       if distance > @status.sight_range/2
         [nx,ny] = @trace( leader.x , leader.y )
-      else
+      else if leader is @
         [nx,ny] = @wander(cmap)
+      else
     else
       [nx,ny] = @wander(cmap)
 
@@ -437,17 +436,12 @@ class Monster extends Battler
       @x = nx if nx?
       @y = ny if ny?
 
-    # set distination if it cant move
+    # reset distination if this cant move
     if @x == @_lx and @y == @_ly
       @distination = [@x,@y]
 
     @_lx = @x
     @_ly = @y
-  # set_distination:(x,y)->
-  #   c = cmap.get_cell(@x,@y)
-  #   d = cmap.get_point(x,y)
-  #   if not cmap.collide( d.x ,d.y )
-  #     @distination = [d.x,d.y]
 
 class Goblin extends Monster
   constructor: (@x,@y,@group) ->

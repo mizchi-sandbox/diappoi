@@ -98,6 +98,67 @@ class Map extends Sprite
     y = ~~(y / @cell)
     return @_map[x][y]
 
+  search_route: (start,goal)->
+    path = []
+
+    Node::start = start
+    Node::goal = goal
+    open_list = []
+    close_list = []
+
+    start_node = new Node(Node::start)
+    start_node.fs = start_node.hs
+    open_list.push(start_node)
+
+    search_to =[
+      [-1,-1], [ 0,-1], [ 1,-1]
+      [-1, 0]         , [ 1, 0]
+      [-1, 1], [ 0, 1], [ 1, 1]
+    ]
+
+    max_depth = 20
+    c = 0
+
+    while c<max_depth
+      if not open_list
+        return 1
+      open_list.sort( (a,b)->a.fs-b.fs )
+      min_node = open_list[0]
+      close_list.push( open_list.shift() )
+
+      if min_node.pos[0] == min_node.goal[0] and min_node.pos[1] == min_node.goal[1]
+        path = []
+        n = min_node
+        while n.parent
+          path.push(n.pos)
+          n = n.parent
+        return path.reverse()
+
+      n_gs = min_node.fs - min_node.hs
+
+      for i in search_to
+        [nx,ny] = [i[0]+min_node.pos[0] , i[1]+min_node.pos[1]]
+        if not @_map[nx][ny]
+          dist = Math.pow(min_node.pos[0]-nx,2) + Math.pow(min_node.pos[1]-ny,2)
+
+          if obj = open_list.find([nx,ny])
+            if obj.fs > n_gs+obj.hs+dist
+              obj.fs = n_gs+obj.hs+dist
+              obj.parent = min_node
+          else if obj = close_list.find([nx,ny])
+            if obj.fs > n_gs+obj.hs+dist
+                obj.fs = n_gs+obj.hs+dist
+                obj.parent = min_node
+                open_list.push(obj)
+                close_list.remove(obj)
+          else
+            n = new Node([nx,ny])
+            n.fs = n_gs+n.hs+dist
+            n.parent = min_node
+            open_list.push(n)
+
+      c++
+    return null
   # is_passed:(from,to)->
   #   if @collide(x,y)
   #     return false
@@ -150,6 +211,19 @@ class Map extends Sprite
             pos.vx + i * @cell+w,
             pos.vy + j * @cell-w,
             @cell , @cell)
+
+class Node
+  start: [null,null]
+  goal: [null,null]
+  constructor:(pos)->
+    @pos    = pos
+    @owner_list  = null
+    @parent = null
+    @hs     = Math.pow(pos[0]-@goal[0],2)+Math.pow(pos[1]-@goal[1],2)
+    @fs     = 0
+
+  is_goal:(self)->
+    return @goal == @pos
 
 maps =
   filed1 : """
@@ -208,4 +282,5 @@ base_block = [
   [ 1,0,0,0,1 ]
   [ 1,1,0,1,1 ]
   ]
+
 

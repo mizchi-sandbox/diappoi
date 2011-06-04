@@ -10,77 +10,72 @@ mouse =
   x : 320
   y : 240
 
-class NodeList extends Array
-  constructor:(list)->
-    c=0
-    for i in list
-      @[c] = i
-      c++
-  get:(n)-> return @[n]
-
-  find:(x,y)->
-    l = []
-    for t in @
-      if t.pos == [x,y]
-        l.push(t)
-    if l != []
-      return l[0]
-    else
-      return null
-
-  remove_node : (node)->
-    @splice( @indexOf(node) ,1 )
-
-class Node
-  constructor:(start , goal , x,y)->
-    @pos    = [x,y]
-    @start = start
-    @goal = goal
-    @fs     = 0
-    @owner_list  = null
-    @parent_node = null
-    @hs     = Math.pow(x-@goal[0],2)+Math.pow(y-@goal[1],2)
-
-  is_goal:(self)->
-    return @goal == @pos
+p = console.log
 
 vows.describe('Game Test').addBatch
   'combat test':
-    topic: "atack"
-    'test': ()->
+    topic: "extended array"
+    'test1': ()->
       map = new Map(32)
-      start = map.get_randpoint()
-      goal = map.get_randpoint()
-      arr = []
-      console.log arr
+      buf =  map.search_route( map.get_rand_cell_xy() , map.get_rand_cell_xy() )
+      p buf
 
-      open_list = []
-      close_list = []
-      start_node    = new Node(start,goal, start[0],start[1])
-      start_node.fs = start_node.hs
-      open_list.push(start_node)
-      console.log open_list
+    # topic: "atack" # 'test': ()->
+    #   map = new Map(32)
+    #   start = map.get_rand_cell_xy()
+    #   goal = map.get_rand_cell_xy()
 
-      search_to =[
-        [-1,-1], [ 0,-1], [ 1,-1]
-        [-1, 0], [ 0, 0], [ 1, 0]
-        [-1, 1], [ 0, 1], [ 1, 1]
-      ]
-      cnode = start_node
+    #   Node::start = start
+    #   Node::goal = goal
 
-      for i in search_to
-        [nx,ny] = [i[0]+cnode.pos[0] , i[1]+cnode.pos[0]]
-        t = map._map[nx][ny]
-        console.log "#{nx} #{ny} #{t} "
+    #   open_list = [] # new NodeList()
+    #   close_list = [] #new NodeList()
 
-    topic: "a2"
-    'ok': ()->
-      map = new Map(32)
-      start_point = map.get_randpoint()
-      console.log "start point is "+ start_point
+    #   start_node = new Node(start)
+    #   start_node.fs = start_node.hs
 
-      player  =  new Player(start_point[0] ,start_point[1], 0)
-      console.log player.x+"/"+player.y
+    #   console.log "start_node"
+    #   console.log start_node.fs
+    #   open_list.push(start_node)
+
+    #   search_to =[
+    #     [-1,-1], [ 0,-1], [ 1,-1]
+    #     [-1, 0]         , [ 1, 0]
+    #     [-1, 1], [ 0, 1], [ 1, 1]
+    #   ]
+
+    #   max_search = 0
+    #   while max_search < 1
+    #     if not open_list
+    #       p "no open node"
+    #       return 1
+    #     open_list.sort( (a,b)->a.fs-b.fs )
+    #     min_node = open_list[0]
+    #     ns.splice( min_node,1 )
+    #     for i in search_to
+    #       [nx,ny] = [i[0]+node.pos[0] , i[1]+cnode.pos[0]]
+    #       t = map._map[nx][ny]
+
+    #       if not t
+    #         n = new Node([nx,ny])
+    #         open_list.push(n)
+
+    #     console.log "#{nx} #{ny} #{t} "
+    #     min_fs_node = open_node.get_min_node()
+        # max_search++
+#====================
+
+      # for i in search_to
+      #   [nx,ny] = [i[0]+cnode.pos[0] , i[1]+cnode.pos[0]]
+      #   t = map._map[nx][ny]
+      #   if not t
+      #     n = new Node([nx,ny])
+      #     open_list.push(n)
+      #   console.log "#{nx} #{ny} #{t} "
+
+      # for i in open_list
+      #   console.log i
+      # console.log open_list
 
       # while true
       #   if open_list == []

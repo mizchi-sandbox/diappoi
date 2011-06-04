@@ -132,13 +132,24 @@ sjoin = (map1,map2)->
 String::replaceAll = (org, dest) ->
   return @split(org).join(dest)
 
-Array::remove = (n)->
-  @splice(n,1)
-
 randint = (from,to) ->
   if not to?
     to = from
     from = 0
   return ~~( Math.random()*(to-from+1))+from
 
+Array::find = (pos)->
+  for i in @
+    if i.pos[0] == pos[0] and i.pos[1] == pos[1]
+      return i
+  return null
+
+Array::remove = (obj)->
+  @splice(@indexOf(obj),1)
+  return @
+
+clone = (obj)->
+  F = ()->
+  F.prototype = obj
+  return new F
 
