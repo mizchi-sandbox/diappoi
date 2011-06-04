@@ -73,28 +73,38 @@ class Map extends Sprite
   get_point: (x,y)->
     return {x:~~((x+1/2) *  @cell ),y:~~((y+1/2) * @cell) }
 
-  get_randpoint: ()->
-    rx = ~~(Math.random()*@_map.length)
-    ry = ~~(Math.random()*@_map[0].length)
-    if @_map[rx][ry]
-      return @get_randpoint()
-    return @get_point(rx,ry )
-
-  get_randpoint: ()->
-    rx = ~~(Math.random()*@_map.length)
-    ry = ~~(Math.random()*@_map[0].length)
-    if @_map[rx][ry]
-      return @get_randpoint()
-    return [rx,ry]
   get_cell: (x,y)->
     x = ~~(x / @cell)
     y = ~~(y / @cell)
     return {x:x,y:y}
 
+  get_rand_cell_xy : ()->
+    rx = ~~(Math.random()*@_map.length)
+    ry = ~~(Math.random()*@_map[0].length)
+    if @_map[rx][ry]
+      return @get_rand_cell_xy()
+    return [rx,ry]
+
+  get_rand_xy: ()->
+    rx = ~~(Math.random()*@_map.length)
+    ry = ~~(Math.random()*@_map[0].length)
+    if @_map[rx][ry]
+      return @get_rand_xy()
+    return @get_point(rx,ry)
+
+
   collide: (x,y)->
     x = ~~(x / @cell)
     y = ~~(y / @cell)
     return @_map[x][y]
+
+  # is_passed:(from,to)->
+  #   if @collide(x,y)
+  #     return false
+  #   dx = to.x - from.x
+  #   dy = to.y - from.y
+  #   if
+  #   from.x , from.y
 
   render: (g,cam)->
     pos = @getpos_relative(cam)

@@ -410,24 +410,6 @@
         y: ~~((y + 1 / 2) * this.cell)
       };
     };
-    Map.prototype.get_randpoint = function() {
-      var rx, ry;
-      rx = ~~(Math.random() * this._map.length);
-      ry = ~~(Math.random() * this._map[0].length);
-      if (this._map[rx][ry]) {
-        return this.get_randpoint();
-      }
-      return this.get_point(rx, ry);
-    };
-    Map.prototype.get_randpoint = function() {
-      var rx, ry;
-      rx = ~~(Math.random() * this._map.length);
-      ry = ~~(Math.random() * this._map[0].length);
-      if (this._map[rx][ry]) {
-        return this.get_randpoint();
-      }
-      return [rx, ry];
-    };
     Map.prototype.get_cell = function(x, y) {
       x = ~~(x / this.cell);
       y = ~~(y / this.cell);
@@ -435,6 +417,24 @@
         x: x,
         y: y
       };
+    };
+    Map.prototype.get_rand_cell_xy = function() {
+      var rx, ry;
+      rx = ~~(Math.random() * this._map.length);
+      ry = ~~(Math.random() * this._map[0].length);
+      if (this._map[rx][ry]) {
+        return this.get_rand_cell_xy();
+      }
+      return [rx, ry];
+    };
+    Map.prototype.get_rand_xy = function() {
+      var rx, ry;
+      rx = ~~(Math.random() * this._map.length);
+      ry = ~~(Math.random() * this._map[0].length);
+      if (this._map[rx][ry]) {
+        return this.get_rand_xy();
+      }
+      return this.get_point(rx, ry);
     };
     Map.prototype.collide = function(x, y) {
       x = ~~(x / this.cell);
@@ -960,6 +960,7 @@
       this.scale = 5;
       this.dir = 0;
       this.cnt = ~~(Math.random() * 24);
+      this.distination = [this.x, this.y];
     }
     Monster.prototype.update = function(objs, cmap) {
       return Monster.__super__.update.call(this, objs, cmap);
@@ -972,17 +973,20 @@
       return [nx, ny];
     };
     Monster.prototype.wander = function(cmap) {
-      var c, d, to_x, to_y, _ref;
-      if (this.cnt % 24 === 0) {
+      var c, d, to_x, to_y, wide, _ref, _ref2, _ref3;
+      wide = 32 / 4;
+      if ((this.x - wide < (_ref = this.distination[0]) && _ref < this.x + wide) && (this.y - wide < (_ref2 = this.distination[1]) && _ref2 < this.y + wide)) {
         c = cmap.get_cell(this.x, this.y);
-        d = cmap.get_point(c.x + randint(-1, 1), c.y + randint(-1, 1));
-        this.distination = [d.x, d.y];
-        console.log;
+        d = cmap.get_point(c.x + randint(-2, 2), c.y + randint(-2, 2));
+        if (!cmap.collide(d.x, d.y)) {
+          console.log(d);
+          this.distination = [d.x, d.y];
+        }
       }
       if (this.distination) {
         console.log(this.distination);
-        _ref = this.distination, to_x = _ref[0], to_y = _ref[1];
-        return this.trace();
+        _ref3 = this.distination, to_x = _ref3[0], to_y = _ref3[1];
+        return this.trace(to_x, to_y);
       }
       return [this.x, this.y];
     };
@@ -1012,9 +1016,14 @@
           this.x = nx;
         }
         if (ny != null) {
-          return this.y = ny;
+          this.y = ny;
         }
       }
+      if (this.x === this._lx && this.y === this._ly) {
+        this.distination = [this.x, this.y];
+      }
+      this._lx = this.x;
+      return this._ly = this.y;
     };
     return Monster;
   })();
@@ -1209,11 +1218,11 @@
       var player, start_point;
       FieldScene.__super__.constructor.call(this, "Field");
       this.map = new Map(32);
-      start_point = this.map.get_randpoint();
+      start_point = this.map.get_rand_xy();
       player = new Player(start_point.x, start_point.y, 0);
       this.objs = [player];
       this.set_camera(player);
-      this.max_object_count = 11;
+      this.max_object_count = 5;
       this.fcnt = 0;
     }
     FieldScene.prototype.enter = function(keys, mouse) {
@@ -1230,7 +1239,7 @@
         } else {
           group = 0;
         }
-        rpo = this.map.get_randpoint();
+        rpo = this.map.get_rand_xy();
         this.objs.push(new Goblin(rpo.x, rpo.y, group));
         if (Math.random() < 0.3) {
           this.objs[this.objs.length - 1].state.leader = 1;
@@ -1239,7 +1248,7 @@
         for (i = 0, _ref2 = this.objs.length; (0 <= _ref2 ? i < _ref2 : i > _ref2); (0 <= _ref2 ? i += 1 : i -= 1)) {
           if (!this.objs[i].state.alive) {
             if (this.objs[i] === this.camera) {
-              start_point = this.map.get_randpoint();
+              start_point = this.map.get_rand_xy();
               player = new Player(start_point.x, start_point.y, 0);
               this.objs.push(player);
               this.set_camera(player);
@@ -1268,7 +1277,6 @@
       this.map.render_after(g, this.camera);
       player = this.camera;
       if (player) {
-        player.render_skill_gage(g);
         my.init_cv(g);
         return g.fillText("HP " + player.status.hp + "/" + player.status.MAX_HP, 15, 15);
       }

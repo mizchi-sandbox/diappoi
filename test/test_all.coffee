@@ -276,28 +276,38 @@ class Map extends Sprite
   get_point: (x,y)->
     return {x:~~((x+1/2) *  @cell ),y:~~((y+1/2) * @cell) }
 
-  get_randpoint: ()->
-    rx = ~~(Math.random()*@_map.length)
-    ry = ~~(Math.random()*@_map[0].length)
-    if @_map[rx][ry]
-      return @get_randpoint()
-    return @get_point(rx,ry )
-
-  get_randpoint: ()->
-    rx = ~~(Math.random()*@_map.length)
-    ry = ~~(Math.random()*@_map[0].length)
-    if @_map[rx][ry]
-      return @get_randpoint()
-    return [rx,ry]
   get_cell: (x,y)->
     x = ~~(x / @cell)
     y = ~~(y / @cell)
     return {x:x,y:y}
 
+  get_rand_cell_xy : ()->
+    rx = ~~(Math.random()*@_map.length)
+    ry = ~~(Math.random()*@_map[0].length)
+    if @_map[rx][ry]
+      return @get_rand_cell_xy()
+    return [rx,ry]
+
+  get_rand_xy: ()->
+    rx = ~~(Math.random()*@_map.length)
+    ry = ~~(Math.random()*@_map[0].length)
+    if @_map[rx][ry]
+      return @get_rand_xy()
+    return @get_point(rx,ry)
+
+
   collide: (x,y)->
     x = ~~(x / @cell)
     y = ~~(y / @cell)
     return @_map[x][y]
+
+  # is_passed:(from,to)->
+  #   if @collide(x,y)
+  #     return false
+  #   dx = to.x - from.x
+  #   dy = to.y - from.y
+  #   if
+  #   from.x , from.y
 
   render: (g,cam)->
     pos = @getpos_relative(cam)
@@ -787,6 +797,7 @@ class Monster extends Battler
     @scale = 5
     @dir = 0
     @cnt = ~~(Math.random() * 24)
+    @distination = [@x,@y]
 
   update: (objs, cmap)->
     super(objs, cmap)
@@ -798,21 +809,21 @@ class Monster extends Battler
     return [nx ,ny]
 
   wander:(cmap)->
-    if @cnt % 24 ==  0
-      #set distination
+    wide = 32/4
+    if @x-wide<@distination[0]<@x+wide and @y-wide<@distination[1]<@y+wide
       c = cmap.get_cell(@x,@y)
-      d = cmap.get_point( c.x+randint(-1,1) ,c.y+randint(-1,1) )
+      d = cmap.get_point( c.x+randint(-2,2) ,c.y+randint(-2,2) )
+      if not cmap.collide( d.x ,d.y )
+        console.log d
+        @distination = [d.x,d.y]
 
-      @distination = [d.x,d.y]
-      console.log
-      # @dir = Math.PI * 2 * Math.random()
+    # @dir = Math.PI * 2 * Math.random()
 
     if @distination # @cnt % 24 < 8
       console.log @distination
       [to_x , to_y] = @distination
-      return @trace()
+      return @trace(to_x,to_y)
     return [@x,@y]
-
     # return [nx ,ny]             #
 
   move: (objs ,cmap)->
@@ -834,14 +845,24 @@ class Monster extends Battler
         [nx,ny] = @trace( leader.x , leader.y )
       else
         [nx,ny] = @wander(cmap)
-
     else
-      # ターゲット不在時
       [nx,ny] = @wander(cmap)
 
     if not cmap.collide( nx,ny )
       @x = nx if nx?
       @y = ny if ny?
+
+    # set distination if it cant move
+    if @x == @_lx and @y == @_ly
+      @distination = [@x,@y]
+
+    @_lx = @x
+    @_ly = @y
+  # set_distination:(x,y)->
+  #   c = cmap.get_cell(@x,@y)
+  #   d = cmap.get_point(x,y)
+  #   if not cmap.collide( d.x ,d.y )
+  #     @distination = [d.x,d.y]
 
 class Goblin extends Monster
   constructor: (@x,@y,@group) ->
@@ -980,13 +1001,14 @@ class FieldScene extends Scene
     super("Field")
     @map = new Map(32)
 
-    start_point = @map.get_randpoint()
+    start_point = @map.get_rand_xy()
+    # player  =  new Player(start_point.x ,start_point.y, 0)
     player  =  new Player(start_point.x ,start_point.y, 0)
 
     @objs = [player]
     @set_camera( player )
 
-    @max_object_count = 11
+    @max_object_count = 5
     @fcnt = 0
 
   enter: (keys,mouse) ->
@@ -999,8 +1021,7 @@ class FieldScene extends Scene
         group = 1
       else
         group = 0
-
-      rpo = @map.get_randpoint()
+      rpo = @map.get_rand_xy()
       @objs.push( new Goblin(rpo.x, rpo.y, group) )
       if Math.random() < 0.3
         @objs[@objs.length-1].state.leader = 1
@@ -1009,7 +1030,7 @@ class FieldScene extends Scene
       for i in [0 ... @objs.length]
         if not @objs[i].state.alive
           if @objs[i] is @camera
-            start_point = @map.get_randpoint()
+            start_point = @map.get_rand_xy()
             player  =  new Player(start_point.x ,start_point.y, 0)
             @objs.push(player)
             @set_camera(player)
@@ -1031,21 +1052,21 @@ class FieldScene extends Scene
     player = @camera
 
     if player
-      player.render_skill_gage(g)
+      # player.render_skill_gage(g)
       my.init_cv(g)
       g.fillText(
           "HP "+player.status.hp+"/"+player.status.MAX_HP,
           15,15)
 
+      # if @player.distination
+      #   g.fillText(
+      #       " "+@player.distination.x+"/"+@player.distination.y,
+      #       15,35)
+
       # if player.mouse
       #   g.fillText(
       #       "p: "+(player.x+player.mouse.x-320)+"."+(player.y+player.mouse.y-240)
       #       15,25)
-
-    # mouse_x =@player.x+@player.mouse.x-320
-    # mouse_y =@player.y+@player.mouse.y-240
-
-
 
     # if @player.targeting
     #   g.fillText(
@@ -1126,6 +1147,14 @@ vows.describe('Game Test').addBatch
         t = map._map[nx][ny]
         console.log "#{nx} #{ny} #{t} "
 
+    topic: "a2"
+    'ok': ()->
+      map = new Map(32)
+      start_point = map.get_randpoint()
+      console.log "start point is "+ start_point
+
+      player  =  new Player(start_point[0] ,start_point[1], 0)
+      console.log player.x+"/"+player.y
 
       # while true
       #   if open_list == []

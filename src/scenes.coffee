@@ -32,13 +32,14 @@ class FieldScene extends Scene
     super("Field")
     @map = new Map(32)
 
-    start_point = @map.get_randpoint()
+    start_point = @map.get_rand_xy()
+    # player  =  new Player(start_point.x ,start_point.y, 0)
     player  =  new Player(start_point.x ,start_point.y, 0)
 
     @objs = [player]
     @set_camera( player )
 
-    @max_object_count = 11
+    @max_object_count = 5
     @fcnt = 0
 
   enter: (keys,mouse) ->
@@ -51,8 +52,7 @@ class FieldScene extends Scene
         group = 1
       else
         group = 0
-
-      rpo = @map.get_randpoint()
+      rpo = @map.get_rand_xy()
       @objs.push( new Goblin(rpo.x, rpo.y, group) )
       if Math.random() < 0.3
         @objs[@objs.length-1].state.leader = 1
@@ -61,7 +61,7 @@ class FieldScene extends Scene
       for i in [0 ... @objs.length]
         if not @objs[i].state.alive
           if @objs[i] is @camera
-            start_point = @map.get_randpoint()
+            start_point = @map.get_rand_xy()
             player  =  new Player(start_point.x ,start_point.y, 0)
             @objs.push(player)
             @set_camera(player)
@@ -83,23 +83,21 @@ class FieldScene extends Scene
     player = @camera
 
     if player
-      player.render_skill_gage(g)
+      # player.render_skill_gage(g)
       my.init_cv(g)
       g.fillText(
           "HP "+player.status.hp+"/"+player.status.MAX_HP,
           15,15)
-      g.fillText(
-          " "+player.x+"/"+player.y,
-          15,35)
+
+      # if @player.distination
+      #   g.fillText(
+      #       " "+@player.distination.x+"/"+@player.distination.y,
+      #       15,35)
+
       # if player.mouse
       #   g.fillText(
       #       "p: "+(player.x+player.mouse.x-320)+"."+(player.y+player.mouse.y-240)
       #       15,25)
-
-    # mouse_x =@player.x+@player.mouse.x-320
-    # mouse_y =@player.y+@player.mouse.y-240
-
-
 
     # if @player.targeting
     #   g.fillText(

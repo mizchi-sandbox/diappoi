@@ -73,6 +73,14 @@ vows.describe('Game Test').addBatch
         t = map._map[nx][ny]
         console.log "#{nx} #{ny} #{t} "
 
+    topic: "a2"
+    'ok': ()->
+      map = new Map(32)
+      start_point = map.get_randpoint()
+      console.log "start point is "+ start_point
+
+      player  =  new Player(start_point[0] ,start_point[1], 0)
+      console.log player.x+"/"+player.y
 
       # while true
       #   if open_list == []

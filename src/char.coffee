@@ -382,6 +382,7 @@ class Monster extends Battler
     @scale = 5
     @dir = 0
     @cnt = ~~(Math.random() * 24)
+    @distination = [@x,@y]
 
   update: (objs, cmap)->
     super(objs, cmap)
@@ -393,20 +394,21 @@ class Monster extends Battler
     return [nx ,ny]
 
   wander:(cmap)->
-    if @cnt % 24 ==  0
-      #set distination
+    wide = 32/4
+    if @x-wide<@distination[0]<@x+wide and @y-wide<@distination[1]<@y+wide
       c = cmap.get_cell(@x,@y)
-      d = cmap.get_point( c.x+randint(-1,1) ,c.y+randint(-1,1) )
+      d = cmap.get_point( c.x+randint(-2,2) ,c.y+randint(-2,2) )
+      if not cmap.collide( d.x ,d.y )
+        console.log d
+        @distination = [d.x,d.y]
 
-      @distination = [d.x,d.y]
-      # @dir = Math.PI * 2 * Math.random()
+    # @dir = Math.PI * 2 * Math.random()
 
     if @distination # @cnt % 24 < 8
-      console.log @distination + "hello"
+      console.log @distination
       [to_x , to_y] = @distination
-      return @trace()
+      return @trace(to_x,to_y)
     return [@x,@y]
-
     # return [nx ,ny]             #
 
   move: (objs ,cmap)->
@@ -428,14 +430,24 @@ class Monster extends Battler
         [nx,ny] = @trace( leader.x , leader.y )
       else
         [nx,ny] = @wander(cmap)
-
     else
-      # ターゲット不在時
       [nx,ny] = @wander(cmap)
 
     if not cmap.collide( nx,ny )
       @x = nx if nx?
       @y = ny if ny?
+
+    # set distination if it cant move
+    if @x == @_lx and @y == @_ly
+      @distination = [@x,@y]
+
+    @_lx = @x
+    @_ly = @y
+  # set_distination:(x,y)->
+  #   c = cmap.get_cell(@x,@y)
+  #   d = cmap.get_point(x,y)
+  #   if not cmap.collide( d.x ,d.y )
+  #     @distination = [d.x,d.y]
 
 class Goblin extends Monster
   constructor: (@x,@y,@group) ->

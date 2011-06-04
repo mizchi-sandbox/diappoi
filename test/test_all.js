@@ -410,24 +410,6 @@
         y: ~~((y + 1 / 2) * this.cell)
       };
     };
-    Map.prototype.get_randpoint = function() {
-      var rx, ry;
-      rx = ~~(Math.random() * this._map.length);
-      ry = ~~(Math.random() * this._map[0].length);
-      if (this._map[rx][ry]) {
-        return this.get_randpoint();
-      }
-      return this.get_point(rx, ry);
-    };
-    Map.prototype.get_randpoint = function() {
-      var rx, ry;
-      rx = ~~(Math.random() * this._map.length);
-      ry = ~~(Math.random() * this._map[0].length);
-      if (this._map[rx][ry]) {
-        return this.get_randpoint();
-      }
-      return [rx, ry];
-    };
     Map.prototype.get_cell = function(x, y) {
       x = ~~(x / this.cell);
       y = ~~(y / this.cell);
@@ -435,6 +417,24 @@
         x: x,
         y: y
       };
+    };
+    Map.prototype.get_rand_cell_xy = function() {
+      var rx, ry;
+      rx = ~~(Math.random() * this._map.length);
+      ry = ~~(Math.random() * this._map[0].length);
+      if (this._map[rx][ry]) {
+        return this.get_rand_cell_xy();
+      }
+      return [rx, ry];
+    };
+    Map.prototype.get_rand_xy = function() {
+      var rx, ry;
+      rx = ~~(Math.random() * this._map.length);
+      ry = ~~(Math.random() * this._map[0].length);
+      if (this._map[rx][ry]) {
+        return this.get_rand_xy();
+      }
+      return this.get_point(rx, ry);
     };
     Map.prototype.collide = function(x, y) {
       x = ~~(x / this.cell);
@@ -977,7 +977,6 @@
         c = cmap.get_cell(this.x, this.y);
         d = cmap.get_point(c.x + randint(-1, 1), c.y + randint(-1, 1));
         this.distination = [d.x, d.y];
-        console.log;
       }
       if (this.distination) {
         console.log(this.distination);
@@ -1209,11 +1208,11 @@
       var player, start_point;
       FieldScene.__super__.constructor.call(this, "Field");
       this.map = new Map(32);
-      start_point = this.map.get_randpoint();
-      player = new Player(start_point.x, start_point.y, 0);
+      start_point = this.map.get_rand_xy();
+      player = new Goblin(start_point.x, start_point.y, 0);
       this.objs = [player];
       this.set_camera(player);
-      this.max_object_count = 11;
+      this.max_object_count = 2;
       this.fcnt = 0;
     }
     FieldScene.prototype.enter = function(keys, mouse) {
@@ -1230,7 +1229,7 @@
         } else {
           group = 0;
         }
-        rpo = this.map.get_randpoint();
+        rpo = this.map.get_rand_xy();
         this.objs.push(new Goblin(rpo.x, rpo.y, group));
         if (Math.random() < 0.3) {
           this.objs[this.objs.length - 1].state.leader = 1;
@@ -1239,7 +1238,7 @@
         for (i = 0, _ref2 = this.objs.length; (0 <= _ref2 ? i < _ref2 : i > _ref2); (0 <= _ref2 ? i += 1 : i -= 1)) {
           if (!this.objs[i].state.alive) {
             if (this.objs[i] === this.camera) {
-              start_point = this.map.get_randpoint();
+              start_point = this.map.get_rand_xy();
               player = new Player(start_point.x, start_point.y, 0);
               this.objs.push(player);
               this.set_camera(player);
@@ -1270,7 +1269,8 @@
       if (player) {
         player.render_skill_gage(g);
         my.init_cv(g);
-        return g.fillText("HP " + player.status.hp + "/" + player.status.MAX_HP, 15, 15);
+        g.fillText("HP " + player.status.hp + "/" + player.status.MAX_HP, 15, 15);
+        return g.fillText(" " + player.x + "/" + player.y, 15, 35);
       }
     };
     return FieldScene;
@@ -1362,6 +1362,15 @@
           _results.push(console.log("" + nx + " " + ny + " " + t + " "));
         }
         return _results;
+      },
+      topic: "a2",
+      'ok': function() {
+        var map, player, start_point;
+        map = new Map(32);
+        start_point = map.get_randpoint();
+        console.log("start point is " + start_point);
+        player = new Player(start_point[0], start_point[1], 0);
+        return console.log(player.x + "/" + player.y);
       }
     }
   })["export"](module);
