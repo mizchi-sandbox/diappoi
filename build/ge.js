@@ -344,37 +344,32 @@
   Map = (function() {
     __extends(Map, Sprite);
     function Map(cell) {
-      var m;
       this.cell = cell != null ? cell : 32;
       Map.__super__.constructor.call(this, 0, 0, this.cell);
-      m = this.load(maps.debug);
-      this._map = m;
+      this._map = this.load(maps.debug);
     }
     Map.prototype.load = function(text) {
-      var i, list, map, max, row, tmap, y, _i, _j, _k, _len, _len2, _len3, _ref;
+      var i, map, max, row, tmap, y, _ref;
       tmap = text.replaceAll(".", "0").replaceAll(" ", "1").split("\n");
+      max = Math.max.apply(null, (function() {
+        var _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = tmap.length; _i < _len; _i++) {
+          row = tmap[_i];
+          _results.push(row.length);
+        }
+        return _results;
+      })());
       map = [];
-      max = 0;
-      for (_i = 0, _len = tmap.length; _i < _len; _i++) {
-        row = tmap[_i];
-        if (max < row.length) {
-          max = row.length;
-        }
-      }
-      y = 0;
-      for (_j = 0, _len2 = tmap.length; _j < _len2; _j++) {
-        row = tmap[_j];
-        list = [];
-        _ref = row + 1;
-        for (_k = 0, _len3 = _ref.length; _k < _len3; _k++) {
-          i = _ref[_k];
-          list[list.length] = parseInt(i);
-        }
-        while (list.length < max) {
-          list.push(1);
-        }
-        map[y] = list;
-        y++;
+      for (y = 0, _ref = tmap.length; 0 <= _ref ? y < _ref : y > _ref; 0 <= _ref ? y++ : y--) {
+        map[y] = (function() {
+          var _results;
+          _results = [];
+          for (i = 0; 0 <= max ? i < max : i > max; 0 <= max ? i++ : i--) {
+            _results.push((i < tmap[y].length ? parseInt(tmap[y][i]) : 1));
+          }
+          return _results;
+        })();
       }
       map = this._rotate90(map);
       map = this._set_wall(map);

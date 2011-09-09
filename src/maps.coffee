@@ -2,39 +2,23 @@ class Map extends Sprite
   constructor: (@cell=32) ->
     super 0, 0, @cell
     # @_map = @gen_map()
-    m = @load(maps.debug)
-
     # m = base_block
     # m = rjoin(m,m)
     # m = sjoin(m,m)
 
-    @_map = m
+    @_map = @load(maps.debug)
 
   load : (text)->
     tmap = text.replaceAll(".","0").replaceAll(" ","1").split("\n")
+    max = Math.max.apply null,(row.length for row in tmap)
+
     map = []
-
-    max = 0
-    for row in tmap
-      if max < row.length
-        max = row.length
-
-    y = 0
-    for row in tmap
-      list = []
-      for i in row+1
-        list[list.length] = parseInt(i)
-
-      while list.length < max
-        list.push(1)
-      map[y] = list
-      y++
+    for y in [0...tmap.length]
+      map[y]= ((if i < tmap[y].length then parseInt tmap[y][i] else 1) for i in [0 ... max])
 
     map = @_rotate90(map)
     map = @_set_wall(map)
-
     return map
-
 
   _rotate90:(map)->
     res = []
@@ -214,8 +198,6 @@ class SampleMap extends Map
   constructor: (@context , @cell=32) ->
     super @cell
     @_map = @load(maps.debug)
-    # @rotate90()
-    # @set_wall()
 
   update:(objs,camera)->
     @_check_death(objs,camera)
