@@ -3,7 +3,7 @@ class Scene
     return @name
 
   render: (g)->
-    @player.render(g)
+    @player.render g
     g.fillText(
         @name,
         300,200)
@@ -29,55 +29,35 @@ class OpeningScene extends Scene
 
 
 class FieldScene extends Scene
-  max_object_count: 4
-  frame_count : 0
   name : "Field"
+  _camera : null
 
   constructor: () ->
-    @map = new Map(32)
+    @map = new SampleMap(@,32)
     @mouse = new Mouse()
 
     # mapの中のランダムな空白にプレーヤーを初期化
     start_point = @map.get_rand_xy()
     player  =  new Player(start_point.x ,start_point.y, 0)
     @objs = [player]
-    @_set_camera( player )
+    @set_camera( player )
 
   enter: (keys,mouse) ->
     # @objs.map (i)-> i.update(@objs,@map,keys,mouse)
     obj.update(@objs, @map,keys,mouse) for obj in @objs
-    @_pop_enemy(@objs)
+    @map.update @objs,@_camera
     @frame_count++
     return @name
 
-  _pop_enemy: (objs) ->
-    if objs.length < @max_object_count and @frame_count % 24*3 == 0
-      group = (if Math.random() > 0.05 then 1 else 0 )
-      random_point  = @map.get_rand_xy()
-      objs.push( new Goblin(random_point.x, random_point.y, group) )
-      if Math.random() < 0.3
-        objs[objs.length-1].state.leader = 1
-    else
-      for i in [0 ... objs.length]
-        if not objs[i].state.alive
-          if objs[i] is @camera
-            start_point = @map.get_rand_xy()
-            player  =  new Player(start_point.x ,start_point.y, 0)
-            objs.push(player)
-            @set_camera(player)
-            objs.splice(i,1)
-          else
-            objs.splice(i,1)
-          break
-  _set_camera: (obj)->
-    @camera = obj
+  set_camera: (obj)->
+    @_camera = obj
 
   render: (g)->
-    @map.render(g, @camera)
-    obj.render(g,@camera) for obj in @objs
-    @map.render_after(g, @camera)
+    @map.render(g, @_camera)
+    obj.render(g,@_camera) for obj in @objs
+    @map.render_after(g, @_camera)
 
-    player = @camera
+    player = @_camera
 
     if player
       player.render_skill_gage(g)

@@ -9,8 +9,6 @@ class Map extends Sprite
     # m = sjoin(m,m)
 
     @_map = m
-    @rotate90()
-    @set_wall()
 
   load : (text)->
     tmap = text.replaceAll(".","0").replaceAll(" ","1").split("\n")
@@ -32,18 +30,19 @@ class Map extends Sprite
       map[y] = list
       y++
 
+    map = @_rotate90(map)
+    map = @_set_wall(map)
+
     return map
 
 
-  rotate90:()->
-    map = @_map
+  _rotate90:(map)->
     res = []
     for i in [0...map[0].length]
       res[i] = ( j[i] for j in map)
-    @_map = res
+    res
 
-  set_wall:()->
-    map = @_map
+  _set_wall:(map)->
     x = map.length
     y = map[0].length
     map[0] = (1 for i in [0...map[0].length])
@@ -51,8 +50,7 @@ class Map extends Sprite
     for i in map
       i[0]=1
       i[i.length-1]=1
-
-    return map
+    map
 
   gen_random_map:(x,y)->
     map = []
@@ -210,11 +208,40 @@ class Map extends Sprite
             @cell , @cell)
 
 class SampleMap extends Map
-  constructor: (@cell=32) ->
-    super 0, 0, @cell
+  max_object_count: 4
+  frame_count : 0
+
+  constructor: (@context , @cell=32) ->
+    super @cell
     @_map = @load(maps.debug)
-    @rotate90()
-    @set_wall()
+    # @rotate90()
+    # @set_wall()
+
+  update:(objs,camera)->
+    @_check_death(objs,camera)
+    @_pop_enemy(objs)
+
+  _check_death: (objs,camera)->
+    for i in [0 ... objs.length]
+      if not objs[i].state.alive
+        if objs[i] is camera
+          start_point = @get_rand_xy()
+          player  =  new Player(start_point.x ,start_point.y, 0)
+          @context.set_camera player
+          objs.push(player)
+          objs.splice(i,1)
+        else
+          objs.splice(i,1)
+        break
+
+  _pop_enemy: (objs) ->
+    # リポップ条件確認
+    if objs.length < @max_object_count and @frame_count % 24*3 == 0
+      group = (if Math.random() > 0.05 then ObjectGroup.Enemy else ObjectGroup.Player )
+      random_point  = @get_rand_xy()
+      objs.push( new Goblin(random_point.x, random_point.y, group) )
+      if Math.random() < 0.3
+        objs[objs.length-1].state.leader = 1
 
 class Node
   start: [null,null]

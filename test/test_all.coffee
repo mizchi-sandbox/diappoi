@@ -248,8 +248,6 @@ class Map extends Sprite
     # m = sjoin(m,m)
 
     @_map = m
-    @rotate90()
-    @set_wall()
 
   load : (text)->
     tmap = text.replaceAll(".","0").replaceAll(" ","1").split("\n")
@@ -271,18 +269,19 @@ class Map extends Sprite
       map[y] = list
       y++
 
+    map = @_rotate90(map)
+    map = @_set_wall(map)
+
     return map
 
 
-  rotate90:()->
-    map = @_map
+  _rotate90:(map)->
     res = []
     for i in [0...map[0].length]
       res[i] = ( j[i] for j in map)
-    @_map = res
+    res
 
-  set_wall:()->
-    map = @_map
+  _set_wall:(map)->
     x = map.length
     y = map[0].length
     map[0] = (1 for i in [0...map[0].length])
@@ -290,8 +289,7 @@ class Map extends Sprite
     for i in map
       i[0]=1
       i[i.length-1]=1
-
-    return map
+    map
 
   gen_random_map:(x,y)->
     map = []
@@ -449,11 +447,40 @@ class Map extends Sprite
             @cell , @cell)
 
 class SampleMap extends Map
-  constructor: (@cell=32) ->
-    super 0, 0, @cell
+  max_object_count: 4
+  frame_count : 0
+
+  constructor: (@context , @cell=32) ->
+    super @cell
     @_map = @load(maps.debug)
-    @rotate90()
-    @set_wall()
+    # @rotate90()
+    # @set_wall()
+
+  update:(objs,camera)->
+    @_check_death(objs,camera)
+    @_pop_enemy(objs)
+
+  _check_death: (objs,camera)->
+    for i in [0 ... objs.length]
+      if not objs[i].state.alive
+        if objs[i] is camera
+          start_point = @get_rand_xy()
+          player  =  new Player(start_point.x ,start_point.y, 0)
+          @context.set_camera player
+          objs.push(player)
+          objs.splice(i,1)
+        else
+          objs.splice(i,1)
+        break
+
+  _pop_enemy: (objs) ->
+    # リポップ条件確認
+    if objs.length < @max_object_count and @frame_count % 24*3 == 0
+      group = (if Math.random() > 0.05 then ObjectGroup.Enemy else ObjectGroup.Player )
+      random_point  = @get_rand_xy()
+      objs.push( new Goblin(random_point.x, random_point.y, group) )
+      if Math.random() < 0.3
+        objs[objs.length-1].state.leader = 1
 
 class Node
   start: [null,null]
@@ -574,7 +601,7 @@ class Status
   #   @next_lv = @lv * 30
 
 class Battler extends Sprite
-  constructor: (@x=0,@y=0,@group= ObjectGroup.enemy ,status={}) ->
+  constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
     super @x, @y,@scale
     if not status
       status =
@@ -828,7 +855,7 @@ class Battler extends Sprite
 
 
 class Player extends Battler
-  constructor: (@x,@y,@group=0) ->
+  constructor: (@x,@y,@group=ObjectGroup.Player) ->
     @name = "Player"
     super(@x,@y,@group)
     status =
@@ -910,9 +937,9 @@ class Player extends Battler
         @y += move
 
   render_object:(g,pos)->
-    if @group == 0
+    if @group == ObjectGroup.Player
       color = "rgb(255,255,255)"
-    else if @group == 1
+    else if @group == ObjectGroup.Enemy
       color = "rgb(55,55,55)"
     @init_cv(g,color=color)
     beat = 20
@@ -946,7 +973,7 @@ class Player extends Battler
       g.stroke()
 
 class Monster extends Battler
-  constructor: (@x,@y,@group=1,status={}) ->
+  constructor: (@x,@y,@group=ObjectGroup.Enemy,status={}) ->
     super(@x,@y,@group,status)
     @scale = 5
     @dir = 0
@@ -1092,9 +1119,9 @@ class Goblin extends Monster
     super(g,cam)
 
   render_object:(g,pos)->
-    if @group == 0
+    if @group == ObjectGroup.Player
       color = "rgb(255,255,255)"
-    else if @group == 1
+    else if @group == ObjectGroup.Enemy
       color = "rgb(55,55,55)"
     @init_cv(g,color=color)
     beat = 20
@@ -1192,7 +1219,7 @@ class Scene
     return @name
 
   render: (g)->
-    @player.render(g)
+    @player.render g
     g.fillText(
         @name,
         300,200)
@@ -1218,55 +1245,35 @@ class OpeningScene extends Scene
 
 
 class FieldScene extends Scene
-  max_object_count: 4
-  frame_count : 0
   name : "Field"
+  _camera : null
 
   constructor: () ->
-    @map = new Map(32)
+    @map = new SampleMap(@,32)
     @mouse = new Mouse()
 
     # mapの中のランダムな空白にプレーヤーを初期化
     start_point = @map.get_rand_xy()
     player  =  new Player(start_point.x ,start_point.y, 0)
     @objs = [player]
-    @_set_camera( player )
+    @set_camera( player )
 
   enter: (keys,mouse) ->
     # @objs.map (i)-> i.update(@objs,@map,keys,mouse)
     obj.update(@objs, @map,keys,mouse) for obj in @objs
-    @_pop_enemy(@objs)
+    @map.update @objs,@_camera
     @frame_count++
     return @name
 
-  _pop_enemy: (objs) ->
-    if objs.length < @max_object_count and @frame_count % 24*3 == 0
-      group = (if Math.random() > 0.05 then 1 else 0 )
-      random_point  = @map.get_rand_xy()
-      objs.push( new Goblin(random_point.x, random_point.y, group) )
-      if Math.random() < 0.3
-        objs[objs.length-1].state.leader = 1
-    else
-      for i in [0 ... objs.length]
-        if not objs[i].state.alive
-          if objs[i] is @camera
-            start_point = @map.get_rand_xy()
-            player  =  new Player(start_point.x ,start_point.y, 0)
-            objs.push(player)
-            @set_camera(player)
-            objs.splice(i,1)
-          else
-            objs.splice(i,1)
-          break
-  _set_camera: (obj)->
-    @camera = obj
+  set_camera: (obj)->
+    @_camera = obj
 
   render: (g)->
-    @map.render(g, @camera)
-    obj.render(g,@camera) for obj in @objs
-    @map.render_after(g, @camera)
+    @map.render(g, @_camera)
+    obj.render(g,@_camera) for obj in @objs
+    @map.render_after(g, @_camera)
 
-    player = @camera
+    player = @_camera
 
     if player
       player.render_skill_gage(g)

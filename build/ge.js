@@ -349,8 +349,6 @@
       Map.__super__.constructor.call(this, 0, 0, this.cell);
       m = this.load(maps.debug);
       this._map = m;
-      this.rotate90();
-      this.set_wall();
     }
     Map.prototype.load = function(text) {
       var i, list, map, max, row, tmap, y, _i, _j, _k, _len, _len2, _len3, _ref;
@@ -378,11 +376,12 @@
         map[y] = list;
         y++;
       }
+      map = this._rotate90(map);
+      map = this._set_wall(map);
       return map;
     };
-    Map.prototype.rotate90 = function() {
-      var i, j, map, res, _ref;
-      map = this._map;
+    Map.prototype._rotate90 = function(map) {
+      var i, j, res, _ref;
       res = [];
       for (i = 0, _ref = map[0].length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
         res[i] = (function() {
@@ -395,11 +394,10 @@
           return _results;
         })();
       }
-      return this._map = res;
+      return res;
     };
-    Map.prototype.set_wall = function() {
-      var i, map, x, y, _i, _len;
-      map = this._map;
+    Map.prototype._set_wall = function(map) {
+      var i, x, y, _i, _len;
       x = map.length;
       y = map[0].length;
       map[0] = (function() {
@@ -576,13 +574,48 @@
   })();
   SampleMap = (function() {
     __extends(SampleMap, Map);
-    function SampleMap(cell) {
+    SampleMap.prototype.max_object_count = 4;
+    SampleMap.prototype.frame_count = 0;
+    function SampleMap(context, cell) {
+      this.context = context;
       this.cell = cell != null ? cell : 32;
-      SampleMap.__super__.constructor.call(this, 0, 0, this.cell);
+      SampleMap.__super__.constructor.call(this, this.cell);
       this._map = this.load(maps.debug);
-      this.rotate90();
-      this.set_wall();
     }
+    SampleMap.prototype.update = function(objs, camera) {
+      this._check_death(objs, camera);
+      return this._pop_enemy(objs);
+    };
+    SampleMap.prototype._check_death = function(objs, camera) {
+      var i, player, start_point, _ref, _results;
+      _results = [];
+      for (i = 0, _ref = objs.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+        if (!objs[i].state.alive) {
+          if (objs[i] === camera) {
+            start_point = this.get_rand_xy();
+            player = new Player(start_point.x, start_point.y, 0);
+            this.context.set_camera(player);
+            objs.push(player);
+            objs.splice(i, 1);
+          } else {
+            objs.splice(i, 1);
+          }
+          break;
+        }
+      }
+      return _results;
+    };
+    SampleMap.prototype._pop_enemy = function(objs) {
+      var group, random_point;
+      if (objs.length < this.max_object_count && this.frame_count % 24 * 3 === 0) {
+        group = (Math.random() > 0.05 ? ObjectGroup.Enemy : ObjectGroup.Player);
+        random_point = this.get_rand_xy();
+        objs.push(new Goblin(random_point.x, random_point.y, group));
+        if (Math.random() < 0.3) {
+          return objs[objs.length - 1].state.leader = 1;
+        }
+      }
+    };
     return SampleMap;
   })();
   Node = (function() {
@@ -665,7 +698,7 @@
     function Battler(x, y, group, status) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
-      this.group = group != null ? group : ObjectGroup.enemy;
+      this.group = group != null ? group : ObjectGroup.Enemy;
       if (status == null) {
         status = {};
       }
@@ -989,7 +1022,7 @@
       var status;
       this.x = x;
       this.y = y;
-      this.group = group != null ? group : 0;
+      this.group = group != null ? group : ObjectGroup.Player;
       this.name = "Player";
       Player.__super__.constructor.call(this, this.x, this.y, this.group);
       status = {
@@ -1080,9 +1113,9 @@
     };
     Player.prototype.render_object = function(g, pos) {
       var beat, color, ms, roll;
-      if (this.group === 0) {
+      if (this.group === ObjectGroup.Player) {
         color = "rgb(255,255,255)";
-      } else if (this.group === 1) {
+      } else if (this.group === ObjectGroup.Enemy) {
         color = "rgb(55,55,55)";
       }
       this.init_cv(g, color = color);
@@ -1130,7 +1163,7 @@
     function Monster(x, y, group, status) {
       this.x = x;
       this.y = y;
-      this.group = group != null ? group : 1;
+      this.group = group != null ? group : ObjectGroup.Enemy;
       if (status == null) {
         status = {};
       }
@@ -1258,9 +1291,9 @@
     };
     Goblin.prototype.render_object = function(g, pos) {
       var beat, color, ms;
-      if (this.group === 0) {
+      if (this.group === ObjectGroup.Player) {
         color = "rgb(255,255,255)";
-      } else if (this.group === 1) {
+      } else if (this.group === ObjectGroup.Enemy) {
         color = "rgb(55,55,55)";
       }
       this.init_cv(g, color = color);
@@ -1433,17 +1466,16 @@
   })();
   FieldScene = (function() {
     __extends(FieldScene, Scene);
-    FieldScene.prototype.max_object_count = 4;
-    FieldScene.prototype.frame_count = 0;
     FieldScene.prototype.name = "Field";
+    FieldScene.prototype._camera = null;
     function FieldScene() {
       var player, start_point;
-      this.map = new Map(32);
+      this.map = new SampleMap(this, 32);
       this.mouse = new Mouse();
       start_point = this.map.get_rand_xy();
       player = new Player(start_point.x, start_point.y, 0);
       this.objs = [player];
-      this._set_camera(player);
+      this.set_camera(player);
     }
     FieldScene.prototype.enter = function(keys, mouse) {
       var obj, _i, _len, _ref;
@@ -1452,51 +1484,23 @@
         obj = _ref[_i];
         obj.update(this.objs, this.map, keys, mouse);
       }
-      this._pop_enemy(this.objs);
+      this.map.update(this.objs, this._camera);
       this.frame_count++;
       return this.name;
     };
-    FieldScene.prototype._pop_enemy = function(objs) {
-      var group, i, player, random_point, start_point, _ref, _results;
-      if (objs.length < this.max_object_count && this.frame_count % 24 * 3 === 0) {
-        group = (Math.random() > 0.05 ? 1 : 0);
-        random_point = this.map.get_rand_xy();
-        objs.push(new Goblin(random_point.x, random_point.y, group));
-        if (Math.random() < 0.3) {
-          return objs[objs.length - 1].state.leader = 1;
-        }
-      } else {
-        _results = [];
-        for (i = 0, _ref = objs.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-          if (!objs[i].state.alive) {
-            if (objs[i] === this.camera) {
-              start_point = this.map.get_rand_xy();
-              player = new Player(start_point.x, start_point.y, 0);
-              objs.push(player);
-              this.set_camera(player);
-              objs.splice(i, 1);
-            } else {
-              objs.splice(i, 1);
-            }
-            break;
-          }
-        }
-        return _results;
-      }
-    };
-    FieldScene.prototype._set_camera = function(obj) {
-      return this.camera = obj;
+    FieldScene.prototype.set_camera = function(obj) {
+      return this._camera = obj;
     };
     FieldScene.prototype.render = function(g) {
       var obj, player, _i, _len, _ref;
-      this.map.render(g, this.camera);
+      this.map.render(g, this._camera);
       _ref = this.objs;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         obj = _ref[_i];
-        obj.render(g, this.camera);
+        obj.render(g, this._camera);
       }
-      this.map.render_after(g, this.camera);
-      player = this.camera;
+      this.map.render_after(g, this._camera);
+      player = this._camera;
       if (player) {
         player.render_skill_gage(g);
         my.init_cv(g);
