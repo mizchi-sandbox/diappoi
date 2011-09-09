@@ -44,8 +44,7 @@ class FieldScene extends Scene
 
   enter: (keys,mouse) ->
     # @objs.map (i)-> i.update(@objs,@map,keys,mouse)
-    # obj.update(@objs, @map,keys,mouse) for obj in @objs
-    @objs.forEach (i)-> i.update @objs ,@map,keys,mouse
+    obj.update(@objs, @map,keys,mouse) for obj in @objs
     @map.update @objs,@_camera
     @frame_count++
     return @name
