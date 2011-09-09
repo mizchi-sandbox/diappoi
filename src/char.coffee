@@ -44,7 +44,7 @@ class Status
   #   @next_lv = @lv * 30
 
 class Battler extends Sprite
-  constructor: (@x=0,@y=0,@group= ObjectGroup.enemy ,status={}) ->
+  constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
     super @x, @y,@scale
     if not status
       status =
@@ -298,7 +298,7 @@ class Battler extends Sprite
 
 
 class Player extends Battler
-  constructor: (@x,@y,@group=0) ->
+  constructor: (@x,@y,@group=ObjectGroup.Player) ->
     @name = "Player"
     super(@x,@y,@group)
     status =
@@ -380,9 +380,9 @@ class Player extends Battler
         @y += move
 
   render_object:(g,pos)->
-    if @group == 0
+    if @group == ObjectGroup.Player
       color = "rgb(255,255,255)"
-    else if @group == 1
+    else if @group == ObjectGroup.Enemy
       color = "rgb(55,55,55)"
     @init_cv(g,color=color)
     beat = 20
@@ -416,7 +416,7 @@ class Player extends Battler
       g.stroke()
 
 class Monster extends Battler
-  constructor: (@x,@y,@group=1,status={}) ->
+  constructor: (@x,@y,@group=ObjectGroup.Enemy,status={}) ->
     super(@x,@y,@group,status)
     @scale = 5
     @dir = 0
@@ -562,9 +562,9 @@ class Goblin extends Monster
     super(g,cam)
 
   render_object:(g,pos)->
-    if @group == 0
+    if @group == ObjectGroup.Player
       color = "rgb(255,255,255)"
-    else if @group == 1
+    else if @group == ObjectGroup.Enemy
       color = "rgb(55,55,55)"
     @init_cv(g,color=color)
     beat = 20
