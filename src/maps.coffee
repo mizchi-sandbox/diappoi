@@ -42,7 +42,6 @@ class Map extends Sprite
       res[i] = ( j[i] for j in map)
     @_map = res
 
-
   set_wall:()->
     map = @_map
     x = map.length
@@ -209,6 +208,13 @@ class Map extends Sprite
             pos.vx + i * @cell+w,
             pos.vy + j * @cell-w,
             @cell , @cell)
+
+class SampleMap extends Map
+  constructor: (@cell=32) ->
+    super 0, 0, @cell
+    @_map = @load(maps.debug)
+    @rotate90()
+    @set_wall()
 
 class Node
   start: [null,null]

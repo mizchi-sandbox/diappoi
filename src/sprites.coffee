@@ -1,3 +1,4 @@
+
 class Sprite
   constructor: (@x=0,@y=0,@scale=10) ->
   render: (g)->
@@ -16,6 +17,7 @@ class Sprite
       vy : 240 + @y - cam.y
     return pos
 
+      # if t.group != @group and ObjectGroup.is_battler t.group
 
   init_cv: (g,color="rgb(255,255,255)",alpha=1)->
     g.beginPath()
@@ -25,7 +27,11 @@ class Sprite
 
 class ItemObject extends Sprite
   constructor: (@x=0,@y=0,@scale=10) ->
+    @group = 0
+  update:()->
+
   render: (g,cam)->
+    @init_cv(g,color="rgb(0,0,255)")
     pos = @getpos_relative cam
     g.beginPath()
     g.arc(pos.vx,pos.vy, 15 - ms ,0,Math.PI*2,true)

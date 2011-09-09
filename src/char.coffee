@@ -1,5 +1,23 @@
+ObjectGroup =
+  Player : 0
+  Enemy  : 1
+  Item   : 2
+  is_battler : (group_id)->
+    group_id in [@Player, @Enemy]
+
 class Status
   constructor: (params = {}, @lv = 1) ->
+    @params = params
+    @build_status(params)
+    # @set_next_lv()
+
+    @hp = @MAX_HP
+    @sp = @MAX_SP
+    @wt = 0
+    @exp = 0
+    @next_lv = @lv * 50
+
+  build_status:(params={},lv=1)->
     @MAX_HP = params.hp or 30
     @MAX_WT = params.wt or 10
     @MAX_SP = params.sp or 10
@@ -11,14 +29,22 @@ class Status
     @sight_range = params.sight_range or 80
     @speed = params.speed or 6
 
-    @exp = 0
-    @hp = @MAX_HP
-    @sp = @MAX_SP
-    @wt = 0
+  get_exp:(point)->
+    @exp += point
+    if @exp >= @next_lv
+      @exp = 0
+      @lv++
+      @build(lv=@lv)
+      @set_next_exp()
+
+  set_next_exp:()->
+    @next_lv = @lv * 30
+
+  # set_status:()->
+  #   @next_lv = @lv * 30
 
 class Battler extends Sprite
-  constructor: (@x=0,@y=0,@group=0,status={}) ->
-
+  constructor: (@x=0,@y=0,@group= ObjectGroup.enemy ,status={}) ->
     super @x, @y,@scale
     if not status
       status =
@@ -29,8 +55,8 @@ class Battler extends Sprite
         atack_range : 30
         sight_range : 80
         speed : 6
-    @status = new Status(status)
-    @category = "battler"
+    @status = new Status status
+    # @category = "battler"
     @state =
       alive : true
       active : false
@@ -51,6 +77,12 @@ class Battler extends Sprite
       @set_target(@get_targets_in_range(objs,@status.sight_range))
       @move(objs,cmap, keys,mouse)
       @act(keys,objs)
+
+  has_target:()->
+    if @targeting then return true else false
+
+  is_alive:()->
+    if @state.alive then return true else false
 
   add_animation:(animation)->
     @animation.push(animation)
@@ -110,21 +142,27 @@ class Battler extends Sprite
       @status.wt = 0
 
   move:(x,y)-> #abstract
+
   invoke: (target)->
 
   atack: ()->
-    @targeting.status.hp -= ~~(@status.atk * ( @targeting.status.def + Math.random()/4 ))
+    amount = ~~(@status.atk * ( @targeting.status.def + Math.random()/4 ))
+    @targeting.status.hp -= amount
+    my.mes(@name+" atack "+@targeting.name+" "+amount+"damage")
     @targeting.add_animation(new Animation_Slash())
     @targeting.check_state()
 
   set_target:(targets)->
-    # if targets.length == 0
-    #   @targeting = null
+    before = true if @has_target()
+
     if targets.length > 0
-      if not @targeting or not @targeting.alive
+      if not @has_target() or not @targeting.is_alive()
         @targeting = targets[0]
       else
         @targeting
+
+    if not before? and @has_target()
+      my.mes( @name+" find "+@targeting.name )
 
 
   change_target:(targets=@targeting)->
@@ -152,7 +190,7 @@ class Battler extends Sprite
   get_targets_in_range:(targets, range= @status.sight_range)->
     enemies = []
     for t in targets
-      if t.group != @group and t.category == "battler"
+      if t.group != @group and ObjectGroup.is_battler t.group
         enemies.push( t )
 
     buff = []
@@ -261,7 +299,7 @@ class Battler extends Sprite
 
 class Player extends Battler
   constructor: (@x,@y,@group=0) ->
-
+    @name = "Player"
     super(@x,@y,@group)
     status =
       hp : 120
@@ -311,6 +349,7 @@ class Player extends Battler
 
   move: (objs,cmap, keys, mouse)->
     @dir = @set_mouse_dir(mouse.x , mouse.y)
+
     if keys.right + keys.left + keys.up + keys.down > 1
       move = ~~(@status.speed * Math.sqrt(2)/2)
     else
@@ -451,6 +490,7 @@ class Monster extends Battler
       @_path = buf
       @to = @_path.shift()
     else
+      my.mes(@name+" lost "+@targeting.name)
       @targeting = null
 
   move: (objs ,cmap)->
@@ -458,12 +498,12 @@ class Monster extends Battler
     leader =  @get_leader(objs)
     # console.log @_path
 
-    if @targeting
+    if @has_target()
       d = @get_distance(@targeting)
       if d < @status.atack_range
         return
 
-    if @targeting and @to and not @cnt%24
+    if @has_target() and @to and not @cnt%24
       @set_path(cmap)
 
     else if @to
@@ -503,6 +543,7 @@ class Monster extends Battler
 
 class Goblin extends Monster
   constructor: (@x,@y,@group) ->
+    @name = "Goblin"
     status =
       hp  : 50
       wt  : 30
@@ -531,3 +572,14 @@ class Goblin extends Monster
     ms = 1 - ms if ms > 0.5
     g.arc( pos.vx, pos.vy, ( 1.3 + ms ) * @scale ,0,Math.PI*2,true)
     g.fill()
+
+
+class Mouse extends Sprite
+  constructor: () ->
+    @x = 0
+    @y = 0
+
+  render_object: (g,pos)->
+  render: (g,cam)->
+    cx = ~~((@x+mouse.x-320)/cmap.cell)
+    cy = ~~((@y+mouse.y-240)/cmap.cell)

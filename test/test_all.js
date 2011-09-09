@@ -1,5 +1,5 @@
 (function() {
-  var Animation, Animation_Slash, Battler, FieldScene, Game, Goblin, Map, Monster, Node, OpeningScene, Player, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, assert, base_block, clone, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows;
+  var Animation, Animation_Slash, Battler, FieldScene, Game, Goblin, ItemObject, Map, Monster, Node, OpeningScene, Player, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, assert, base_block, clone, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -280,6 +280,25 @@
       return g.globalAlpha = alpha;
     };
     return Sprite;
+  })();
+  ItemObject = (function() {
+    __extends(ItemObject, Sprite);
+    function ItemObject(x, y, scale) {
+      this.x = x != null ? x : 0;
+      this.y = y != null ? y : 0;
+      this.scale = scale != null ? scale : 10;
+      this.group = 0;
+    }
+    ItemObject.prototype.update = function() {};
+    ItemObject.prototype.render = function(g, cam) {
+      var color, pos;
+      this.init_cv(g, color = "rgb(0,0,255)");
+      pos = this.getpos_relative(cam);
+      g.beginPath();
+      g.arc(pos.vx, pos.vy, 15 - ms, 0, Math.PI * 2, true);
+      return g.stroke();
+    };
+    return ItemObject;
   })();
   Animation = (function() {
     __extends(Animation, Sprite);

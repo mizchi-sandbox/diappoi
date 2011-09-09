@@ -1,5 +1,6 @@
 class Game
   constructor: (conf) ->
+    my.mes("Welcome to the world!")
     canvas =  document.getElementById conf.CANVAS_NAME
     @g = canvas.getContext '2d'
     @config = conf
@@ -70,6 +71,9 @@ class Game
     @g.restore()
 
 my =
+  mes:(text)->
+    elm = $("<li>").text(text)
+    $("#message").prepend(elm)
   distance: (x1,y1,x2,y2)->
     xd = Math.pow (x1-x2) ,2
     yd = Math.pow (y1-y2) ,2

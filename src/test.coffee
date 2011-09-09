@@ -12,6 +12,7 @@ mouse =
 
 p = console.log
 
+
 vows.describe('Game Test').addBatch
   'combat test':
     topic: "extended array"
@@ -25,6 +26,10 @@ vows.describe('Game Test').addBatch
         pos = path.shift()
         dp = map.get_point(pos[0],pos[1])
         p dp
+  'combat test2':
+    topic: "extended array"
+    'test': ()->
+      console.log "wait"
 
     # topic: "atack" # 'test': ()->
     #   map = new Map(32)
