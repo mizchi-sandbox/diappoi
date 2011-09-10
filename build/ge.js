@@ -1,5 +1,5 @@
 (function() {
-  var Animation, Animation_Slash, Character, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, Walker, base_block, clone, conf, maps, my, randint, rjoin, sjoin;
+  var Animation, Animation_Slash, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, Walker, base_block, clone, conf, maps, my, randint, rjoin, sjoin;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -250,6 +250,16 @@
     F = function() {};
     F.prototype = obj;
     return new F;
+  };
+  Color = {
+    Red: "rgb(255,0,0)",
+    Blue: "rgb(0,0,255)",
+    Red: "rgb(0,255,0)",
+    White: "rgb(255,255,255)",
+    Black: "rgb(0,0,0)",
+    i: function(r, g, b) {
+      return "rgb(" + r + "," + g + "," + b + ")";
+    }
   };
   Sprite = (function() {
     function Sprite(x, y, scale) {
@@ -688,6 +698,7 @@
       if (this.status.hp > 1) {
         return this.state.alive = true;
       } else {
+        this.state.hp = 0;
         return this.state.alive = false;
       }
     };
@@ -732,7 +743,7 @@
           return this.targeting = null;
         }
       } else {
-        return this.state.targeting = null;
+        return this.targeting = null;
       }
     };
     Character.prototype.regenerate = function() {
@@ -775,47 +786,27 @@
       this.targeting.add_animation(new Animation_Slash());
       return this.targeting._update_state();
     };
-    Character.prototype.set_target = function(targets) {
-      var before;
-      if (this.has_target()) {
-        before = true;
-      }
-      if (targets.length > 0) {
-        if (!this.has_target() || !this.targeting.is_alive()) {
-          this.targeting = targets[0];
-        } else {
-          this.targeting;
-        }
-      }
-      if (!(before != null) && this.has_target()) {
-        return my.mes(this.name + " find " + this.targeting.name);
-      }
-    };
-    Character.prototype.change_target = function(targets) {
-      var i, _ref, _ref2, _results;
-      if (targets == null) {
-        targets = this.targeting;
-      }
-      if (targets.length > 0) {
+    Character.prototype.select_target = function(targets) {
+      var cur, _ref;
+      if (this.has_target() && targets.length > 0) {
         if (_ref = !this.targeting, __indexOf.call(targets, _ref) >= 0) {
-          return this.targeting = targets[0];
-        } else if (targets.length === 1) {
-          return this.targeting = targets[0];
-        } else if (targets.length > 1) {
-          if (this.targeting) {
-            _results = [];
-            for (i = 0, _ref2 = targets.length; 0 <= _ref2 ? i < _ref2 : i > _ref2; 0 <= _ref2 ? i++ : i--) {
-              _results.push(targets[i] === this.targeting ? targets.length === i + 1 ? this.targeting = targets[0] : this.targeting = targets[i + 1] : void 0);
-            }
-            return _results;
-          } else {
-            this.targeting = targets[0];
-            return this.targeting;
-          }
+          this.targeting = targets[0];
+          return;
+        } else if (targets.size() === 1) {
+          this.targeting = targets[0];
+          return;
         }
-      } else {
-        this.targeting = null;
-        return this.targeting;
+        if (targets.size() > 1) {
+          cur = targets.indexOf(this.targeting);
+          console.log("before: " + cur + " " + (targets.size()));
+          if (cur + 1 >= targets.size()) {
+            cur = 0;
+          } else {
+            cur += 1;
+          }
+          this.targeting = targets[cur];
+          return console.log("after: " + cur);
+        }
       }
     };
     Character.prototype.render_reach_circle = function(g, pos) {
@@ -884,7 +875,7 @@
       if (color == null) {
         color = "rgb(255,0,0)";
       }
-      my.init_cv(g);
+      this.init_cv(g);
       beat = 24;
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
@@ -906,7 +897,6 @@
         this.render_state(g, pos);
         this.render_dir_allow(g, pos);
         this.render_reach_circle(g, pos);
-        this.render_targeting(g, pos, cam);
       } else {
         this.render_dead(g, pos);
       }
@@ -949,10 +939,9 @@
       }
     };
     Walker.prototype.move = function(objs, cmap) {
-      var c, d, dp, nx, ny, wide, _ref;
+      var c, dp, nx, ny, wide, _ref;
       if (this.has_target()) {
-        d = this.get_distance(this.targeting);
-        if (d < this.status.atack_range) {
+        if (this.get_distance(this.targeting) < this.status.atack_range) {
           return;
         }
       }
@@ -976,9 +965,7 @@
           this.to = this._path.shift();
         } else {
           c = cmap.get_cell(this.x, this.y);
-          c.x += randint(-1, 1);
-          c.y += randint(-1, 1);
-          this.to = [c.x, c.y];
+          this.to = [c.x + randint(-1, 1), c.y + randint(-1, 1)];
         }
       }
       if (!cmap.collide(nx, ny)) {
@@ -989,20 +976,18 @@
           this.y = ny;
         }
       }
-      if (this.x === this._lx && this.y === this._ly) {
+      if (this.x === this._lx_ && this.y === this._ly_) {
         c = cmap.get_cell(this.x, this.y);
-        c.x += randint(-1, 1);
-        c.y += randint(-1, 1);
-        this.to = [c.x, c.y];
+        this.to = [c.x + randint(-1, 1), c.y + randint(-1, 1)];
       }
-      this._lx = this.x;
-      return this._ly = this.y;
+      this._lx_ = this.x;
+      return this._ly_ = this.y;
     };
-    Walker.prototype._get_path = function(cmap) {
+    Walker.prototype._get_path = function(map) {
       var from, to;
-      from = cmap.get_cell(this.x, this.y);
-      to = cmap.get_cell(this.targeting.x, this.targeting.y);
-      return cmap.search_min_path([from.x, from.y], [to.x, to.y]);
+      from = map.get_cell(this.x, this.y);
+      to = map.get_cell(this.targeting.x, this.targeting.y);
+      return map.search_min_path([from.x, from.y], [to.x, to.y]);
     };
     Walker.prototype._trace = function(to_x, to_y) {
       var nx, ny;
@@ -1010,22 +995,6 @@
       nx = this.x + ~~(this.status.speed * Math.cos(this.dir));
       ny = this.y + ~~(this.status.speed * Math.sin(this.dir));
       return [nx, ny];
-    };
-    Walker.prototype._wander = function(cmap) {
-      var c, d, to_x, to_y, wide, _ref, _ref2, _ref3;
-      wide = 32 / 4;
-      if ((this.x - wide < (_ref = this.distination[0]) && _ref < this.x + wide) && (this.y - wide < (_ref2 = this.distination[1]) && _ref2 < this.y + wide)) {
-        c = cmap.get_cell(this.x, this.y);
-        d = cmap.get_point(c.x + randint(-1, 1), c.y + randint(-1, 1));
-        if (!cmap.collide(d.x, d.y)) {
-          this.distination = [d.x, d.y];
-        }
-      }
-      if (this.distination) {
-        _ref3 = this.distination, to_x = _ref3[0], to_y = _ref3[1];
-        return this._trace(to_x, to_y);
-      }
-      return [this.x, this.y];
     };
     return Walker;
   })();
@@ -1050,9 +1019,9 @@
     Goblin.prototype.render_object = function(g, pos) {
       var beat, color, ms;
       if (this.group === ObjectGroup.Player) {
-        color = "rgb(255,255,255)";
+        color = Color.White;
       } else if (this.group === ObjectGroup.Enemy) {
-        color = "rgb(55,55,55)";
+        color = Color.i(55, 55, 55);
       }
       this.init_cv(g, color = color);
       beat = 20;
@@ -1094,6 +1063,30 @@
         y: 0
       };
     }
+    Player.prototype.update = function(objs, cmap, keys, mouse) {
+      return Player.__super__.update.call(this, objs, cmap, keys, mouse);
+    };
+    Player.prototype.update = function(objs, cmap, keys, mouse) {
+      var enemies;
+      this.cnt += 1;
+      if (this.is_alive()) {
+        this._update_state();
+        enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
+        if (this.has_target()) {
+          if (this.targeting.is_dead() || this.get_distance(this.targeting) > this.status.sight_range * 1.5) {
+            this.targeting = null;
+          }
+        } else if (enemies.size() > 0) {
+          this.targeting = enemies[0];
+          my.mes("" + this.name + " find " + this.targeting.name + ")");
+        }
+        if (keys.zero) {
+          this.select_target(enemies);
+        }
+        this.move(objs, cmap, keys, mouse);
+        return this.act(keys, objs);
+      }
+    };
     Player.prototype.set_mouse_dir = function(x, y) {
       var rx, ry;
       rx = x - 320;
@@ -1157,13 +1150,13 @@
     };
     Player.prototype.render_object = function(g, pos) {
       var beat, color, ms, roll;
+      beat = 20;
       if (this.group === ObjectGroup.Player) {
-        color = "rgb(255,255,255)";
+        color = Color.White;
       } else if (this.group === ObjectGroup.Enemy) {
-        color = "rgb(55,55,55)";
+        color = Color.i(55, 55, 55);
       }
       this.init_cv(g, color = color);
-      beat = 20;
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
         ms = 1 - ms;

@@ -163,5 +163,13 @@ Array::size = ()-> @.length
 clone = (obj)->
   F = ()->
   F.prototype = obj
-  return new F
+  new F
 
+Color =
+  Red : "rgb(255,0,0)"
+  Blue : "rgb(0,0,255)"
+  Red : "rgb(0,255,0)"
+  White : "rgb(255,255,255)"
+  Black : "rgb(0,0,0)"
+  i : (r,g,b)->
+    "rgb(#{r},#{g},#{b})"

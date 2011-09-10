@@ -24,6 +24,7 @@ class Character extends Sprite
     if @status.hp > 1
       @state.alive = true
     else
+      @state.hp = 0
       @state.alive = false
 
   is_dead:()->
@@ -57,11 +58,10 @@ class Character extends Sprite
       if @targeting?.is_dead()
          @targeting = null
     else
-      @state.targeting = null
+      @targeting = null
 
   regenerate: ()->
     r = (if @targeting then 2 else 1)
-
     if not (@cnt % (24/@status.regenerate*r)) and @state.alive
       if @status.hp < @status.MAX_HP
         @status.hp += 1
@@ -88,39 +88,23 @@ class Character extends Sprite
     @targeting.add_animation(new Animation_Slash())
     @targeting._update_state()
 
-  set_target:(targets)->
-    before = true if @has_target()
-    if targets.length > 0
-      if not @has_target() or not @targeting.is_alive()
+  select_target:(targets)->
+    if @has_target() and targets.length > 0
+      if not @targeting in targets
         @targeting = targets[0]
-      else
-        @targeting
-
-    if not before? and @has_target()
-      my.mes( @name+" find "+@targeting.name )
-
-
-  change_target:(targets=@targeting)->
-    # TODO: implement hate control
-    if targets.length > 0
-      if not @targeting in targets # before target go out
-        @targeting = targets[0]    #   focus anyone
-      else if targets.length == 1  # one target in range
-        @targeting = targets[0]    #   focus that target
-      else if targets.length > 1   # over 2 target
-        if @targeting              #   toggle target
-          for i in [0...targets.length]
-            if targets[i] is @targeting
-              if targets.length == i+1
-                @targeting = targets[0]
-              else
-                @targeting = targets[i+1]
+        return
+      else if targets.size() == 1
+        @targeting = targets[0]
+        return
+      if targets.size() > 1
+        cur = targets.indexOf @targeting
+        console.log "before: #{cur} #{targets.size()}"
+        if cur+1 >= targets.size()
+          cur = 0
         else
-          @targeting = targets[0]
-          return @targeting
-    else                           # no target in range
-      @targeting = null
-      return @targeting
+          cur += 1
+        @targeting = targets[cur]
+        console.log "after: #{cur}"
 
   render_reach_circle:(g,pos)->
       @init_cv(g , color = "rgb(250,50,50)",alpha=0.3)
@@ -170,6 +154,7 @@ class Character extends Sprite
     g.lineTo(x-w/2 , y-h/2)
     g.stroke()
 
+    # rest
     g.beginPath()
     g.moveTo(x-w/2 +1, y-h/2+1)
     g.lineTo(x-w/2+w*percent, y-h/2+1)
@@ -179,7 +164,7 @@ class Character extends Sprite
     g.fill()
 
   render_targeted: (g,pos,color="rgb(255,0,0)")->
-    my.init_cv(g)
+    @init_cv(g)
 
     beat = 24
     ms = ~~(new Date()/100) % beat / beat
@@ -202,7 +187,7 @@ class Character extends Sprite
       @render_state(g,pos)
       @render_dir_allow(g,pos)
       @render_reach_circle(g,pos)
-      @render_targeting(g,pos,cam)
+      # @render_targeting(g,pos,cam)
     else
       @render_dead(g,pos)
 
@@ -236,69 +221,53 @@ class Walker extends Character
       @act(keys,objs)
 
   move: (objs ,cmap)->
+    # for wait
     if @has_target()
-      d = @get_distance(@targeting)
-      if d < @status.atack_range
-        return
+      return if @get_distance(@targeting) < @status.atack_range
 
     if @has_target() and @to and not @cnt%24
+    # for trace
       @_path = @_get_path(cmap)
       @to = @_path.shift()
     else if @to
       dp = cmap.get_point(@to[0],@to[1])
-      [nx,ny] = @_trace( dp[0] , dp[1] )
+      [nx,ny] = @_trace( dp.x , dp.y )
       wide = 7
       if dp.x-wide<nx<dp.x+wide and dp.y-wide<ny<dp.y+wide
         if @_path.length > 0
           @to = @_path.shift()
         else
           @to = null
+    # for wander
     else
       if @targeting
         @_path = @_get_path(cmap)
         @to = @_path.shift()
       else
         c = cmap.get_cell(@x,@y)
-        c[0] += randint(-1,1)
-        c[1] += randint(-1,1)
-        @to = [c.x,c.y]
+        @to = [c.x+randint(-1,1),c.y+randint(-1,1)]
 
+    # check collidion
     if not cmap.collide( nx,ny )
       @x = nx if nx?
       @y = ny if ny?
 
-    if @x is @_lx and @y is @_ly
+    if @x is @_lx_ and @y is @_ly_
       c = cmap.get_cell(@x,@y)
-      c[0] += randint(-1,1)
-      c[1] += randint(-1,1)
-      # @to = [c.x,c.y]
-      @to = c
-    @_lx = @x
-    @_ly = @y
+      @to = [c.x+randint(-1,1),c.y+randint(-1,1)]
+    @_lx_ = @x
+    @_ly_ = @y
 
-  _get_path:(cmap)->
-    from = cmap.get_cell( @x ,@y)
-    to = cmap.get_cell( @targeting.x ,@targeting.y)
-    return cmap.search_min_path( from ,to)
+  _get_path:(map)->
+    from = map.get_cell( @x ,@y)
+    to = map.get_cell( @targeting.x ,@targeting.y)
+    return map.search_min_path( [from.x,from.y] ,[to.x,to.y] )
 
   _trace: (to_x , to_y)->
     @set_dir(to_x,to_y)
     nx = @x + ~~(@status.speed * Math.cos(@dir))
     ny = @y + ~~(@status.speed * Math.sin(@dir))
     return [nx ,ny]
-
-  _wander:(cmap)->
-    wide = 32/4
-    if @x-wide<@distination[0]<@x+wide and @y-wide<@distination[1]<@y+wide
-      c = cmap.get_cell(@x,@y)
-      d = cmap.get_point( c.x+randint(-1,1) ,c.y+randint(-1,1) )
-      if not cmap.collide( d[0] ,d[1] )
-        @distination = [d.x,d.y]
-    # @dir = Math.PI * 2 * Math.random()
-    if @distination # @cnt % 24 < 8
-      [to_x , to_y] = @distination
-      return @_trace(to_x,to_y)
-    return [@x,@y]
 
 
 class Goblin extends Walker
@@ -316,9 +285,9 @@ class Goblin extends Walker
 
   render_object:(g,pos)->
     if @group == ObjectGroup.Player
-      color = "rgb(255,255,255)"
+      color = Color.White
     else if @group == ObjectGroup.Enemy
-      color = "rgb(55,55,55)"
+      color = Color.i 55,55,55
     @init_cv(g,color=color)
     beat = 20
     ms = ~~(new Date()/100) % beat / beat
@@ -345,15 +314,33 @@ class Player extends Walker
       two: new Skill_Smash()
       three: new Skill_Meteor()
     @state.leader =true
-
     @mouse =
       x: 0
       y: 0
 
-  # update: (objs, cmap, keys,@mouse)->
-  #   # if keys.space
-  #   #   @set_target(objs)
-  #   super(objs,cmap , keys,@mouse)
+  update:(objs, cmap, keys, mouse)->
+    super objs, cmap,keys ,mouse
+
+  update:(objs, cmap, keys, mouse)->
+    @cnt += 1
+    if @is_alive()
+      @_update_state()
+      enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
+      if @has_target()
+        # ターゲットが存在した場合
+        if @targeting.is_dead() or @get_distance(@targeting) > @status.sight_range*1.5
+          # 死んでる or 感知外
+          @targeting = null
+      else if enemies.size() > 0
+        # ターゲットが存在せず新たに目視した場合
+        @targeting = enemies[0]
+        my.mes "#{@name} find #{@targeting.name})"
+
+      if keys.zero
+        @select_target(enemies)
+
+      @move(objs,cmap, keys,mouse)
+      @act(keys,objs)
 
   set_mouse_dir: (x,y)->
     rx = x - 320
@@ -366,6 +353,7 @@ class Player extends Walker
   act: (keys,enemies)->
      super()
      @invoke(keys,enemies)
+
 
   invoke: (keys,enemies)->
     list = ["zero","one","two","three","four","five","six","seven","eight","nine"]
@@ -383,25 +371,21 @@ class Player extends Walker
       move = ~~(@status.speed * Math.sqrt(2)/2)
     else
       move = @status.speed
-
     if keys.right
       if cmap.collide( @x+move , @y )
         @x = (~~(@x/cmap.cell)+1)*cmap.cell-1
       else
         @x += move
-
     if keys.left
       if cmap.collide( @x-move , @y )
         @x = (~~(@x/cmap.cell))*cmap.cell+1
       else
         @x -= move
-
     if keys.up
       if cmap.collide( @x , @y-move )
         @y = (~~(@y/cmap.cell))*cmap.cell+1
       else
         @y -= move
-
     if keys.down
       if cmap.collide( @x , @y+move )
         @y = (~~(@y/cmap.cell+1))*cmap.cell-1
@@ -409,12 +393,12 @@ class Player extends Walker
         @y += move
 
   render_object:(g,pos)->
-    if @group == ObjectGroup.Player
-      color = "rgb(255,255,255)"
-    else if @group == ObjectGroup.Enemy
-      color = "rgb(55,55,55)"
-    @init_cv(g,color=color)
     beat = 20
+    if @group == ObjectGroup.Player
+      color = Color.White
+    else if @group == ObjectGroup.Enemy
+      color = Color.i 55,55,55
+    @init_cv(g,color=color)
     ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
     g.arc( pos.vx, pos.vy, ( 1.3 - ms ) * @scale ,0,Math.PI*2,true)
@@ -466,6 +450,7 @@ ObjectGroup =
         return @Enemy
       when @Enemy
         return @Player
+
 class Status
   constructor: (params = {}, @lv = 1) ->
     @params = params
