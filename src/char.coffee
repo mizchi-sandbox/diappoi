@@ -184,7 +184,7 @@ class Walker extends Character
       # ターゲットが存在した場合
       if @targeting.is_dead() or @get_distance(@targeting) > @status.sight_range*1.5
         # 死んでる or 感知外
-        my.mes "#{@name} lost #{@targeting.name}"
+        my.mes "#{@name} lost track of #{@targeting.name}"
         @targeting = null
     else if enemies.size() > 0
       # 新たに目視した場合
@@ -256,7 +256,7 @@ class Goblin extends Walker
     super(@x,@y,@group,status)
 
     @skills =
-      one: new Skill_Atack()
+      one: new Skill_Atack(10)
       two: new Skill_Smash()
     @selected_skill = @skills['one']
   change_skill: ()->

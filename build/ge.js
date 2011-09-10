@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, Canvas, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, conf, init_cv, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, Burn, Canvas, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, conf, init_cv, maps, my, randint, rjoin, sjoin;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -676,7 +676,6 @@
         }
       }
     };
-    Character.prototype.act = function() {};
     Character.prototype.shift_target = function(targets) {
       var cur, _ref;
       if (this.has_target() && targets.length > 0) {
@@ -774,6 +773,7 @@
         this.render_state(g, pos);
         this.render_dir_allow(g, pos);
         this.render_reach_circle(g, pos);
+        this.render_targeting(g, pos, cam);
       } else {
         this.render_dead(g, pos);
       }
@@ -832,12 +832,12 @@
       enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
       if (this.has_target()) {
         if (this.targeting.is_dead() || this.get_distance(this.targeting) > this.status.sight_range * 1.5) {
-          my.mes("" + this.name + " lost " + this.targeting.name);
+          my.mes("" + this.name + " lost track of " + this.targeting.name);
           return this.targeting = null;
         }
       } else if (enemies.size() > 0) {
         this.targeting = enemies[0];
-        return my.mes("" + this.name + " find " + this.targeting.name + ")");
+        return my.mes("" + this.name + " find " + this.targeting.name);
       }
     };
     Walker.prototype.move = function(objs, cmap) {
@@ -915,7 +915,7 @@
       });
       Goblin.__super__.constructor.call(this, this.x, this.y, this.group, status);
       this.skills = {
-        one: new Skill_Atack(),
+        one: new Skill_Atack(10),
         two: new Skill_Smash()
       };
       this.selected_skill = this.skills['one'];
@@ -1147,8 +1147,7 @@
     return Status;
   })();
   Skill = (function() {
-    function Skill(lv) {
-      this.lv = lv != null ? lv : 1;
+    function Skill() {
       this.MAX_CT = this.CT * 24;
       this.ct = this.MAX_CT;
     }
@@ -1174,7 +1173,7 @@
     Skill_Heal.prototype.fg_charge = 1;
     function Skill_Heal(lv) {
       this.lv = lv != null ? lv : 1;
-      Skill_Heal.__super__.constructor.call(this, 15, this.lv);
+      Skill_Heal.__super__.constructor.call(this);
     }
     Skill_Heal.prototype.exec = function(actor) {
       var target;
@@ -1183,8 +1182,6 @@
         target.status.hp += 30;
         this.ct = 0;
         return console.log("do healing");
-      } else {
-
       }
     };
     return Skill_Heal;
@@ -1195,18 +1192,25 @@
     Skill_Atack.prototype.range = 30;
     Skill_Atack.prototype.auto = true;
     Skill_Atack.prototype.CT = 1;
-    Skill_Atack.prototype.bg_charge = 0.5;
+    Skill_Atack.prototype.bg_charge = 0.2;
     Skill_Atack.prototype.fg_charge = 1;
+    Skill_Atack.prototype.damage_rate = 1.0;
+    Skill_Atack.prototype.random_rate = 0.2;
     function Skill_Atack(lv) {
       this.lv = lv != null ? lv : 1;
-      Skill_Atack.__super__.constructor.call(this, this.lv);
+      Skill_Atack.__super__.constructor.call(this);
+      this.range -= this.lv;
+      this.CT -= this.lv / 10;
+      this.bg_charge += this.lv / 20;
+      this.fg_charge -= this.lv / 20;
+      this.damage_rate += this.lv / 20;
     }
     Skill_Atack.prototype.exec = function(actor) {
       var amount, target;
       if (actor.has_target()) {
         target = actor.targeting;
         if (this.ct >= this.MAX_CT && actor.get_distance(target) < this.range) {
-          amount = ~~(actor.status.atk * (target.status.def + Math.random() / 4));
+          amount = this.calc_amount(actor, target);
           target.status.hp -= amount;
           this.ct = 0;
           console.log(this.name);
@@ -1214,31 +1218,23 @@
         }
       }
     };
+    Skill_Atack.prototype.calc_amount = function(actor, target) {
+      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    };
     return Skill_Atack;
   })();
   Skill_Smash = (function() {
-    __extends(Skill_Smash, Skill);
+    __extends(Skill_Smash, Skill_Atack);
+    function Skill_Smash() {
+      Skill_Smash.__super__.constructor.apply(this, arguments);
+    }
     Skill_Smash.prototype.name = "Smash";
     Skill_Smash.prototype.range = 30;
-    Skill_Smash.prototype.CT = 4;
-    Skill_Smash.prototype.auto = false;
+    Skill_Smash.prototype.CT = 2;
+    Skill_Smash.prototype.damage_rate = 2.2;
+    Skill_Smash.prototype.random_rate = 0.5;
     Skill_Smash.prototype.bg_charge = 0.5;
     Skill_Smash.prototype.fg_charge = 1;
-    function Skill_Smash(lv) {
-      this.lv = lv != null ? lv : 1;
-      Skill_Smash.__super__.constructor.call(this, 8, this.lv);
-    }
-    Skill_Smash.prototype.exec = function(actor) {
-      var target;
-      target = actor.targeting;
-      if (target) {
-        if (this.ct >= this.MAX_CT) {
-          target.status.hp -= 30;
-          this.ct = 0;
-          return console.log("Smash!");
-        }
-      }
-    };
     return Skill_Smash;
   })();
   Skill_Meteor = (function() {
@@ -1251,7 +1247,7 @@
     Skill_Meteor.prototype.fg_charge = 1;
     function Skill_Meteor(lv) {
       this.lv = lv != null ? lv : 1;
-      Skill_Meteor.__super__.constructor.call(this, 20, this.lv);
+      Skill_Meteor.__super__.constructor.call(this);
     }
     Skill_Meteor.prototype.exec = function(actor, objs) {
       var t, targets, _i, _len;
@@ -1262,6 +1258,7 @@
           for (_i = 0, _len = targets.length; _i < _len; _i++) {
             t = targets[_i];
             t.status.hp -= 20;
+            t.add_animation(new Anim.prototype.Burn);
           }
           this.ct = 0;
           return console.log("Meteor!");
@@ -1279,9 +1276,8 @@
     Skill_ThrowBomb.prototype.bg_charge = 0.5;
     Skill_ThrowBomb.prototype.fg_charge = 1;
     function Skill_ThrowBomb(lv) {
-      var ct;
       this.lv = lv != null ? lv : 1;
-      Skill_ThrowBomb.__super__.constructor.call(this, ct = 10, this.lv);
+      Skill_ThrowBomb.__super__.constructor.call(this, this.lv);
       this.range = 120;
       this.effect_range = 30;
     }
@@ -1304,9 +1300,10 @@
   })();
   Animation = (function() {
     __extends(Animation, Sprite);
-    function Animation(actor, target) {
+    function Animation(max) {
       Animation.__super__.constructor.call(this, 0, 0);
       this.cnt = 0;
+      this.max_frame = max;
     }
     Animation.prototype.render = function(g, x, y) {};
     return Animation;
@@ -1316,8 +1313,7 @@
       __extends(Slash, Animation);
       function Slash(amount) {
         this.amount = amount;
-        this.cnt = 0;
-        this.max_frame = 24;
+        Slash.__super__.constructor.call(this, 24);
       }
       Slash.prototype.render = function(g, x, y) {
         var per, zangeki, _ref;
@@ -1339,6 +1335,31 @@
         }
       };
       return Slash;
+    })(),
+    Burn: Burn = (function() {
+      __extends(Burn, Animation);
+      function Burn() {
+        Burn.__super__.constructor.call(this, 24);
+      }
+      Burn.prototype.render = function(g, x, y) {
+        var per, _ref;
+        if ((0 <= (_ref = this.cnt++) && _ref < this.max_frame)) {
+          if (this.cnt < this.max_frame / 2) {
+            g.init(Color.i(230, 55, 55), 0.4);
+            per = this.cnt / (this.max_frame / 2);
+            g.drawArc(true, x, y, 30 * per);
+          }
+          if (this.cnt < this.max_frame) {
+            per = this.cnt / this.max_frame;
+            g.init(Color.i(255, 55, 55), 1 - this.cnt / this.max_frame);
+            g.strokeText("" + this.amount, x + 10, y + 20 * per);
+          }
+          return this;
+        } else {
+          return false;
+        }
+      };
+      return Burn;
     })()
   };
   Scene = (function() {

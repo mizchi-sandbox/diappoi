@@ -1,7 +1,8 @@
 class Skill
-  constructor: (@lv=1) ->
+  constructor: () ->
     @MAX_CT = @CT * 24
     @ct = @MAX_CT
+
   exec:(actor)->
   charge:(actor,is_selected)->
     if @ct < @MAX_CT
@@ -19,7 +20,7 @@ class Skill_Heal extends Skill
   fg_charge : 1
 
   constructor: (@lv=1) ->
-    super(15 , @lv)
+    super()
 
   exec:(actor)->
     target = actor
@@ -27,48 +28,49 @@ class Skill_Heal extends Skill
       target.status.hp += 30
       @ct = 0
       console.log "do healing"
-    else
-      # console.log "wait "+((@MAX_CT-@ct)/24)
 
 class Skill_Atack extends Skill
   name : "Atack"
   range : 30
   auto: true
   CT : 1
-  bg_charge : 0.5
+  bg_charge : 0.2
   fg_charge : 1
+  damage_rate : 1.0
+  random_rate : 0.2
 
   constructor: (@lv=1) ->
-    super( @lv)
+    super()
+    @range -= @lv
+    @CT -= @lv/10
+    @bg_charge += @lv/20
+    @fg_charge -= @lv/20
+    @damage_rate += @lv/20
+
 
   exec:(actor)->
     if actor.has_target()
       target = actor.targeting
       if @ct >= @MAX_CT and actor.get_distance(target) < @range
-        amount = ~~(actor.status.atk * ( target.status.def + Math.random()/4 ))
+        amount = @calc_amount(actor,target)
         target.status.hp -= amount
         @ct = 0
         console.log @name
         target.add_animation new Anim::Slash amount
+  calc_amount : (actor,target)->
+    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
 
-class Skill_Smash extends Skill
+class Skill_Smash extends Skill_Atack
   name : "Smash"
   range : 30
-  CT : 4
-  auto: false
+  CT : 2
+  damage_rate : 2.2
+  random_rate : 0.5
   bg_charge : 0.5
   fg_charge : 1
 
-  constructor: (@lv=1) ->
-    super(8 , @lv)
-
-  exec:(actor)->
-    target = actor.targeting
-    if target
-      if @ct >= @MAX_CT
-        target.status.hp -= 30
-        @ct = 0
-        console.log "Smash!"
+  # calc_amount : (actor,target)->
+  #   return ~~(actor.status.atk * ( target.status.def )*@damage_rate*randint(50,150)/100)
 
 class Skill_Meteor extends Skill
   name : "Meteor"
@@ -79,7 +81,7 @@ class Skill_Meteor extends Skill
   fg_charge : 1
 
   constructor: (@lv=1) ->
-    super(20 , @lv)
+    super()
 
   exec:(actor,objs)->
     if @ct >= @MAX_CT
@@ -88,6 +90,7 @@ class Skill_Meteor extends Skill
         console.log targets.length
         for t in targets
           t.status.hp -= 20
+          t.add_animation new Anim::Burn
         @ct = 0
         console.log "Meteor!"
 
@@ -101,7 +104,7 @@ class Skill_ThrowBomb extends Skill
   fg_charge : 1
 
   constructor: (@lv=1) ->
-    super(ct=10 , @lv)
+    super(@lv)
     @range = 120
     @effect_range = 30
 
@@ -116,16 +119,18 @@ class Skill_ThrowBomb extends Skill
         console.log "Meteor!"
 
 class Animation extends Sprite
-  constructor: (actor,target) ->
+  constructor: (max) ->
     super 0, 0
     @cnt = 0
+    @max_frame = max
   render:(g,x,y)->
 
 (Anim = {}).prototype =
   Slash: class Slash extends Animation
     constructor: (@amount) ->
-      @cnt = 0
-      @max_frame = 24
+      super 24
+      # @cnt = 0
+      # @max_frame = 24
     render:(g,x,y)->
       if 0 <= @cnt++ < @max_frame
         g.init Color.i(30,55,55)
@@ -147,3 +152,20 @@ class Animation extends Sprite
       else
         return false
 
+  Burn: class Burn extends Animation
+    constructor: () ->
+      super 24
+    render:(g,x,y)->
+      if 0 <= @cnt++ < @max_frame
+        if @cnt < @max_frame/2
+          g.init Color.i(230,55,55),0.4
+          per = @cnt/(@max_frame/2)
+          g.drawArc true,x,y, 30*per
+
+        if @cnt < @max_frame
+          per = @cnt/@max_frame
+          g.init Color.i(255,55,55) ,1-@cnt/@max_frame
+          g.strokeText "#{@amount}",x+10 ,y+20*per
+        return @
+      else
+        return false
