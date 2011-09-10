@@ -279,38 +279,6 @@
     };
     return ItemObject;
   })();
-  Animation = (function() {
-    __extends(Animation, Sprite);
-    function Animation(actor, target) {
-      Animation.__super__.constructor.call(this, 0, 0);
-      this.timer = 0;
-    }
-    Animation.prototype.render = function(g, x, y) {
-      return this.timer++;
-    };
-    return Animation;
-  })();
-  (Anim = {}).prototype = {
-    Slash: Slash = (function() {
-      __extends(Slash, Animation);
-      function Slash(amount) {
-        this.amount = amount;
-        this.timer = 0;
-      }
-      Slash.prototype.render = function(g, x, y) {
-        if (this.timer++ < 12) {
-          g.init(Color.i(30, 55, 55));
-          g.drawDiffPath(true, [[x - 10 + this.timer * 3, y - 10 + this.timer * 3], [-8, -8], [4, 0]]);
-          g.init(Color.i(255, 55, 55));
-          g.strokeText("" + this.amount, x, y + 6);
-          return this;
-        } else {
-          return false;
-        }
-      };
-      return Slash;
-    })()
-  };
   Map = (function() {
     __extends(Map, Sprite);
     function Map(cell) {
@@ -561,7 +529,7 @@
       var i, player, start_point, _ref, _results;
       _results = [];
       for (i = 0, _ref = objs.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-        if (!objs[i].state.alive) {
+        if (!objs[i].is_alive()) {
           if (objs[i] === camera) {
             start_point = this.get_rand_xy();
             player = new Player(start_point.x, start_point.y, 0);
@@ -652,12 +620,7 @@
       })(), this) >= 0;
     };
     Character.prototype.is_alive = function() {
-      if (this.status.hp > 1) {
-        return this.state.alive = true;
-      } else {
-        this.state.hp = 0;
-        return this.state.alive = false;
-      }
+      return this.status.hp > 1;
     };
     Character.prototype.is_dead = function() {
       return !this.is_alive();
@@ -692,10 +655,15 @@
         return this.dir = Math.PI - Math.atan(ry / -rx);
       }
     };
-    Character.prototype._update_state = function() {
+    Character.prototype.check = function() {
       var _ref;
+      if (this.status.hp > this.status.MAX_HP) {
+        this.status.hp = this.status.MAX_HP;
+      }
+      if (this.status.hp < 0) {
+        this.status.hp = 0;
+      }
       if (this.is_alive()) {
-        this.regenerate();
         if ((_ref = this.targeting) != null ? _ref.is_dead() : void 0) {
           return this.targeting = null;
         }
@@ -739,7 +707,7 @@
     Character.prototype.render_reach_circle = function(g, pos) {
       var alpha;
       g.init();
-      g.drawArc(false, pos.vx, pos.vy, this.status.atack_range);
+      g.drawArc(false, pos.vx, pos.vy, this.selected_skill.range);
       g.init(Color.i(50, 50, 50), alpha = 0.3);
       return g.drawArc(false, pos.vx, pos.vy, this.status.sight_range);
     };
@@ -761,9 +729,18 @@
       }
     };
     Character.prototype.render_state = function(g, pos) {
+      var text;
       g.init();
       this.render_gages(g, pos.vx, pos.vy + 15, 40, 6, this.status.hp / this.status.MAX_HP);
-      return this.render_gages(g, pos.vx, pos.vy + 22, 40, 6, this.status.wt / this.status.MAX_WT);
+      g.init();
+      this.render_gages(g, pos.vx, pos.vy + 22, 40, 6, this.selected_skill.ct / this.selected_skill.MAX_CT);
+      g.init();
+      if (this.has_target()) {
+        text = this.selected_skill.name;
+      } else {
+        text = "wander";
+      }
+      return g.fillText(text, pos.vx + 23, pos.vy + 22);
     };
     Character.prototype.render_dead = function(g, pos) {
       var color;
@@ -812,7 +789,7 @@
       for (k in keys) {
         v = keys[k];
         if (v && (k === "zero" || k === "one" || k === "two" || k === "three" || k === "four" || k === "five" || k === "six" || k === "seven" || k === "eight" || k === "nine")) {
-          this.selected_skill = this.binded_skill[k];
+          this.selected_skill = this.skills[k];
           console.log("set " + this.selected_skill.name);
           break;
         }
@@ -838,28 +815,33 @@
       this._path = [];
     }
     Walker.prototype.update = function(objs, cmap, keys, mouse) {
-      var enemies;
       this.cnt += 1;
       if (this.is_alive()) {
-        this._update_state();
-        enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
-        if (this.has_target()) {
-          if (this.targeting.is_dead() || this.get_distance(this.targeting) > this.status.sight_range * 1.5) {
-            this.targeting = null;
-          }
-        } else if (enemies.size() > 0) {
-          this.targeting = enemies[0];
-          my.mes("" + this.name + " find " + this.targeting.name + ")");
-        }
+        this.check();
+        this.regenerate();
+        this.search(objs);
         this.move(objs, cmap, keys, mouse);
         return this.act(keys, objs);
+      }
+    };
+    Walker.prototype.search = function(objs) {
+      var enemies;
+      enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
+      if (this.has_target()) {
+        if (this.targeting.is_dead() || this.get_distance(this.targeting) > this.status.sight_range * 1.5) {
+          my.mes("" + this.name + " lost " + this.targeting.name);
+          return this.targeting = null;
+        }
+      } else if (enemies.size() > 0) {
+        this.targeting = enemies[0];
+        return my.mes("" + this.name + " find " + this.targeting.name + ")");
       }
     };
     Walker.prototype.move = function(objs, cmap) {
       var c, dp, nx, ny, wide, _ref;
       if (this.has_target()) {
         this.set_dir(this.targeting.x, this.targeting.y);
-        if (this.get_distance(this.targeting) < this.status.atack_range) {
+        if (this.get_distance(this.targeting) < this.selected_skill.range) {
           return;
         }
       }
@@ -924,22 +906,21 @@
       this.dir = 0;
       this.status = new Status({
         hp: 50,
-        wt: 30,
         atk: 10,
         def: 1.0,
         sight_range: 120
       });
       Goblin.__super__.constructor.call(this, this.x, this.y, this.group, status);
-      this.binded_skill = {
+      this.skills = {
         one: new Skill_Atack(),
         two: new Skill_Smash()
       };
-      this.selected_skill = this.binded_skill['one'];
+      this.selected_skill = this.skills['one'];
     }
-    Goblin.prototype.act = function() {
+    Goblin.prototype.act = function(_, objs) {
       Goblin.__super__.act.call(this);
       this.selected_skill.charge(this);
-      return this.selected_skill["do"](this);
+      return this.selected_skill.exec(this, objs);
     };
     Goblin.prototype.render_object = function(g, pos) {
       var beat, color, ms;
@@ -969,20 +950,19 @@
       Player.__super__.constructor.call(this, this.x, this.y, this.group);
       this.status = new Status({
         hp: 120,
-        wt: 20,
         atk: 10,
         def: 0.8,
         atack_range: 50,
         sight_range: 80,
         speed: 6
       });
-      this.binded_skill = {
+      this.skills = {
         one: new Skill_Atack(),
         two: new Skill_Smash(),
         three: new Skill_Heal(),
         four: new Skill_Meteor()
       };
-      this.selected_skill = this.binded_skill['one'];
+      this.selected_skill = this.skills['one'];
       this.state.leader = true;
       this.mouse = {
         x: 0,
@@ -993,7 +973,8 @@
       var enemies;
       this.cnt += 1;
       if (this.is_alive()) {
-        this._update_state();
+        this.check();
+        this.regenerate();
         enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
         if (this.has_target()) {
           this.set_dir(this.targeting.x, this.targeting.y);
@@ -1002,7 +983,7 @@
           }
         } else if (enemies.size() > 0) {
           this.targeting = enemies[0];
-          my.mes("" + this.name + " find " + this.targeting.name + ")");
+          my.mes("" + this.name + " find " + this.targeting.name);
         }
         if (keys.space) {
           this.shift_target(enemies);
@@ -1021,15 +1002,15 @@
         return this.dir = Math.PI - Math.atan(ry / -rx);
       }
     };
-    Player.prototype.act = function(keys, enemies) {
+    Player.prototype.act = function(keys, objs) {
       var name, skill, _ref;
       this.set_skill(keys);
-      _ref = this.binded_skill;
+      _ref = this.skills;
       for (name in _ref) {
         skill = _ref[name];
         skill.charge(this, skill === this.selected_skill);
       }
-      return this.selected_skill["do"](this);
+      return this.selected_skill.exec(this, objs);
     };
     Player.prototype.move = function(objs, cmap, keys, mouse) {
       var move;
@@ -1093,7 +1074,7 @@
     Player.prototype.render_skill_gage = function(g) {
       var c, number, skill, _ref, _results;
       c = 0;
-      _ref = this.binded_skill;
+      _ref = this.skills;
       _results = [];
       for (number in _ref) {
         skill = _ref[number];
@@ -1153,7 +1134,6 @@
       this.build_status(params);
       this.hp = this.MAX_HP;
       this.sp = this.MAX_SP;
-      this.wt = 0;
       this.exp = 0;
       this.next_lv = this.lv * 50;
     }
@@ -1165,7 +1145,6 @@
         lv = 1;
       }
       this.MAX_HP = params.hp || 30;
-      this.MAX_WT = params.wt || 10;
       this.MAX_SP = params.sp || 10;
       this.atk = params.atk || 10;
       this.def = params.def || 1.0;
@@ -1191,21 +1170,18 @@
     return Status;
   })();
   Skill = (function() {
-    function Skill(ct, lv) {
-      if (ct == null) {
-        ct = 1;
-      }
+    function Skill(lv) {
       this.lv = lv != null ? lv : 1;
-      this.MAX_CT = ct * 24;
+      this.MAX_CT = this.CT * 24;
       this.ct = this.MAX_CT;
     }
-    Skill.prototype["do"] = function(actor) {};
+    Skill.prototype.exec = function(actor) {};
     Skill.prototype.charge = function(actor, is_selected) {
       if (this.ct < this.MAX_CT) {
         if (is_selected) {
-          return this.ct += 1;
+          return this.ct += this.fg_charge;
         } else {
-          return this.ct += 0.5;
+          return this.ct += this.bg_charge;
         }
       }
     };
@@ -1214,11 +1190,16 @@
   Skill_Heal = (function() {
     __extends(Skill_Heal, Skill);
     Skill_Heal.prototype.name = "Heal";
+    Skill_Heal.prototype.range = 0;
+    Skill_Heal.prototype.auto = false;
+    Skill_Heal.prototype.CT = 1;
+    Skill_Heal.prototype.bg_charge = 0.5;
+    Skill_Heal.prototype.fg_charge = 1;
     function Skill_Heal(lv) {
       this.lv = lv != null ? lv : 1;
       Skill_Heal.__super__.constructor.call(this, 15, this.lv);
     }
-    Skill_Heal.prototype["do"] = function(actor) {
+    Skill_Heal.prototype.exec = function(actor) {
       var target;
       target = actor;
       if (this.ct >= this.MAX_CT) {
@@ -1234,15 +1215,20 @@
   Skill_Atack = (function() {
     __extends(Skill_Atack, Skill);
     Skill_Atack.prototype.name = "Atack";
+    Skill_Atack.prototype.range = 30;
+    Skill_Atack.prototype.auto = true;
+    Skill_Atack.prototype.CT = 1;
+    Skill_Atack.prototype.bg_charge = 0.5;
+    Skill_Atack.prototype.fg_charge = 1;
     function Skill_Atack(lv) {
       this.lv = lv != null ? lv : 1;
-      Skill_Atack.__super__.constructor.call(this, 1, this.lv);
+      Skill_Atack.__super__.constructor.call(this, this.lv);
     }
-    Skill_Atack.prototype["do"] = function(actor) {
+    Skill_Atack.prototype.exec = function(actor) {
       var amount, target;
       if (actor.has_target()) {
         target = actor.targeting;
-        if (this.ct >= this.MAX_CT) {
+        if (this.ct >= this.MAX_CT && actor.get_distance(target) < this.range) {
           amount = ~~(actor.status.atk * (target.status.def + Math.random() / 4));
           target.status.hp -= amount;
           this.ct = 0;
@@ -1256,11 +1242,16 @@
   Skill_Smash = (function() {
     __extends(Skill_Smash, Skill);
     Skill_Smash.prototype.name = "Smash";
+    Skill_Smash.prototype.range = 30;
+    Skill_Smash.prototype.CT = 4;
+    Skill_Smash.prototype.auto = false;
+    Skill_Smash.prototype.bg_charge = 0.5;
+    Skill_Smash.prototype.fg_charge = 1;
     function Skill_Smash(lv) {
       this.lv = lv != null ? lv : 1;
       Skill_Smash.__super__.constructor.call(this, 8, this.lv);
     }
-    Skill_Smash.prototype["do"] = function(actor) {
+    Skill_Smash.prototype.exec = function(actor) {
       var target;
       target = actor.targeting;
       if (target) {
@@ -1276,19 +1267,23 @@
   Skill_Meteor = (function() {
     __extends(Skill_Meteor, Skill);
     Skill_Meteor.prototype.name = "Meteor";
+    Skill_Meteor.prototype.range = 80;
+    Skill_Meteor.prototype.auto = true;
+    Skill_Meteor.prototype.CT = 4;
+    Skill_Meteor.prototype.bg_charge = 0.5;
+    Skill_Meteor.prototype.fg_charge = 1;
     function Skill_Meteor(lv) {
       this.lv = lv != null ? lv : 1;
       Skill_Meteor.__super__.constructor.call(this, 20, this.lv);
-      this.range = 120;
     }
-    Skill_Meteor.prototype["do"] = function(actor, targets) {
-      var t, targets_on_focus, _i, _len;
+    Skill_Meteor.prototype.exec = function(actor, objs) {
+      var t, targets, _i, _len;
       if (this.ct >= this.MAX_CT) {
-        targets_on_focus = actor.find_obj(ObjectGroup.get_against(actor), targets, this.range);
-        if (targets_on_focus.length) {
-          console.log(targets_on_focus.length);
-          for (_i = 0, _len = targets_on_focus.length; _i < _len; _i++) {
-            t = targets_on_focus[_i];
+        targets = actor.find_obj(ObjectGroup.get_against(actor), objs, this.range);
+        if (targets.length > 0) {
+          console.log(targets.length);
+          for (_i = 0, _len = targets.length; _i < _len; _i++) {
+            t = targets[_i];
             t.status.hp -= 20;
           }
           this.ct = 0;
@@ -1301,6 +1296,11 @@
   Skill_ThrowBomb = (function() {
     __extends(Skill_ThrowBomb, Skill);
     Skill_ThrowBomb.prototype.name = "Throw Bomb";
+    Skill_ThrowBomb.prototype.range = 120;
+    Skill_ThrowBomb.prototype.auto = true;
+    Skill_ThrowBomb.prototype.CT = 4;
+    Skill_ThrowBomb.prototype.bg_charge = 0.5;
+    Skill_ThrowBomb.prototype.fg_charge = 1;
     function Skill_ThrowBomb(lv) {
       var ct;
       this.lv = lv != null ? lv : 1;
@@ -1308,7 +1308,7 @@
       this.range = 120;
       this.effect_range = 30;
     }
-    Skill_ThrowBomb.prototype["do"] = function(actor, targets, mouse) {
+    Skill_ThrowBomb.prototype.exec = function(actor, targets, mouse) {
       var t, targets_on_focus, _i, _len;
       if (this.ct >= this.MAX_CT) {
         targets_on_focus = actor.get_targets_in_range(targets = targets, this.range);
@@ -1325,6 +1325,45 @@
     };
     return Skill_ThrowBomb;
   })();
+  Animation = (function() {
+    __extends(Animation, Sprite);
+    function Animation(actor, target) {
+      Animation.__super__.constructor.call(this, 0, 0);
+      this.cnt = 0;
+    }
+    Animation.prototype.render = function(g, x, y) {};
+    return Animation;
+  })();
+  (Anim = {}).prototype = {
+    Slash: Slash = (function() {
+      __extends(Slash, Animation);
+      function Slash(amount) {
+        this.amount = amount;
+        this.cnt = 0;
+        this.max_frame = 24;
+      }
+      Slash.prototype.render = function(g, x, y) {
+        var per, zangeki, _ref;
+        if ((0 <= (_ref = this.cnt++) && _ref < this.max_frame)) {
+          g.init(Color.i(30, 55, 55));
+          zangeki = 8;
+          if (this.cnt < zangeki) {
+            per = this.cnt / zangeki;
+            g.drawDiffPath(true, [[x - 5 + per * 10, y - 10 + per * 20], [-8, -8], [4, 0]]);
+          }
+          if (this.cnt < this.max_frame) {
+            per = this.cnt / this.max_frame;
+            g.init(Color.i(255, 55, 55), 1 - this.cnt / this.max_frame);
+            g.strokeText("" + this.amount, x + 10, y + 20 * per);
+          }
+          return this;
+        } else {
+          return false;
+        }
+      };
+      return Slash;
+    })()
+  };
   Scene = (function() {
     function Scene() {}
     Scene.prototype.enter = function(keys, mouse) {

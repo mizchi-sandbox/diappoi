@@ -39,30 +39,3 @@ class ItemObject extends Sprite
     g.beginPath()
     g.arc(pos.vx,pos.vy, 15 - ms ,0,Math.PI*2,true)
     g.stroke()
-
-class Animation extends Sprite
-  constructor: (actor,target) ->
-    super 0, 0
-    @timer = 0
-
-  render:(g,x,y)->
-    @timer++
-
-(Anim = {}).prototype =
-  Slash: class Slash extends Animation
-    constructor: (@amount) ->
-      @timer = 0
-    render:(g,x,y)->
-      if  @timer++ < 12
-        g.init Color.i(30,55,55)
-        g.drawDiffPath true,[
-          [ x-10+@timer*3,y-10+@timer*3]
-          [-8 ,-8]
-          [ 4 ,0 ]
-        ]
-        g.init Color.i(255,55,55)
-        g.strokeText "#{@amount}",x ,y+6
-        return @
-      else
-        return false
-

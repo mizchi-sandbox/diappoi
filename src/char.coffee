@@ -21,11 +21,14 @@ class Character extends Sprite
      @ in (i.targeting? for i in objs)
 
   is_alive:()->
-    if @status.hp > 1
-      @state.alive = true
-    else
-      @state.hp = 0
-      @state.alive = false
+    return @status.hp > 1
+    # if @status.hp > 1
+    #   # @state.alive = true
+    #   return true
+    # else
+    #   # @state.hp = 0
+    #   # @state.alive = false
+    #   return true
 
   is_dead:()->
     not @is_alive()
@@ -52,9 +55,10 @@ class Character extends Sprite
     else
       @dir = Math.PI - Math.atan( ry / - rx  )
 
-  _update_state:()->
+  check:()->
+    @status.hp = @status.MAX_HP if @status.hp > @status.MAX_HP
+    @status.hp = 0 if @status.hp < 0
     if @is_alive()
-      @regenerate()
       if @targeting?.is_dead()
          @targeting = null
     else
@@ -87,7 +91,7 @@ class Character extends Sprite
 
   render_reach_circle:(g,pos)->
     g.init()
-    g.drawArc false, pos.vx, pos.vy, @status.atack_range
+    g.drawArc false, pos.vx, pos.vy, @selected_skill.range
     g.init Color.i(50,50,50),alpha=0.3
     g.drawArc false,pos.vx, pos.vy, @status.sight_range
 
@@ -110,7 +114,14 @@ class Character extends Sprite
   render_state: (g,pos)->
     g.init()
     @render_gages(g,pos.vx, pos.vy+15,40 , 6 , @status.hp/@status.MAX_HP)
-    @render_gages(g,pos.vx, pos.vy+22,40 , 6 , @status.wt/@status.MAX_WT)
+    g.init()
+    @render_gages(g,pos.vx, pos.vy+22,40 , 6 , @selected_skill.ct/@selected_skill.MAX_CT)
+    g.init()
+    if @has_target()
+      text = @selected_skill.name
+    else
+      text = "wander"
+    g.fillText text , pos.vx+23, pos.vy+22
 
   render_dead: (g,pos)->
     g.init color='rgb(55, 55, 55)'
@@ -169,26 +180,30 @@ class Walker extends Character
   update:(objs, cmap, keys, mouse)->
     @cnt += 1
     if @is_alive()
-      @_update_state()
-      enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
-      if @has_target()
-        # ターゲットが存在した場合
-        if @targeting.is_dead() or @get_distance(@targeting) > @status.sight_range*1.5
-          # 死んでる or 感知外
-          @targeting = null
-      else if enemies.size() > 0
-        # ターゲットが存在せず新たに目視した場合
-        @targeting = enemies[0]
-        my.mes "#{@name} find #{@targeting.name})"
-
+      @check()
+      @regenerate()
+      @search objs
       @move(objs,cmap, keys,mouse)
       @act(keys,objs)
+
+  search : (objs)->
+    enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
+    if @has_target()
+      # ターゲットが存在した場合
+      if @targeting.is_dead() or @get_distance(@targeting) > @status.sight_range*1.5
+        # 死んでる or 感知外
+        my.mes "#{@name} lost #{@targeting.name}"
+        @targeting = null
+    else if enemies.size() > 0
+      # ターゲットが存在せず新たに目視した場合
+      @targeting = enemies[0]
+      my.mes "#{@name} find #{@targeting.name})"
 
   move: (objs ,cmap)->
     # for wait
     if @has_target()
       @set_dir(@targeting.x,@targeting.y)
-      return if @get_distance(@targeting) < @status.atack_range
+      return if @get_distance(@targeting) < @selected_skill.range
 
     if @has_target() and @to and not @cnt%24
     # for trace
@@ -245,7 +260,6 @@ class Goblin extends Walker
     @dir = 0
     @status = new Status
       hp  : 50
-      wt  : 30
       atk : 10
       def : 1.0
       sight_range : 120
@@ -256,11 +270,11 @@ class Goblin extends Walker
       two: new Skill_Smash()
     @selected_skill = @skills['one']
 
-  act: ()->
+  act: (_,objs)->
     super()
     # @set_skill keys
     @selected_skill.charge(@)
-    @selected_skill.do(@)
+    @selected_skill.exec(@,objs)
 
   render_object:(g,pos)->
     if @group == ObjectGroup.Player
@@ -280,7 +294,6 @@ class Player extends Walker
     super(@x,@y,@group)
     @status = new Status
       hp : 120
-      wt : 20
       atk : 10
       def: 0.8
       atack_range : 50
@@ -301,7 +314,8 @@ class Player extends Walker
   update:(objs, cmap, keys, mouse)->
     @cnt += 1
     if @is_alive()
-      @_update_state()
+      @check()
+      @regenerate()
       enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
       if @has_target()
         @set_dir(@targeting.x,@targeting.y)
@@ -312,7 +326,7 @@ class Player extends Walker
       else if enemies.size() > 0
         # ターゲットが存在せず新たに目視した場合
         @targeting = enemies[0]
-        my.mes "#{@name} find #{@targeting.name})"
+        my.mes "#{@name} find #{@targeting.name}"
 
       if keys.space
         @shift_target(enemies)
@@ -328,23 +342,12 @@ class Player extends Walker
     else
       @dir = Math.PI - Math.atan( ry / - rx  )
 
-  act: (keys,enemies)->
+  act: (keys,objs)->
     @set_skill keys
     # @selected_skill.charge(@)
     for name,skill of @skills
       skill.charge @, skill is @selected_skill
-    @selected_skill.do(@)
-
-     # @invoke(keys,enemies)
-
-  # invoke: (keys,enemies)->
-  #   list = ["zero","one","two","three","four","five","six","seven","eight","nine"]
-  #   for i in list
-  #     if @skills[i]
-  #       if keys[i]
-  #         @skills[i].do(@,enemies,@mouse)
-  #       else
-  #         @skills[i].charge()
+    @selected_skill.exec(@,objs)
 
   move: (objs,cmap, keys, mouse)->
     @dir = @set_mouse_dir(mouse.x , mouse.y)
@@ -434,13 +437,11 @@ class Status
     @build_status(params)
     @hp = @MAX_HP
     @sp = @MAX_SP
-    @wt = 0
     @exp = 0
     @next_lv = @lv * 50
 
   build_status:(params={},lv=1)->
     @MAX_HP = params.hp or 30
-    @MAX_WT = params.wt or 10
     @MAX_SP = params.sp or 10
     @atk = params.atk or 10
     @def = params.def or 1.0

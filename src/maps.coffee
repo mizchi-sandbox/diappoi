@@ -187,7 +187,7 @@ class SampleMap extends Map
 
   _check_death: (objs,camera)->
     for i in [0 ... objs.length]
-      if not objs[i].state.alive
+      if not objs[i].is_alive()
         if objs[i] is camera
           start_point = @get_rand_xy()
           player  =  new Player(start_point.x ,start_point.y, 0)
