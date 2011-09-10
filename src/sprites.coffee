@@ -14,26 +14,31 @@ class Sprite
     pos =
       vx : 320 + @x - cam.x
       vy : 240 + @y - cam.y
-    return pos
 
-  init_cv: (g,color="rgb(255,255,255)",alpha=1)->
-    g.beginPath()
-    g.strokeStyle = color
-    g.fillStyle = color
-    g.globalAlpha = alpha
+ObjectGroup =
+  Player : 0
+  Enemy  : 1
+  Item   : 2
+  is_battler : (group_id)->
+    group_id in [@Player, @Enemy]
+  get_against : (obj)->
+    switch obj.group
+      when @Player
+        return @Enemy
+      when @Enemy
+        return @Player
 
 class ItemObject extends Sprite
   constructor: (@x=0,@y=0,@scale=10) ->
-    @group = 0
+    @group = ObjectGroup.Item
   update:()->
 
   render: (g,cam)->
-    @init_cv(g,color="rgb(0,0,255)")
+    g.init color="rgb(0,0,255)"
     pos = @getpos_relative cam
     g.beginPath()
     g.arc(pos.vx,pos.vy, 15 - ms ,0,Math.PI*2,true)
     g.stroke()
-
 
 class Animation extends Sprite
   constructor: (actor,target) ->
@@ -47,18 +52,15 @@ class Animation extends Sprite
   Slash: class Slash extends Animation
     constructor: (@amount) ->
       @timer = 0
-
     render:(g,x,y)->
       if  @timer++ < 12
-        @init_cv(g,color="rgb(30,55,55)")
-        tx = x-10+@timer*3
-        ty = y-10+@timer*3
-        g.moveTo tx ,ty
-        g.lineTo tx-8 ,ty-8
-        g.lineTo tx-4 ,ty-8
-        g.lineTo tx ,ty
-        g.fill()
-        @init_cv(g,color="rgb(255,55,55)")
+        g.init Color.i(30,55,55)
+        g.drawDiffPath true,[
+          [ x-10+@timer*3,y-10+@timer*3]
+          [-8 ,-8]
+          [ 4 ,0 ]
+        ]
+        g.init Color.i(255,55,55)
         g.strokeText "#{@amount}",x ,y+6
         return @
       else

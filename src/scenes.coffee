@@ -19,7 +19,7 @@ class OpeningScene extends Scene
     return @name
 
   render: (g)->
-    my.init_cv(g)
+    g.init()
     g.fillText(
         "Opening",
         300,200)
@@ -61,22 +61,7 @@ class FieldScene extends Scene
 
     if player
       player.render_skill_gage(g)
-      my.init_cv(g)
+      g.init()
       g.fillText(
           "HP "+player.status.hp+"/"+player.status.MAX_HP,
           15,15)
-    #
-      # if @player.distination
-      #   g.fillText(
-      #       " "+@player.distination.x+"/"+@player.distination.y,
-      #       15,35)
-
-      # if player.mouse
-      #   g.fillText(
-      #       "p: "+(player.x+player.mouse.x-320)+"."+(player.y+player.mouse.y-240)
-      #       15,25)
-
-    # if @player.targeting
-    #   g.fillText(
-    #       "p: "+@player.targeting.status.hp+"."+@player.targeting.status.MAX_HP
-    #       15,35)

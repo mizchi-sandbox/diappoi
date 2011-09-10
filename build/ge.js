@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, conf, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, Canvas, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, conf, init_cv, maps, my, randint, rjoin, sjoin;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -199,12 +199,24 @@
   Color = {
     Red: "rgb(255,0,0)",
     Blue: "rgb(0,0,255)",
-    Red: "rgb(0,255,0)",
+    Green: "rgb(0,255,0)",
     White: "rgb(255,255,255)",
     Black: "rgb(0,0,0)",
     i: function(r, g, b) {
       return "rgb(" + r + "," + g + "," + b + ")";
     }
+  };
+  init_cv = function(g, color, alpha) {
+    if (color == null) {
+      color = "rgb(255,255,255)";
+    }
+    if (alpha == null) {
+      alpha = 1;
+    }
+    g.beginPath();
+    g.strokeStyle = color;
+    g.fillStyle = color;
+    return g.globalAlpha = alpha;
   };
   Sprite = (function() {
     function Sprite(x, y, scale) {
@@ -225,38 +237,41 @@
     };
     Sprite.prototype.getpos_relative = function(cam) {
       var pos;
-      pos = {
+      return pos = {
         vx: 320 + this.x - cam.x,
         vy: 240 + this.y - cam.y
       };
-      return pos;
-    };
-    Sprite.prototype.init_cv = function(g, color, alpha) {
-      if (color == null) {
-        color = "rgb(255,255,255)";
-      }
-      if (alpha == null) {
-        alpha = 1;
-      }
-      g.beginPath();
-      g.strokeStyle = color;
-      g.fillStyle = color;
-      return g.globalAlpha = alpha;
     };
     return Sprite;
   })();
+  ObjectGroup = {
+    Player: 0,
+    Enemy: 1,
+    Item: 2,
+    is_battler: function(group_id) {
+      return group_id === this.Player || group_id === this.Enemy;
+    },
+    get_against: function(obj) {
+      switch (obj.group) {
+        case this.Player:
+          return this.Enemy;
+        case this.Enemy:
+          return this.Player;
+      }
+    }
+  };
   ItemObject = (function() {
     __extends(ItemObject, Sprite);
     function ItemObject(x, y, scale) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
       this.scale = scale != null ? scale : 10;
-      this.group = 0;
+      this.group = ObjectGroup.Item;
     }
     ItemObject.prototype.update = function() {};
     ItemObject.prototype.render = function(g, cam) {
       var color, pos;
-      this.init_cv(g, color = "rgb(0,0,255)");
+      g.init(color = "rgb(0,0,255)");
       pos = this.getpos_relative(cam);
       g.beginPath();
       g.arc(pos.vx, pos.vy, 15 - ms, 0, Math.PI * 2, true);
@@ -283,17 +298,10 @@
         this.timer = 0;
       }
       Slash.prototype.render = function(g, x, y) {
-        var color, tx, ty;
         if (this.timer++ < 12) {
-          this.init_cv(g, color = "rgb(30,55,55)");
-          tx = x - 10 + this.timer * 3;
-          ty = y - 10 + this.timer * 3;
-          g.moveTo(tx, ty);
-          g.lineTo(tx - 8, ty - 8);
-          g.lineTo(tx - 4, ty - 8);
-          g.lineTo(tx, ty);
-          g.fill();
-          this.init_cv(g, color = "rgb(255,55,55)");
+          g.init(Color.i(30, 55, 55));
+          g.drawDiffPath(true, [[x - 10 + this.timer * 3, y - 10 + this.timer * 3], [-8, -8], [4, 0]]);
+          g.init(Color.i(255, 55, 55));
           g.strokeText("" + this.amount, x, y + 6);
           return this;
         } else {
@@ -467,7 +475,7 @@
           var _ref2, _results2;
           _results2 = [];
           for (j = 0, _ref2 = this._map[i].length; 0 <= _ref2 ? j < _ref2 : j > _ref2; 0 <= _ref2 ? j++ : j--) {
-            _results2.push(this._map[i][j] ? (this.init_cv(g, color = "rgb(30,30,30)"), w = 8, x = pos.vx + i * this.cell, y = pos.vy + j * this.cell, g.moveTo(x, y + this.cell), g.lineTo(x + w, y + this.cell - w), g.lineTo(x + this.cell + w, y + this.cell - w), g.lineTo(x + this.cell, y + this.cell), g.lineTo(x, y + this.cell), g.fill(), this.init_cv(g, color = "rgb(40,40,40)"), g.moveTo(x, y + this.cell), g.lineTo(x, y), g.lineTo(x + w, y - w), g.lineTo(x + w, y - w + this.cell), g.lineTo(x, y + this.cell), g.fill()) : void 0);
+            _results2.push(this._map[i][j] ? (g.init(color = "rgb(30,30,30)"), w = 8, x = pos.vx + i * this.cell, y = pos.vy + j * this.cell, g.moveTo(x, y + this.cell), g.lineTo(x + w, y + this.cell - w), g.lineTo(x + this.cell + w, y + this.cell - w), g.lineTo(x + this.cell, y + this.cell), g.lineTo(x, y + this.cell), g.fill(), g.init(color = "rgb(40,40,40)"), g.moveTo(x, y + this.cell), g.lineTo(x, y), g.lineTo(x + w, y - w), g.lineTo(x + w, y - w + this.cell), g.lineTo(x, y + this.cell), g.fill()) : void 0);
           }
           return _results2;
         }).call(this));
@@ -483,7 +491,7 @@
           var _ref2, _results2;
           _results2 = [];
           for (j = 0, _ref2 = this._map[i].length; 0 <= _ref2 ? j < _ref2 : j > _ref2; 0 <= _ref2 ? j++ : j--) {
-            _results2.push(this._map[i][j] ? (my.init_cv(g, color = "rgb(50,50,50)", alpha = 1), w = 5, g.fillRect(pos.vx + i * this.cell + w, pos.vy + j * this.cell - w, this.cell, this.cell)) : void 0);
+            _results2.push(this._map[i][j] ? (g.init(color = "rgb(50,50,50)", alpha = 1), w = 5, g.fillRect(pos.vx + i * this.cell + w, pos.vy + j * this.cell - w, this.cell, this.cell)) : void 0);
           }
           return _results2;
         }).call(this));
@@ -547,7 +555,7 @@
     }
     SampleMap.prototype.update = function(objs, camera) {
       this._check_death(objs, camera);
-      return this._pop_enemy(objs);
+      return this._pop_monster(objs);
     };
     SampleMap.prototype._check_death = function(objs, camera) {
       var i, player, start_point, _ref, _results;
@@ -568,7 +576,7 @@
       }
       return _results;
     };
-    SampleMap.prototype._pop_enemy = function(objs) {
+    SampleMap.prototype._pop_monster = function(objs) {
       var group, random_point;
       if (objs.length < this.max_object_count && this.frame_count % 24 * 3 === 0) {
         group = (Math.random() > 0.05 ? ObjectGroup.Enemy : ObjectGroup.Player);
@@ -758,89 +766,66 @@
       }
     };
     Character.prototype.render_reach_circle = function(g, pos) {
-      var alpha, color;
-      this.init_cv(g, color = "rgb(250,50,50)", alpha = 0.3);
-      g.arc(pos.vx, pos.vy, this.status.atack_range, 0, Math.PI * 2, true);
-      g.stroke();
-      this.init_cv(g, color = "rgb(50,50,50)", alpha = 0.3);
-      g.arc(pos.vx, pos.vy, this.status.sight_range, 0, Math.PI * 2, true);
-      return g.stroke();
+      var alpha;
+      g.init();
+      g.drawArc(false, pos.vx, pos.vy, this.status.atack_range);
+      g.init(Color.i(50, 50, 50), alpha = 0.3);
+      return g.drawArc(false, pos.vx, pos.vy, this.status.sight_range);
     };
     Character.prototype.render_dir_allow = function(g, pos) {
-      var color, nx, ny;
-      nx = ~~(30 * Math.cos(this.dir));
-      ny = ~~(30 * Math.sin(this.dir));
-      my.init_cv(g, color = "rgb(255,0,0)");
-      g.moveTo(pos.vx, pos.vy);
-      g.lineTo(pos.vx + nx, pos.vy + ny);
-      return g.stroke();
+      g.init(Color.i(255, 0, 0));
+      return g.drawLine(pos.vx, pos.vy, ~~(30 * Math.cos(this.dir)), ~~(30 * Math.sin(this.dir)));
     };
     Character.prototype.render_targeting = function(g, pos, cam) {
       var alpha, color, t, _ref;
       if ((_ref = this.targeting) != null ? _ref.is_alive() : void 0) {
         this.targeting.render_targeted(g, pos);
-        this.init_cv(g, color = "rgb(0,0,255)", alpha = 0.5);
+        g.init(color = "rgb(0,0,255)", alpha = 0.5);
         g.moveTo(pos.vx, pos.vy);
         t = this.targeting.getpos_relative(cam);
         g.lineTo(t.vx, t.vy);
         g.stroke();
-        my.init_cv(g, color = "rgb(255,0,0)", alpha = 0.6);
-        g.arc(pos.vx, pos.vy, this.scale * 0.7, 0, Math.PI * 2, true);
-        return g.fill();
+        g.init(color = "rgb(255,0,0)", alpha = 0.6);
+        return g.drawArc(true, pos.vx, pos.vy, this.scale * 0.7);
       }
     };
     Character.prototype.render_state = function(g, pos) {
-      this.init_cv(g);
+      g.init();
       this.render_gages(g, pos.vx, pos.vy + 15, 40, 6, this.status.hp / this.status.MAX_HP);
       return this.render_gages(g, pos.vx, pos.vy + 22, 40, 6, this.status.wt / this.status.MAX_WT);
     };
     Character.prototype.render_dead = function(g, pos) {
       var color;
-      this.init_cv(g, color = 'rgb(55, 55, 55)');
-      g.arc(pos.vx, pos.vy, this.scale, 0, Math.PI * 2, true);
-      return g.fill();
+      g.init(color = 'rgb(55, 55, 55)');
+      return g.drawArc(true, pos.vx, pos.vy, this.scale);
     };
     Character.prototype.render_gages = function(g, x, y, w, h, percent) {
       if (percent == null) {
         percent = 1;
       }
-      g.moveTo(x - w / 2, y - h / 2);
-      g.lineTo(x + w / 2, y - h / 2);
-      g.lineTo(x + w / 2, y + h / 2);
-      g.lineTo(x - w / 2, y + h / 2);
-      g.lineTo(x - w / 2, y - h / 2);
-      g.stroke();
-      g.beginPath();
-      g.moveTo(x - w / 2 + 1, y - h / 2 + 1);
-      g.lineTo(x - w / 2 + w * percent, y - h / 2 + 1);
-      g.lineTo(x - w / 2 + w * percent, y + h / 2 - 1);
-      g.lineTo(x - w / 2 + 1, y + h / 2 - 1);
-      g.lineTo(x - w / 2 + 1, y - h / 2 + 1);
-      return g.fill();
+      g.init(Color.Green);
+      g.strokeRect(x - w / 2, y - h / 2, w, h);
+      g.init(Color.Green);
+      return g.fillRect(x - w / 2 + 1, y - h / 2 + 1, w * percent, h - 2);
     };
     Character.prototype.render_targeted = function(g, pos, color) {
-      var alpha, beat, ms;
+      var beat, ms;
       if (color == null) {
         color = "rgb(255,0,0)";
       }
-      this.init_cv(g);
       beat = 24;
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
         ms = 1 - ms;
       }
-      this.init_cv(g, color = color, alpha = 0.7);
-      g.moveTo(pos.vx, pos.vy - 12 + ms * 10);
-      g.lineTo(pos.vx - 6 - ms * 5, pos.vy - 20 + ms * 10);
-      g.lineTo(pos.vx + 6 + ms * 5, pos.vy - 20 + ms * 10);
-      g.lineTo(pos.vx, pos.vy - 12 + ms * 10);
-      return g.fill();
+      g.init(color, 0.7);
+      return g.drawPath(true, [[pos.vx, pos.vy - 12 + ms * 10], [pos.vx - 6 - ms * 5, pos.vy - 20 + ms * 10], [pos.vx + 6 + ms * 5, pos.vy - 20 + ms * 10], [pos.vx, pos.vy - 12 + ms * 10]]);
     };
     Character.prototype.render = function(g, cam) {
       var pos;
-      this.init_cv(g);
+      g.init();
       pos = this.getpos_relative(cam);
-      if (this.state.alive) {
+      if (this.is_alive()) {
         this.render_object(g, pos);
         this.render_state(g, pos);
         this.render_dir_allow(g, pos);
@@ -938,11 +923,8 @@
       return map.search_min_path([from.x, from.y], [to.x, to.y]);
     };
     Walker.prototype._trace = function(to_x, to_y) {
-      var nx, ny;
       this.set_dir(to_x, to_y);
-      nx = this.x + ~~(this.status.speed * Math.cos(this.dir));
-      ny = this.y + ~~(this.status.speed * Math.sin(this.dir));
-      return [nx, ny];
+      return [this.x + ~~(this.status.speed * Math.cos(this.dir)), this.y + ~~(this.status.speed * Math.sin(this.dir))];
     };
     return Walker;
   })();
@@ -971,14 +953,13 @@
       } else if (this.group === ObjectGroup.Enemy) {
         color = Color.i(55, 55, 55);
       }
-      this.init_cv(g, color = color);
+      g.init(color);
       beat = 20;
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
         ms = 1 - ms;
       }
-      g.arc(pos.vx, pos.vy, (1.3 + ms) * this.scale, 0, Math.PI * 2, true);
-      return g.fill();
+      return g.drawArc(true, pos.vx, pos.vy, ~~(1.3 + ms) * this.scale);
     };
     return Goblin;
   })();
@@ -1096,22 +1077,20 @@
     Player.prototype.render_object = function(g, pos) {
       var beat, color, ms, roll;
       beat = 20;
+      ms = ~~(new Date() / 100) % beat / beat;
+      if (ms > 0.5) {
+        ms = 1 - ms;
+      }
       if (this.group === ObjectGroup.Player) {
         color = Color.White;
       } else if (this.group === ObjectGroup.Enemy) {
         color = Color.i(55, 55, 55);
       }
-      this.init_cv(g, color = color);
-      ms = ~~(new Date() / 100) % beat / beat;
-      if (ms > 0.5) {
-        ms = 1 - ms;
-      }
-      g.arc(pos.vx, pos.vy, (1.3 - ms) * this.scale, 0, Math.PI * 2, true);
-      g.fill();
+      g.init(color);
+      g.drawArc(true, pos.vx, pos.vy, (1.3 - ms) * this.scale);
       roll = Math.PI * (this.cnt % 20) / 10;
-      my.init_cv(g, "rgb(128, 100, 162)");
-      g.arc(320, 240, this.scale * 0.5, roll, Math.PI + roll, true);
-      return g.stroke();
+      g.init(Color.i(128, 100, 162));
+      return g.drawArc(true, 320, 240, this.scale * 0.5);
     };
     Player.prototype.render = function(g, cam) {
       Player.__super__.render.call(this, g, cam);
@@ -1124,7 +1103,7 @@
       _results = [];
       for (number in _ref) {
         skill = _ref[number];
-        this.init_cv(g);
+        g.init();
         g.fillText(skill.name, 20 + c * 50, 460);
         this.render_gages(g, 40 + c * 50, 470, 40, 6, skill.ct / skill.MAX_CT);
         _results.push(c++);
@@ -1133,7 +1112,7 @@
     };
     Player.prototype.render_mouse = function(g) {
       if (this.mouse) {
-        my.init_cv(g, "rgb(200, 200, 50)");
+        g.init(Color.i(200, 200, 50));
         g.arc(this.mouse.x, this.mouse.y, this.scale, 0, Math.PI * 2, true);
         return g.stroke();
       }
@@ -1142,9 +1121,9 @@
   })();
   Mouse = (function() {
     __extends(Mouse, Sprite);
-    function Mouse() {
-      this.x = 0;
-      this.y = 0;
+    function Mouse(x, y) {
+      this.x = x != null ? x : 0;
+      this.y = y != null ? y : 0;
     }
     Mouse.prototype.render_object = function(g, pos) {};
     Mouse.prototype.render = function(g, cam) {
@@ -1154,22 +1133,6 @@
     };
     return Mouse;
   })();
-  ObjectGroup = {
-    Player: 0,
-    Enemy: 1,
-    Item: 2,
-    is_battler: function(group_id) {
-      return group_id === this.Player || group_id === this.Enemy;
-    },
-    get_against: function(obj) {
-      switch (obj.group) {
-        case this.Player:
-          return this.Enemy;
-        case this.Enemy:
-          return this.Player;
-      }
-    }
-  };
   Status = (function() {
     function Status(params, lv) {
       if (params == null) {
@@ -1354,7 +1317,7 @@
       return this.name;
     };
     OpeningScene.prototype.render = function(g) {
-      my.init_cv(g);
+      g.init();
       g.fillText("Opening", 300, 200);
       return g.fillText("Press Space", 300, 240);
     };
@@ -1399,7 +1362,7 @@
       player = this._camera;
       if (player) {
         player.render_skill_gage(g);
-        my.init_cv(g);
+        g.init();
         return g.fillText("HP " + player.status.hp + "/" + player.status.MAX_HP, 15, 15);
       }
     };
@@ -1431,11 +1394,83 @@
     return this[this.length - 1];
   };
   Array.prototype.each = Array.prototype.forEach;
-  Object.prototype.dup = function() {
+  Object.prototype.dup = function(obj) {
     var O;
     O = function() {};
-    O.prototype = this;
+    O.prototype = obj;
     return new O;
+  };
+  Canvas = CanvasRenderingContext2D;
+  Canvas.prototype.init = function(color, alpha) {
+    if (color == null) {
+      color = Color.i(255, 255, 255);
+    }
+    if (alpha == null) {
+      alpha = 1;
+    }
+    this.beginPath();
+    this.strokeStyle = color;
+    this.fillStyle = color;
+    return this.globalAlpha = alpha;
+  };
+  Canvas.prototype.drawLine = function(x, y, dx, dy) {
+    this.moveTo(x, y);
+    this.lineTo(x + dx, y + dy);
+    return this.stroke();
+  };
+  Canvas.prototype.drawPath = function(fill, path) {
+    var px, py, sx, sy, _ref, _ref2;
+    _ref = path.shift(), sx = _ref[0], sy = _ref[1];
+    this.moveTo(sx, sy);
+    while (path.size() > 0) {
+      _ref2 = path.shift(), px = _ref2[0], py = _ref2[1];
+      this.lineTo(px, py);
+    }
+    this.lineTo(sx, sy);
+    if (fill) {
+      return this.fill();
+    } else {
+      return this.stroke();
+    }
+  };
+  Canvas.prototype.drawDiffPath = function(fill, path) {
+    var dx, dy, px, py, sx, sy, _ref, _ref2, _ref3, _ref4;
+    _ref = path.shift(), sx = _ref[0], sy = _ref[1];
+    this.moveTo(sx, sy);
+    _ref2 = [sx, sy], px = _ref2[0], py = _ref2[1];
+    while (path.size() > 0) {
+      _ref3 = path.shift(), dx = _ref3[0], dy = _ref3[1];
+      _ref4 = [px + dx, py + dy], px = _ref4[0], py = _ref4[1];
+      this.lineTo(px, py);
+    }
+    this.lineTo(sx, sy);
+    if (fill) {
+      return this.fill();
+    } else {
+      return this.stroke();
+    }
+  };
+  Canvas.prototype.drawLine = function(x, y, dx, dy) {
+    this.moveTo(x, y);
+    this.lineTo(x + dx, y + dy);
+    return this.stroke();
+  };
+  Canvas.prototype.drawArc = function(fill, x, y, size, from, to, reverse) {
+    if (from == null) {
+      from = 0;
+    }
+    if (to == null) {
+      to = Math.PI * 2;
+    }
+    if (reverse == null) {
+      reverse = false;
+    }
+    this.arc(x, y, size, from, to, reverse);
+    if (fill) {
+      return this.fill();
+    } else {
+      return this.stroke();
+    }
   };
   conf = {
     WINDOW_WIDTH: 640,

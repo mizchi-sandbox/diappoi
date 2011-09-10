@@ -107,82 +107,61 @@ class Character extends Sprite
         console.log "after: #{cur}"
 
   render_reach_circle:(g,pos)->
-      @init_cv(g , color = "rgb(250,50,50)",alpha=0.3)
-      g.arc( pos.vx, pos.vy, @status.atack_range ,0,Math.PI*2,true)
-      g.stroke()
-      @init_cv(g , color = "rgb(50,50,50)",alpha=0.3)
-      g.arc( pos.vx, pos.vy, @status.sight_range ,0,Math.PI*2,true)
-      g.stroke()
+    g.init()
+    g.drawArc false, pos.vx, pos.vy, @status.atack_range
+    g.init Color.i(50,50,50),alpha=0.3
+    g.drawArc false,pos.vx, pos.vy, @status.sight_range
 
   render_dir_allow:(g,pos)->
-      nx = ~~(30 * Math.cos(@dir))
-      ny = ~~(30 * Math.sin(@dir))
-      my.init_cv(g,color="rgb(255,0,0)")
-      g.moveTo( pos.vx , pos.vy )
-      g.lineTo(pos.vx+nx , pos.vy+ny)
-      g.stroke()
+    g.init Color.i(255,0,0)
+    g.drawLine pos.vx,pos.vy,~~(30 * Math.cos(@dir)),~~(30 * Math.sin(@dir))
 
   render_targeting:(g,pos,cam)->
     if @targeting?.is_alive()
       @targeting.render_targeted(g,pos)
-      @init_cv(g,color="rgb(0,0,255)",alpha=0.5)
+      g.init color="rgb(0,0,255)",alpha=0.5
       g.moveTo(pos.vx,pos.vy)
       t = @targeting.getpos_relative(cam)
       g.lineTo(t.vx,t.vy)
       g.stroke()
 
-      my.init_cv(g , color = "rgb(255,0,0)",alpha=0.6)
-      g.arc(pos.vx, pos.vy , @scale*0.7 ,0,Math.PI*2,true)
-      g.fill()
+      g.init color = "rgb(255,0,0)",alpha=0.6
+      g.drawArc true,pos.vx, pos.vy , @scale*0.7
 
   render_state: (g,pos)->
-    @init_cv(g)
+    g.init()
     @render_gages(g,pos.vx, pos.vy+15,40 , 6 , @status.hp/@status.MAX_HP)
     @render_gages(g,pos.vx, pos.vy+22,40 , 6 , @status.wt/@status.MAX_WT)
 
   render_dead: (g,pos)->
-    @init_cv(g,color='rgb(55, 55, 55)')
-    g.arc(pos.vx,pos.vy, @scale ,0,Math.PI*2,true)
-    g.fill()
+    g.init color='rgb(55, 55, 55)'
+    g.drawArc true ,pos.vx,pos.vy, @scale
 
   render_gages:( g, x , y, w, h ,percent=1) ->
-    # my.init_cv(g,"rgb(0, 250, 100)")
-    g.moveTo(x-w/2 , y-h/2)
-    g.lineTo(x+w/2 , y-h/2)
-    g.lineTo(x+w/2 , y+h/2)
-    g.lineTo(x-w/2 , y+h/2)
-    g.lineTo(x-w/2 , y-h/2)
-    g.stroke()
+    g.init Color.Green
+    g.strokeRect x-w/2,y-h/2,w,h
 
-    # rest
-    g.beginPath()
-    g.moveTo(x-w/2 +1, y-h/2+1)
-    g.lineTo(x-w/2+w*percent, y-h/2+1)
-    g.lineTo(x-w/2+w*percent, y+h/2-1)
-    g.lineTo(x-w/2 +1, y+h/2-1)
-    g.lineTo(x-w/2 +1, y-h/2+1)
-    g.fill()
+    g.init Color.Green
+    g.fillRect x-w/2+1,y-h/2+1,w*percent,h-2
 
   render_targeted: (g,pos,color="rgb(255,0,0)")->
-    @init_cv(g)
-
     beat = 24
     ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
 
-    @init_cv(g,color=color,alpha=0.7)
-    g.moveTo(pos.vx,pos.vy-12+ms*10)
-    g.lineTo(pos.vx-6-ms*5,pos.vy-20+ms*10)
-    g.lineTo(pos.vx+6+ms*5,pos.vy-20+ms*10)
-    g.lineTo(pos.vx,pos.vy-12+ms*10)
-
-    g.fill()
+    g.init color,0.7
+    g.drawPath true,[
+      [pos.vx        , pos.vy-12+ms*10]
+      [pos.vx-6-ms*5 , pos.vy-20+ms*10]
+      [pos.vx+6+ms*5 , pos.vy-20+ms*10]
+      [pos.vx        , pos.vy-12+ms*10]
+    ]
 
   render: (g,cam)->
-    @init_cv(g)
+    g.init()
     pos = @getpos_relative(cam)
 
-    if @state.alive
+    if @is_alive()
       @render_object(g,pos)
       @render_state(g,pos)
       @render_dir_allow(g,pos)
@@ -190,7 +169,6 @@ class Character extends Sprite
       # @render_targeting(g,pos,cam)
     else
       @render_dead(g,pos)
-
     @render_animation(g, pos.vx , pos.vy )
 
 class Walker extends Character
@@ -265,9 +243,12 @@ class Walker extends Character
 
   _trace: (to_x , to_y)->
     @set_dir(to_x,to_y)
-    nx = @x + ~~(@status.speed * Math.cos(@dir))
-    ny = @y + ~~(@status.speed * Math.sin(@dir))
-    return [nx ,ny]
+    # nx = @x + ~~(@status.speed * Math.cos(@dir))
+    # ny = @y + ~~(@status.speed * Math.sin(@dir))
+    return [
+      @x + ~~(@status.speed * Math.cos(@dir)),
+      @y + ~~(@status.speed * Math.sin(@dir))
+    ]
 
 
 class Goblin extends Walker
@@ -288,12 +269,11 @@ class Goblin extends Walker
       color = Color.White
     else if @group == ObjectGroup.Enemy
       color = Color.i 55,55,55
-    @init_cv(g,color=color)
+    g.init color
     beat = 20
     ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
-    g.arc( pos.vx, pos.vy, ( 1.3 + ms ) * @scale ,0,Math.PI*2,true)
-    g.fill()
+    g.drawArc(true,pos.vx, pos.vy, ~~(1.3+ms)*@scale)
 
 class Player extends Walker
   scale : 8
@@ -390,21 +370,19 @@ class Player extends Walker
 
   render_object:(g,pos)->
     beat = 20
+    ms = ~~(new Date()/100) % beat / beat
+    ms = 1 - ms if ms > 0.5
+
     if @group == ObjectGroup.Player
       color = Color.White
     else if @group == ObjectGroup.Enemy
       color = Color.i 55,55,55
-    @init_cv(g,color=color)
-    ms = ~~(new Date()/100) % beat / beat
-    ms = 1 - ms if ms > 0.5
-    g.arc( pos.vx, pos.vy, ( 1.3 - ms ) * @scale ,0,Math.PI*2,true)
-    g.fill()
-
+    g.init color
+    g.drawArc true,pos.vx, pos.vy, ( 1.3 - ms ) * @scale
     roll = Math.PI * (@cnt % 20) / 10
+    g.init Color.i 128, 100, 162
+    g.drawArc true , 320,240, @scale * 0.5
 
-    my.init_cv(g,"rgb(128, 100, 162)")
-    g.arc(320,240, @scale * 0.5,  roll ,Math.PI+roll,true)
-    g.stroke()
 
   render: (g,cam)->
     super(g,cam)
@@ -413,39 +391,23 @@ class Player extends Walker
   render_skill_gage: (g)->
     c = 0
     for number,skill of @binded_skill
-      @init_cv(g)
+      g.init()
       g.fillText( skill.name ,20+c*50 ,  460)
       @render_gages(g, 40+c*50 , 470,40 , 6 , skill.ct/skill.MAX_CT)
       c++
 
   render_mouse: (g)->
     if @mouse
-      my.init_cv(g,"rgb(200, 200, 50)")
+      g.init Color.i 200, 200, 50
       g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
       g.stroke()
 
 class Mouse extends Sprite
-  constructor: () ->
-    @x = 0
-    @y = 0
-
+  constructor: (@x=0,@y=0) ->
   render_object: (g,pos)->
   render: (g,cam)->
     cx = ~~((@x+mouse.x-320)/cmap.cell)
     cy = ~~((@y+mouse.y-240)/cmap.cell)
-
-ObjectGroup =
-  Player : 0
-  Enemy  : 1
-  Item   : 2
-  is_battler : (group_id)->
-    group_id in [@Player, @Enemy]
-  get_against : (obj)->
-    switch obj.group
-      when @Player
-        return @Enemy
-      when @Enemy
-        return @Player
 
 class Status
   constructor: (params = {}, @lv = 1) ->

@@ -81,12 +81,12 @@ my =
   gen_map:(x,y)->
     map = []
     for i in [0..20]
-        map[i] = []
-        for j in [0..15]
-            if Math.random() > 0.5
-                map[i][j] = 0
-            else
-                map[i][j] = 1
+      map[i] = []
+      for j in [0..15]
+        if Math.random() > 0.5
+           map[i][j] = 0
+        else
+              map[i][j] = 1
     return map
 
   draw_line: (g,x1,y1,x2,y2)->
@@ -130,8 +130,14 @@ randint = (from,to) ->
 Color =
   Red : "rgb(255,0,0)"
   Blue : "rgb(0,0,255)"
-  Red : "rgb(0,255,0)"
+  Green : "rgb(0,255,0)"
   White : "rgb(255,255,255)"
   Black : "rgb(0,0,0)"
   i : (r,g,b)->
     "rgb(#{r},#{g},#{b})"
+
+init_cv = (g,color="rgb(255,255,255)",alpha=1)->
+  g.beginPath()
+  g.strokeStyle = color
+  g.fillStyle = color
+  g.globalAlpha = alpha

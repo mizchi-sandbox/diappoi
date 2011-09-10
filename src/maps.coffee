@@ -125,7 +125,7 @@ class Map extends Sprite
       for j in [0 ... @_map[i].length]
         if @_map[i][j]
 
-          @init_cv(g, color="rgb(30,30,30)")
+          g.init color="rgb(30,30,30)"
           w = 8
           x = pos.vx+i*@cell
           y = pos.vy+j*@cell
@@ -136,7 +136,7 @@ class Map extends Sprite
           g.lineTo(x         ,y+@cell)
           g.fill()
 
-          @init_cv(g, color="rgb(40,40,40)")
+          g.init color="rgb(40,40,40)"
           g.moveTo(x  ,y+@cell)
           g.lineTo(x  ,y)
           g.lineTo(x+w,y-w)
@@ -149,7 +149,7 @@ class Map extends Sprite
     for i in [0 ... @_map.length]
       for j in [0 ... @_map[i].length]
         if @_map[i][j]
-          my.init_cv(g , color = "rgb(50,50,50)",alpha=1)
+          g.init color = "rgb(50,50,50)",alpha=1
           w = 5
           g.fillRect(
             pos.vx + i * @cell+w,
@@ -183,7 +183,7 @@ class SampleMap extends Map
 
   update:(objs,camera)->
     @_check_death(objs,camera)
-    @_pop_enemy(objs)
+    @_pop_monster(objs)
 
   _check_death: (objs,camera)->
     for i in [0 ... objs.length]
@@ -198,7 +198,7 @@ class SampleMap extends Map
           objs.splice(i,1)
         break
 
-  _pop_enemy: (objs) ->
+  _pop_monster: (objs) ->
     # リポップ条件確認
     if objs.length < @max_object_count and @frame_count % 24*3 == 0
       group = (if Math.random() > 0.05 then ObjectGroup.Enemy else ObjectGroup.Player )
