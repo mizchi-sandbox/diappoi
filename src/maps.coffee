@@ -149,7 +149,7 @@ class Map extends Sprite
     for i in [0 ... @_map.length]
       for j in [0 ... @_map[i].length]
         if @_map[i][j]
-          g.init color = "rgb(50,50,50)",alpha=1
+          g.init Color.i(50,50,50),alpha=1
           w = 5
           g.fillRect(
             pos.vx + i * @cell+w,
@@ -204,8 +204,6 @@ class SampleMap extends Map
       group = (if Math.random() > 0.05 then ObjectGroup.Enemy else ObjectGroup.Player )
       random_point  = @get_rand_xy()
       objs.push( new Goblin(random_point.x, random_point.y, group) )
-      if Math.random() < 0.3
-        objs[objs.length-1].state.leader = 1
 
 class Node
   start: [null,null]

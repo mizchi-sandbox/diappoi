@@ -337,7 +337,7 @@ class Map extends Sprite
     for i in [0 ... @_map.length]
       for j in [0 ... @_map[i].length]
         if @_map[i][j]
-          g.init color = "rgb(50,50,50)",alpha=1
+          g.init Color.i(50,50,50),alpha=1
           w = 5
           g.fillRect(
             pos.vx + i * @cell+w,
@@ -392,8 +392,6 @@ class SampleMap extends Map
       group = (if Math.random() > 0.05 then ObjectGroup.Enemy else ObjectGroup.Player )
       random_point  = @get_rand_xy()
       objs.push( new Goblin(random_point.x, random_point.y, group) )
-      if Math.random() < 0.3
-        objs[objs.length-1].state.leader = 1
 
 class Node
   start: [null,null]
@@ -475,7 +473,6 @@ class Character extends Sprite
   constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
     super @x, @y
     @state =
-      alive : true
       active : false
     @targeting = null
     @dir = 0
@@ -492,14 +489,6 @@ class Character extends Sprite
 
   is_alive:()->
     return @status.hp > 1
-    # if @status.hp > 1
-    #   # @state.alive = true
-    #   return true
-    # else
-    #   # @state.hp = 0
-    #   # @state.alive = false
-    #   return true
-
   is_dead:()->
     not @is_alive()
 
@@ -654,7 +643,12 @@ class Walker extends Character
       @regenerate()
       @search objs
       @move(objs,cmap, keys,mouse)
-      @act(keys,objs)
+      # @act(keys,objs)
+
+      @change_skill(keys,objs)
+      for name,skill of @skills
+        skill.charge @, skill is @selected_skill
+      @selected_skill.exec @,objs
 
   search : (objs)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
@@ -715,8 +709,6 @@ class Walker extends Character
 
   _trace: (to_x , to_y)->
     @set_dir(to_x,to_y)
-    # nx = @x + ~~(@status.speed * Math.cos(@dir))
-    # ny = @y + ~~(@status.speed * Math.sin(@dir))
     return [
       @x + ~~(@status.speed * Math.cos(@dir)),
       @y + ~~(@status.speed * Math.sin(@dir))
@@ -739,12 +731,8 @@ class Goblin extends Walker
       one: new Skill_Atack()
       two: new Skill_Smash()
     @selected_skill = @skills['one']
-
-  act: (_,objs)->
-    super()
+  change_skill: ()->
     # @set_skill keys
-    @selected_skill.charge(@)
-    @selected_skill.exec(@,objs)
 
   render_object:(g,pos)->
     if @group == ObjectGroup.Player
@@ -781,28 +769,14 @@ class Player extends Walker
       x: 0
       y: 0
 
+  change_skill: (keys)->
+    @set_skill keys
+
   update:(objs, cmap, keys, mouse)->
-    @cnt += 1
-    if @is_alive()
-      @check()
-      @regenerate()
-      enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
-      if @has_target()
-        @set_dir(@targeting.x,@targeting.y)
-        # ターゲットが存在した場合
-        if @targeting.is_dead() or @get_distance(@targeting) > @status.sight_range*1.5
-          # 死んでる or 感知外
-          @targeting = null
-      else if enemies.size() > 0
-        # ターゲットが存在せず新たに目視した場合
-        @targeting = enemies[0]
-        my.mes "#{@name} find #{@targeting.name}"
-
-      if keys.space
-        @shift_target(enemies)
-
-      @move(objs,cmap, keys,mouse)
-      @act(keys,objs)
+    enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
+    if keys.space
+      @shift_target(enemies)
+    super objs,cmap,keys,mouse
 
   set_mouse_dir: (x,y)->
     rx = x - 320
@@ -812,12 +786,6 @@ class Player extends Walker
     else
       @dir = Math.PI - Math.atan( ry / - rx  )
 
-  act: (keys,objs)->
-    @set_skill keys
-    # @selected_skill.charge(@)
-    for name,skill of @skills
-      skill.charge @, skill is @selected_skill
-    @selected_skill.exec(@,objs)
 
   move: (objs,cmap, keys, mouse)->
     @dir = @set_mouse_dir(mouse.x , mouse.y)

@@ -451,7 +451,7 @@
       return _results;
     };
     Map.prototype.render_after = function(g, cam) {
-      var alpha, color, i, j, pos, w, _ref, _results;
+      var alpha, i, j, pos, w, _ref, _results;
       pos = this.getpos_relative(cam);
       _results = [];
       for (i = 0, _ref = this._map.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
@@ -459,7 +459,7 @@
           var _ref2, _results2;
           _results2 = [];
           for (j = 0, _ref2 = this._map[i].length; 0 <= _ref2 ? j < _ref2 : j > _ref2; 0 <= _ref2 ? j++ : j--) {
-            _results2.push(this._map[i][j] ? (g.init(color = "rgb(50,50,50)", alpha = 1), w = 5, g.fillRect(pos.vx + i * this.cell + w, pos.vy + j * this.cell - w, this.cell, this.cell)) : void 0);
+            _results2.push(this._map[i][j] ? (g.init(Color.i(50, 50, 50), alpha = 1), w = 5, g.fillRect(pos.vx + i * this.cell + w, pos.vy + j * this.cell - w, this.cell, this.cell)) : void 0);
           }
           return _results2;
         }).call(this));
@@ -549,10 +549,7 @@
       if (objs.length < this.max_object_count && this.frame_count % 24 * 3 === 0) {
         group = (Math.random() > 0.05 ? ObjectGroup.Enemy : ObjectGroup.Player);
         random_point = this.get_rand_xy();
-        objs.push(new Goblin(random_point.x, random_point.y, group));
-        if (Math.random() < 0.3) {
-          return objs[objs.length - 1].state.leader = 1;
-        }
+        return objs.push(new Goblin(random_point.x, random_point.y, group));
       }
     };
     return SampleMap;
@@ -591,7 +588,6 @@
       }
       Character.__super__.constructor.call(this, this.x, this.y);
       this.state = {
-        alive: true,
         active: false
       };
       this.targeting = null;
@@ -815,13 +811,20 @@
       this._path = [];
     }
     Walker.prototype.update = function(objs, cmap, keys, mouse) {
+      var name, skill, _ref;
       this.cnt += 1;
       if (this.is_alive()) {
         this.check();
         this.regenerate();
         this.search(objs);
         this.move(objs, cmap, keys, mouse);
-        return this.act(keys, objs);
+        this.change_skill(keys, objs);
+        _ref = this.skills;
+        for (name in _ref) {
+          skill = _ref[name];
+          skill.charge(this, skill === this.selected_skill);
+        }
+        return this.selected_skill.exec(this, objs);
       }
     };
     Walker.prototype.search = function(objs) {
@@ -917,11 +920,7 @@
       };
       this.selected_skill = this.skills['one'];
     }
-    Goblin.prototype.act = function(_, objs) {
-      Goblin.__super__.act.call(this);
-      this.selected_skill.charge(this);
-      return this.selected_skill.exec(this, objs);
-    };
+    Goblin.prototype.change_skill = function() {};
     Goblin.prototype.render_object = function(g, pos) {
       var beat, color, ms;
       if (this.group === ObjectGroup.Player) {
@@ -969,28 +968,16 @@
         y: 0
       };
     }
+    Player.prototype.change_skill = function(keys) {
+      return this.set_skill(keys);
+    };
     Player.prototype.update = function(objs, cmap, keys, mouse) {
       var enemies;
-      this.cnt += 1;
-      if (this.is_alive()) {
-        this.check();
-        this.regenerate();
-        enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
-        if (this.has_target()) {
-          this.set_dir(this.targeting.x, this.targeting.y);
-          if (this.targeting.is_dead() || this.get_distance(this.targeting) > this.status.sight_range * 1.5) {
-            this.targeting = null;
-          }
-        } else if (enemies.size() > 0) {
-          this.targeting = enemies[0];
-          my.mes("" + this.name + " find " + this.targeting.name);
-        }
-        if (keys.space) {
-          this.shift_target(enemies);
-        }
-        this.move(objs, cmap, keys, mouse);
-        return this.act(keys, objs);
+      enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
+      if (keys.space) {
+        this.shift_target(enemies);
       }
+      return Player.__super__.update.call(this, objs, cmap, keys, mouse);
     };
     Player.prototype.set_mouse_dir = function(x, y) {
       var rx, ry;
@@ -1001,16 +988,6 @@
       } else {
         return this.dir = Math.PI - Math.atan(ry / -rx);
       }
-    };
-    Player.prototype.act = function(keys, objs) {
-      var name, skill, _ref;
-      this.set_skill(keys);
-      _ref = this.skills;
-      for (name in _ref) {
-        skill = _ref[name];
-        skill.charge(this, skill === this.selected_skill);
-      }
-      return this.selected_skill.exec(this, objs);
     };
     Player.prototype.move = function(objs, cmap, keys, mouse) {
       var move;
