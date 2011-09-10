@@ -189,7 +189,7 @@ class Walker extends Character
     else if enemies.size() > 0
       # 新たに目視した場合
       @targeting = enemies[0]
-      my.mes "#{@name} find #{@targeting.name})"
+      my.mes "#{@name} find #{@targeting.name}"
 
   move: (objs ,cmap)->
     # for wait
