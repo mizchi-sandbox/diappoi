@@ -1,5 +1,5 @@
 (function() {
-  var Animation, Animation_Slash, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, Walker, base_block, clone, conf, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, clone, conf, maps, my, randint, rjoin, sjoin;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -330,30 +330,33 @@
     };
     return Animation;
   })();
-  Animation_Slash = (function() {
-    __extends(Animation_Slash, Animation);
-    function Animation_Slash() {
-      this.timer = 0;
-    }
-    Animation_Slash.prototype.render = function(g, x, y) {
-      var color, tx, ty;
-      if (this.timer < 5) {
-        this.init_cv(g, color = "rgb(30,55,55)");
-        tx = x - 10 + this.timer * 3;
-        ty = y - 10 + this.timer * 3;
-        g.moveTo(tx, ty);
-        g.lineTo(tx - 8, ty - 8);
-        g.lineTo(tx - 4, ty - 8);
-        g.lineTo(tx, ty);
-        g.fill();
-        this.timer++;
-        return this;
-      } else {
-        return false;
+  (Anim = {}).prototype = {
+    Slash: Slash = (function() {
+      __extends(Slash, Animation);
+      function Slash(amount) {
+        this.amount = amount;
+        this.timer = 0;
       }
-    };
-    return Animation_Slash;
-  })();
+      Slash.prototype.render = function(g, x, y) {
+        var color, tx, ty;
+        if (this.timer < 5) {
+          this.init_cv(g, color = "rgb(30,55,55)");
+          tx = x - 10 + this.timer * 3;
+          ty = y - 10 + this.timer * 3;
+          g.moveTo(tx, ty);
+          g.lineTo(tx - 8, ty - 8);
+          g.lineTo(tx - 4, ty - 8);
+          g.lineTo(tx, ty);
+          g.fill();
+          this.timer++;
+          return this;
+        } else {
+          return false;
+        }
+      };
+      return Slash;
+    })()
+  };
   Map = (function() {
     __extends(Map, Sprite);
     function Map(cell) {
@@ -783,8 +786,7 @@
       amount = ~~(this.status.atk * (this.targeting.status.def + Math.random() / 4));
       this.targeting.status.hp -= amount;
       my.mes(this.name + " atack " + this.targeting.name + " " + amount + "damage");
-      this.targeting.add_animation(new Animation_Slash());
-      return this.targeting._update_state();
+      return this.targeting.add_animation(new Anim.prototype.Slash(amount));
     };
     Character.prototype.select_target = function(targets) {
       var cur, _ref;

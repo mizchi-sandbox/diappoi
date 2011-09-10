@@ -1,4 +1,3 @@
-
 class Sprite
   constructor: (@x=0,@y=0,@scale=10) ->
   render: (g)->
@@ -16,8 +15,6 @@ class Sprite
       vx : 320 + @x - cam.x
       vy : 240 + @y - cam.y
     return pos
-
-      # if t.group != @group and ObjectGroup.is_battler t.group
 
   init_cv: (g,color="rgb(255,255,255)",alpha=1)->
     g.beginPath()
@@ -46,24 +43,22 @@ class Animation extends Sprite
   render:(g,x,y)->
     @timer++
 
+(Anim = {}).prototype =
+  Slash: class Slash extends Animation
+    constructor: (@amount) ->
+      @timer = 0
 
-class Animation_Slash extends Animation
-  constructor: () ->
-    @timer = 0
-
-  render:(g,x,y)->
-    if  @timer < 5
-      @init_cv(g,color="rgb(30,55,55)")
-      tx = x-10+@timer*3
-      ty = y-10+@timer*3
-      g.moveTo( tx ,ty )
-      g.lineTo( tx-8 ,ty-8 )
-      g.lineTo( tx-4 ,ty-8 )
-      g.lineTo( tx ,ty )
-      g.fill()
-      @timer++
-      return @
-    else
-      return false
-
+    render:(g,x,y)->
+      if  @timer++ < 5
+        @init_cv(g,color="rgb(30,55,55)")
+        tx = x-10+@timer*3
+        ty = y-10+@timer*3
+        g.moveTo( tx ,ty )
+        g.lineTo( tx-8 ,ty-8 )
+        g.lineTo( tx-4 ,ty-8 )
+        g.lineTo( tx ,ty )
+        g.fill()
+        return @
+      else
+        return false
 

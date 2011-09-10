@@ -85,8 +85,8 @@ class Character extends Sprite
     amount = ~~(@status.atk * ( @targeting.status.def + Math.random()/4 ))
     @targeting.status.hp -= amount
     my.mes(@name+" atack "+@targeting.name+" "+amount+"damage")
-    @targeting.add_animation(new Animation_Slash())
-    @targeting._update_state()
+    @targeting.add_animation new Anim::Slash amount
+    # @targeting._update_state()
 
   select_target:(targets)->
     if @has_target() and targets.length > 0
