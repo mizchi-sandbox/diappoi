@@ -319,9 +319,6 @@ class Player extends Walker
       y: 0
 
   update:(objs, cmap, keys, mouse)->
-    super objs, cmap,keys ,mouse
-
-  update:(objs, cmap, keys, mouse)->
     @cnt += 1
     if @is_alive()
       @_update_state()
@@ -353,7 +350,6 @@ class Player extends Walker
   act: (keys,enemies)->
      super()
      @invoke(keys,enemies)
-
 
   invoke: (keys,enemies)->
     list = ["zero","one","two","three","four","five","six","seven","eight","nine"]

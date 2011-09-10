@@ -49,15 +49,17 @@ class Animation extends Sprite
       @timer = 0
 
     render:(g,x,y)->
-      if  @timer++ < 5
+      if  @timer++ < 12
         @init_cv(g,color="rgb(30,55,55)")
         tx = x-10+@timer*3
         ty = y-10+@timer*3
-        g.moveTo( tx ,ty )
-        g.lineTo( tx-8 ,ty-8 )
-        g.lineTo( tx-4 ,ty-8 )
-        g.lineTo( tx ,ty )
+        g.moveTo tx ,ty
+        g.lineTo tx-8 ,ty-8
+        g.lineTo tx-4 ,ty-8
+        g.lineTo tx ,ty
         g.fill()
+        @init_cv(g,color="rgb(255,55,55)")
+        g.strokeText "#{@amount}",x ,y+6
         return @
       else
         return false

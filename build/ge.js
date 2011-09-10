@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, clone, conf, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, conf, maps, my, randint, rjoin, sjoin;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -150,35 +150,6 @@
       g.lineTo(x2, y2);
       return g.stroke();
     },
-    color: function(r, g, b, name) {
-      if (r == null) {
-        r = 255;
-      }
-      if (g == null) {
-        g = 255;
-      }
-      if (b == null) {
-        b = 255;
-      }
-      if (name == null) {
-        name = null;
-      }
-      switch (name) {
-        case "red":
-          return this.color(255, 0, 0);
-        case "green":
-          return this.color(0, 255, 0);
-        case "blue":
-          return this.color(0, 0, 255);
-        case "white":
-          return this.color(255, 255, 255);
-        case "black":
-          return this.color(0, 0, 0);
-        case "grey":
-          return this.color(128, 128, 128);
-      }
-      return "rgb(" + ~~r + "," + ~~g + "," + ~~b + ")";
-    },
     draw_cell: function(g, x, y, cell, color) {
       if (color == null) {
         color = "grey";
@@ -203,7 +174,7 @@
     }
   };
   rjoin = function(map1, map2) {
-    map1;    return map1.concat(map2);
+    return map1.concat(map2);
   };
   sjoin = function(map1, map2) {
     var buf, i, y, _ref;
@@ -218,38 +189,12 @@
     }
     return buf;
   };
-  String.prototype.replaceAll = function(org, dest) {
-    return this.split(org).join(dest);
-  };
   randint = function(from, to) {
     if (!(to != null)) {
       to = from;
       from = 0;
     }
     return ~~(Math.random() * (to - from + 1)) + from;
-  };
-  Array.prototype.find = function(pos) {
-    var i, _i, _len;
-    for (_i = 0, _len = this.length; _i < _len; _i++) {
-      i = this[_i];
-      if (i.pos[0] === pos[0] && i.pos[1] === pos[1]) {
-        return i;
-      }
-    }
-    return null;
-  };
-  Array.prototype.remove = function(obj) {
-    this.splice(this.indexOf(obj), 1);
-    return this;
-  };
-  Array.prototype.size = function() {
-    return this.length;
-  };
-  clone = function(obj) {
-    var F;
-    F = function() {};
-    F.prototype = obj;
-    return new F;
   };
   Color = {
     Red: "rgb(255,0,0)",
@@ -339,7 +284,7 @@
       }
       Slash.prototype.render = function(g, x, y) {
         var color, tx, ty;
-        if (this.timer < 5) {
+        if (this.timer++ < 12) {
           this.init_cv(g, color = "rgb(30,55,55)");
           tx = x - 10 + this.timer * 3;
           ty = y - 10 + this.timer * 3;
@@ -348,7 +293,8 @@
           g.lineTo(tx - 4, ty - 8);
           g.lineTo(tx, ty);
           g.fill();
-          this.timer++;
+          this.init_cv(g, color = "rgb(255,55,55)");
+          g.strokeText("" + this.amount, x, y + 6);
           return this;
         } else {
           return false;
@@ -1066,9 +1012,6 @@
       };
     }
     Player.prototype.update = function(objs, cmap, keys, mouse) {
-      return Player.__super__.update.call(this, objs, cmap, keys, mouse);
-    };
-    Player.prototype.update = function(objs, cmap, keys, mouse) {
       var enemies;
       this.cnt += 1;
       if (this.is_alive()) {
@@ -1462,6 +1405,38 @@
     };
     return FieldScene;
   })();
+  String.prototype.replaceAll = function(org, dest) {
+    return this.split(org).join(dest);
+  };
+  Array.prototype.find = function(pos) {
+    var i, _i, _len;
+    for (_i = 0, _len = this.length; _i < _len; _i++) {
+      i = this[_i];
+      if (i.pos[0] === pos[0] && i.pos[1] === pos[1]) {
+        return i;
+      }
+    }
+    return null;
+  };
+  Array.prototype.remove = function(obj) {
+    return this.splice(this.indexOf(obj), 1);
+  };
+  Array.prototype.size = function() {
+    return this.length;
+  };
+  Array.prototype.first = function() {
+    return this[0];
+  };
+  Array.prototype.last = function() {
+    return this[this.length - 1];
+  };
+  Array.prototype.each = Array.prototype.forEach;
+  Object.prototype.dup = function() {
+    var O;
+    O = function() {};
+    O.prototype = this;
+    return new O;
+  };
   conf = {
     WINDOW_WIDTH: 640,
     WINDOW_HEIGHT: 480,

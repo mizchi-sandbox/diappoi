@@ -33,13 +33,6 @@ class Game
     @scene_name = @scenes[@scene_name].enter(@keys,@mouse)
     @draw(@scenes[@scene_name])
 
-    # while 1
-    #   next = @scenes[@scene_name].enter(@keys,@mouse)
-    #   if next == @scene_name
-    #     @scene_name = @scenes[next].enter(@keys,@mouse)
-    #     break
-    # @draw(@scenes[@scene_name])
-
   start: (self) ->
     setInterval ->
       self.enter()
@@ -101,16 +94,6 @@ my =
     g.lineTo(x2,y2)
     g.stroke()
 
-  color: (r=255,g=255,b=255,name=null)->
-    switch name
-        when "red" then return @color(255,0,0)
-        when "green" then return @color(0,255,0)
-        when "blue" then return @color(0,0,255)
-        when "white" then return @color(255,255,255)
-        when "black" then return @color(0,0,0)
-        when "grey" then return @color(128,128,128)
-    return "rgb("+~~(r)+","+~~(g)+","+~~(b)+")"
-
   draw_cell: (g,x,y,cell,color="grey")->
     g.moveTo(x , y)
     g.lineTo(x+cell , y)
@@ -125,9 +108,7 @@ my =
       buf.push(i) if func(i)
     return buf
 
-
 rjoin = (map1,map2)->
-  map1
   return map1.concat(map2)
 
 sjoin = (map1,map2)->
@@ -140,30 +121,11 @@ sjoin = (map1,map2)->
     y++
   return buf
 
-String::replaceAll = (org, dest) ->
-  return @split(org).join(dest)
-
 randint = (from,to) ->
   if not to?
     to = from
     from = 0
   return ~~( Math.random()*(to-from+1))+from
-
-Array::find = (pos)->
-  for i in @
-    if i.pos[0] == pos[0] and i.pos[1] == pos[1]
-      return i
-  return null
-
-Array::remove = (obj)->
-  @splice(@indexOf(obj),1)
-  @
-Array::size = ()-> @.length
-
-clone = (obj)->
-  F = ()->
-  F.prototype = obj
-  new F
 
 Color =
   Red : "rgb(255,0,0)"
