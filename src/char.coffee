@@ -153,7 +153,7 @@ class Character extends Sprite
   set_skill :(keys)->
     for k,v of keys
       if v and k in ["zero","one","two","three","four","five","six","seven","eight","nine"]
-        @selected_skill = @binded_skill[k]
+        @selected_skill = @skills[k]
         console.log "set #{@selected_skill.name}"
         break
 
@@ -251,10 +251,10 @@ class Goblin extends Walker
       sight_range : 120
     super(@x,@y,@group,status)
 
-    @binded_skill =
+    @skills =
       one: new Skill_Atack()
       two: new Skill_Smash()
-    @selected_skill = @binded_skill['one']
+    @selected_skill = @skills['one']
 
   act: ()->
     super()
@@ -287,12 +287,12 @@ class Player extends Walker
       sight_range : 80
       speed : 6
 
-    @binded_skill =
+    @skills =
       one: new Skill_Atack()
       two: new Skill_Smash()
       three: new Skill_Heal()
       four: new Skill_Meteor()
-    @selected_skill = @binded_skill['one']
+    @selected_skill = @skills['one']
     @state.leader =true
     @mouse =
       x: 0
@@ -331,7 +331,7 @@ class Player extends Walker
   act: (keys,enemies)->
     @set_skill keys
     # @selected_skill.charge(@)
-    for name,skill of @binded_skill
+    for name,skill of @skills
       skill.charge @, skill is @selected_skill
     @selected_skill.do(@)
 
@@ -340,11 +340,11 @@ class Player extends Walker
   # invoke: (keys,enemies)->
   #   list = ["zero","one","two","three","four","five","six","seven","eight","nine"]
   #   for i in list
-  #     if @binded_skill[i]
+  #     if @skills[i]
   #       if keys[i]
-  #         @binded_skill[i].do(@,enemies,@mouse)
+  #         @skills[i].do(@,enemies,@mouse)
   #       else
-  #         @binded_skill[i].charge()
+  #         @skills[i].charge()
 
   move: (objs,cmap, keys, mouse)->
     @dir = @set_mouse_dir(mouse.x , mouse.y)
@@ -396,7 +396,7 @@ class Player extends Walker
 
   render_skill_gage: (g)->
     c = 0
-    for number,skill of @binded_skill
+    for number,skill of @skills
       g.init()
       g.fillText( skill.name ,20+c*50 ,  460)
       @render_gages(g, 40+c*50 , 470,40 , 6 , skill.ct/skill.MAX_CT)
