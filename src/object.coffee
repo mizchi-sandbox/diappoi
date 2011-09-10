@@ -15,10 +15,10 @@ Array::last = ()-> @[@.length-1]
 Array::each = Array::forEach
 
 #===== Object =====
-Object::dup = (obj)->
-  O = ()->
-  O.prototype = obj
-  new O
+# Object::dup = (obj)->
+#   O = ()->
+#   O.prototype = obj
+#   new O
 
 #===== CanvasRenderingContext2D =====
 Canvas = CanvasRenderingContext2D

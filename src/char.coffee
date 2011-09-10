@@ -62,33 +62,12 @@ class Character extends Sprite
 
   regenerate: ()->
     r = (if @targeting then 2 else 1)
-    if not (@cnt % (24/@status.regenerate*r)) and @state.alive
+    if not (@cnt % (24/@status.regenerate*r)) and @is_alive()
       if @status.hp < @status.MAX_HP
         @status.hp += 1
+  act: ()->
 
-  act:(target=@targeting)->
-    if @targeting
-      d = @get_distance(@targeting)
-      if d < @status.atack_range
-        if @status.wt < @status.MAX_WT
-          @status.wt += 1
-        else
-          @atack()
-          @status.wt = 0
-      else
-        if @status.wt < @status.MAX_WT
-          @status.wt += 1
-    else
-      @status.wt = 0
-
-  atack: ()->
-    amount = ~~(@status.atk * ( @targeting.status.def + Math.random()/4 ))
-    @targeting.status.hp -= amount
-    my.mes(@name+" atack "+@targeting.name+" "+amount+"damage")
-    @targeting.add_animation new Anim::Slash amount
-    # @targeting._update_state()
-
-  select_target:(targets)->
+  shift_target:(targets)->
     if @has_target() and targets.length > 0
       if not @targeting in targets
         @targeting = targets[0]
@@ -171,6 +150,13 @@ class Character extends Sprite
       @render_dead(g,pos)
     @render_animation(g, pos.vx , pos.vy )
 
+  set_skill :(keys)->
+    for k,v of keys
+      if v and k in ["zero","one","two","three","four","five","six","seven","eight","nine"]
+        @selected_skill = @binded_skill[k]
+        console.log "set #{@selected_skill.name}"
+        break
+
 class Walker extends Character
   following: null
   targeting: null
@@ -201,6 +187,7 @@ class Walker extends Character
   move: (objs ,cmap)->
     # for wait
     if @has_target()
+      @set_dir(@targeting.x,@targeting.y)
       return if @get_distance(@targeting) < @status.atack_range
 
     if @has_target() and @to and not @cnt%24
@@ -264,6 +251,17 @@ class Goblin extends Walker
       sight_range : 120
     super(@x,@y,@group,status)
 
+    @binded_skill =
+      one: new Skill_Atack()
+      two: new Skill_Smash()
+    @selected_skill = @binded_skill['one']
+
+  act: ()->
+    super()
+    # @set_skill keys
+    @selected_skill.charge(@)
+    @selected_skill.do(@)
+
   render_object:(g,pos)->
     if @group == ObjectGroup.Player
       color = Color.White
@@ -290,9 +288,11 @@ class Player extends Walker
       speed : 6
 
     @binded_skill =
-      one: new Skill_Heal()
+      one: new Skill_Atack()
       two: new Skill_Smash()
-      three: new Skill_Meteor()
+      three: new Skill_Heal()
+      four: new Skill_Meteor()
+    @selected_skill = @binded_skill['one']
     @state.leader =true
     @mouse =
       x: 0
@@ -304,6 +304,7 @@ class Player extends Walker
       @_update_state()
       enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
       if @has_target()
+        @set_dir(@targeting.x,@targeting.y)
         # ターゲットが存在した場合
         if @targeting.is_dead() or @get_distance(@targeting) > @status.sight_range*1.5
           # 死んでる or 感知外
@@ -313,8 +314,8 @@ class Player extends Walker
         @targeting = enemies[0]
         my.mes "#{@name} find #{@targeting.name})"
 
-      if keys.zero
-        @select_target(enemies)
+      if keys.space
+        @shift_target(enemies)
 
       @move(objs,cmap, keys,mouse)
       @act(keys,objs)
@@ -328,17 +329,22 @@ class Player extends Walker
       @dir = Math.PI - Math.atan( ry / - rx  )
 
   act: (keys,enemies)->
-     super()
-     @invoke(keys,enemies)
+    @set_skill keys
+    # @selected_skill.charge(@)
+    for name,skill of @binded_skill
+      skill.charge @, skill is @selected_skill
+    @selected_skill.do(@)
 
-  invoke: (keys,enemies)->
-    list = ["zero","one","two","three","four","five","six","seven","eight","nine"]
-    for i in list
-      if @binded_skill[i]
-        if keys[i]
-          @binded_skill[i].do(@,enemies,@mouse)
-        else
-          @binded_skill[i].charge()
+     # @invoke(keys,enemies)
+
+  # invoke: (keys,enemies)->
+  #   list = ["zero","one","two","three","four","five","six","seven","eight","nine"]
+  #   for i in list
+  #     if @binded_skill[i]
+  #       if keys[i]
+  #         @binded_skill[i].do(@,enemies,@mouse)
+  #       else
+  #         @binded_skill[i].charge()
 
   move: (objs,cmap, keys, mouse)->
     @dir = @set_mouse_dir(mouse.x , mouse.y)
@@ -408,6 +414,19 @@ class Mouse extends Sprite
   render: (g,cam)->
     cx = ~~((@x+mouse.x-320)/cmap.cell)
     cy = ~~((@y+mouse.y-240)/cmap.cell)
+
+ObjectGroup =
+  Player : 0
+  Enemy  : 1
+  Item   : 2
+  is_battler : (group_id)->
+    group_id in [@Player, @Enemy]
+  get_against : (obj)->
+    switch obj.group
+      when @Player
+        return @Enemy
+      when @Enemy
+        return @Player
 
 class Status
   constructor: (params = {}, @lv = 1) ->
