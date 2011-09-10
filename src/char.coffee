@@ -59,7 +59,6 @@ class Character extends Sprite
     else
       @state.targeting = null
 
-
   regenerate: ()->
     r = (if @targeting then 2 else 1)
 
@@ -127,7 +126,6 @@ class Character extends Sprite
       @init_cv(g , color = "rgb(250,50,50)",alpha=0.3)
       g.arc( pos.vx, pos.vy, @status.atack_range ,0,Math.PI*2,true)
       g.stroke()
-
       @init_cv(g , color = "rgb(50,50,50)",alpha=0.3)
       g.arc( pos.vx, pos.vy, @status.sight_range ,0,Math.PI*2,true)
       g.stroke()
@@ -165,7 +163,6 @@ class Character extends Sprite
 
   render_gages:( g, x , y, w, h ,percent=1) ->
     # my.init_cv(g,"rgb(0, 250, 100)")
-    # frame
     g.moveTo(x-w/2 , y-h/2)
     g.lineTo(x+w/2 , y-h/2)
     g.lineTo(x+w/2 , y+h/2)
@@ -173,7 +170,6 @@ class Character extends Sprite
     g.lineTo(x-w/2 , y-h/2)
     g.stroke()
 
-    # rest
     g.beginPath()
     g.moveTo(x-w/2 +1, y-h/2+1)
     g.lineTo(x-w/2+w*percent, y-h/2+1)
@@ -246,12 +242,11 @@ class Walker extends Character
         return
 
     if @has_target() and @to and not @cnt%24
-      # @_get_path(cmap)
       @_path = @_get_path(cmap)
       @to = @_path.shift()
     else if @to
       dp = cmap.get_point(@to[0],@to[1])
-      [nx,ny] = @_trace( dp.x , dp.y )
+      [nx,ny] = @_trace( dp[0] , dp[1] )
       wide = 7
       if dp.x-wide<nx<dp.x+wide and dp.y-wide<ny<dp.y+wide
         if @_path.length > 0
@@ -264,26 +259,27 @@ class Walker extends Character
         @to = @_path.shift()
       else
         c = cmap.get_cell(@x,@y)
-        c.x += randint(-1,1)
-        c.y += randint(-1,1)
+        c[0] += randint(-1,1)
+        c[1] += randint(-1,1)
         @to = [c.x,c.y]
 
     if not cmap.collide( nx,ny )
       @x = nx if nx?
       @y = ny if ny?
 
-    if @x == @_lx and @y == @_ly
+    if @x is @_lx and @y is @_ly
       c = cmap.get_cell(@x,@y)
-      c.x += randint(-1,1)
-      c.y += randint(-1,1)
-      @to = [c.x,c.y]
+      c[0] += randint(-1,1)
+      c[1] += randint(-1,1)
+      # @to = [c.x,c.y]
+      @to = c
     @_lx = @x
     @_ly = @y
 
   _get_path:(cmap)->
     from = cmap.get_cell( @x ,@y)
     to = cmap.get_cell( @targeting.x ,@targeting.y)
-    return cmap.search_min_path( [from.x,from.y] ,[to.x,to.y] )
+    return cmap.search_min_path( from ,to)
 
   _trace: (to_x , to_y)->
     @set_dir(to_x,to_y)
@@ -296,7 +292,7 @@ class Walker extends Character
     if @x-wide<@distination[0]<@x+wide and @y-wide<@distination[1]<@y+wide
       c = cmap.get_cell(@x,@y)
       d = cmap.get_point( c.x+randint(-1,1) ,c.y+randint(-1,1) )
-      if not cmap.collide( d.x ,d.y )
+      if not cmap.collide( d[0] ,d[1] )
         @distination = [d.x,d.y]
     # @dir = Math.PI * 2 * Math.random()
     if @distination # @cnt % 24 < 8
