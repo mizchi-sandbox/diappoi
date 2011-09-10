@@ -1,2 +1,3 @@
-git clone
-open main.html
+fork and open main.html
+(check only Google Chrome)
+
