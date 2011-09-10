@@ -1,17 +1,18 @@
 class Map extends Sprite
   constructor: (@cell=32) ->
     super 0, 0, @cell
-    # @_map = @gen_map()
-    # m = base_block
-    # m = rjoin(m,m)
-    # m = sjoin(m,m)
-
     @_map = @load(maps.debug)
+
+  gen_blocked_map : ()->
+    map = @gen_map()
+    m = base_block
+    m = rjoin(m,m)
+    m = sjoin(m,m)
+    return map
 
   load : (text)->
     tmap = text.replaceAll(".","0").replaceAll(" ","1").split("\n")
     max = Math.max.apply null,(row.length for row in tmap)
-
     map = []
     for y in [0...tmap.length]
       map[y]= ((if i < tmap[y].length then parseInt tmap[y][i] else 1) for i in [0 ... max])
@@ -19,22 +20,6 @@ class Map extends Sprite
     map = @_rotate90(map)
     map = @_set_wall(map)
     return map
-
-  _rotate90:(map)->
-    res = []
-    for i in [0...map[0].length]
-      res[i] = ( j[i] for j in map)
-    res
-
-  _set_wall:(map)->
-    x = map.length
-    y = map[0].length
-    map[0] = (1 for i in [0...map[0].length])
-    map[map.length-1] = (1 for i in [0...map[0].length])
-    for i in map
-      i[0]=1
-      i[i.length-1]=1
-    map
 
   gen_random_map:(x,y)->
     map = []
@@ -77,9 +62,8 @@ class Map extends Sprite
     y = ~~(y / @cell)
     return @_map[x][y]
 
-  search_route: (start,goal)->
+  search_min_path: (start,goal)->
     path = []
-
     Node::start = start
     Node::goal = goal
     open_list = []
@@ -89,23 +73,21 @@ class Map extends Sprite
     start_node.fs = start_node.hs
     open_list.push(start_node)
 
-    search_to =[
+    search_path =[
       [-1,-1], [ 0,-1], [ 1,-1]
       [-1, 0]         , [ 1, 0]
       [-1, 1], [ 0, 1], [ 1, 1]
     ]
 
-    max_depth = 20
-    c = 0
+    max_depth = 100
+    for _ in [1..max_depth]
+      return [] if open_list.size() < 1 #探索失敗
 
-    while c<max_depth
-      if not open_list
-        return 1
       open_list.sort( (a,b)->a.fs-b.fs )
       min_node = open_list[0]
       close_list.push( open_list.shift() )
 
-      if min_node.pos[0] == min_node.goal[0] and min_node.pos[1] == min_node.goal[1]
+      if min_node.pos[0] is min_node.goal[0] and min_node.pos[1] is min_node.goal[1]
         path = []
         n = min_node
         while n.parent
@@ -115,7 +97,7 @@ class Map extends Sprite
 
       n_gs = min_node.fs - min_node.hs
 
-      for i in search_to
+      for i in search_path # 8方向探索
         [nx,ny] = [i[0]+min_node.pos[0] , i[1]+min_node.pos[1]]
         if not @_map[nx][ny]
           dist = Math.pow(min_node.pos[0]-nx,2) + Math.pow(min_node.pos[1]-ny,2)
@@ -135,16 +117,7 @@ class Map extends Sprite
             n.fs = n_gs+n.hs+dist
             n.parent = min_node
             open_list.push(n)
-
-      c++
-    return null
-  # is_passed:(from,to)->
-  #   if @collide(x,y)
-  #     return false
-  #   dx = to.x - from.x
-  #   dy = to.y - from.y
-  #   if
-  #   from.x , from.y
+    return []
 
   render: (g,cam)->
     pos = @getpos_relative(cam)
@@ -171,14 +144,6 @@ class Map extends Sprite
           g.lineTo(x  ,y+@cell)
           g.fill()
 
-        else
-          # @init_cv(g , color = "rgb(250,250,250)",alpha=0.5)
-          # g.fillRect(
-          #   pos.vx + i * @cell,
-          #   pos.vy + j * @cell,
-          #   @cell , @cell)
-
-
   render_after:(g,cam)->
     pos = @getpos_relative(cam)
     for i in [0 ... @_map.length]
@@ -190,6 +155,23 @@ class Map extends Sprite
             pos.vx + i * @cell+w,
             pos.vy + j * @cell-w,
             @cell , @cell)
+
+  _rotate90:(map)->
+    res = []
+    for i in [0...map[0].length]
+      res[i] = ( j[i] for j in map)
+    res
+
+  _set_wall:(map)->
+    x = map.length
+    y = map[0].length
+    map[0] = (1 for i in [0...map[0].length])
+    map[map.length-1] = (1 for i in [0...map[0].length])
+    for i in map
+      i[0]=1
+      i[i.length-1]=1
+    map
+
 
 class SampleMap extends Map
   max_object_count: 4
@@ -276,7 +258,7 @@ maps =
              ...........
            ..............
          .... ........... .
-        .......     ........
+        .......  ..  ........
    .........    ..     ......
    ........   ......    .......
    .........   .....    .......

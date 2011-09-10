@@ -157,7 +157,8 @@ Array::find = (pos)->
 
 Array::remove = (obj)->
   @splice(@indexOf(obj),1)
-  return @
+  @
+Array::size = ()-> @.length
 
 clone = (obj)->
   F = ()->

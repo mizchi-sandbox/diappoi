@@ -1,5 +1,5 @@
 (function() {
-  var Animation, Animation_Slash, Battler, FieldScene, Game, Goblin, ItemObject, Map, Monster, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, base_block, clone, conf, maps, my, randint, rjoin, sjoin;
+  var Animation, Animation_Slash, Character, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Sprite, Status, Walker, base_block, clone, conf, maps, my, randint, rjoin, sjoin;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -12,7 +12,7 @@
       if (this[i] === item) return i;
     }
     return -1;
-  };
+  }, __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
   Game = (function() {
     function Game(conf) {
       var canvas;
@@ -242,6 +242,9 @@
     this.splice(this.indexOf(obj), 1);
     return this;
   };
+  Array.prototype.size = function() {
+    return this.length;
+  };
   clone = function(obj) {
     var F;
     F = function() {};
@@ -348,6 +351,14 @@
       Map.__super__.constructor.call(this, 0, 0, this.cell);
       this._map = this.load(maps.debug);
     }
+    Map.prototype.gen_blocked_map = function() {
+      var m, map;
+      map = this.gen_map();
+      m = base_block;
+      m = rjoin(m, m);
+      m = sjoin(m, m);
+      return map;
+    };
     Map.prototype.load = function(text) {
       var i, map, max, row, tmap, y, _ref;
       tmap = text.replaceAll(".", "0").replaceAll(" ", "1").split("\n");
@@ -373,49 +384,6 @@
       }
       map = this._rotate90(map);
       map = this._set_wall(map);
-      return map;
-    };
-    Map.prototype._rotate90 = function(map) {
-      var i, j, res, _ref;
-      res = [];
-      for (i = 0, _ref = map[0].length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-        res[i] = (function() {
-          var _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = map.length; _i < _len; _i++) {
-            j = map[_i];
-            _results.push(j[i]);
-          }
-          return _results;
-        })();
-      }
-      return res;
-    };
-    Map.prototype._set_wall = function(map) {
-      var i, x, y, _i, _len;
-      x = map.length;
-      y = map[0].length;
-      map[0] = (function() {
-        var _ref, _results;
-        _results = [];
-        for (i = 0, _ref = map[0].length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-          _results.push(1);
-        }
-        return _results;
-      })();
-      map[map.length - 1] = (function() {
-        var _ref, _results;
-        _results = [];
-        for (i = 0, _ref = map[0].length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-          _results.push(1);
-        }
-        return _results;
-      })();
-      for (_i = 0, _len = map.length; _i < _len; _i++) {
-        i = map[_i];
-        i[0] = 1;
-        i[i.length - 1] = 1;
-      }
       return map;
     };
     Map.prototype.gen_random_map = function(x, y) {
@@ -472,8 +440,8 @@
       y = ~~(y / this.cell);
       return this._map[x][y];
     };
-    Map.prototype.search_route = function(start, goal) {
-      var c, close_list, dist, i, max_depth, min_node, n, n_gs, nx, ny, obj, open_list, path, search_to, start_node, _i, _len, _ref;
+    Map.prototype.search_min_path = function(start, goal) {
+      var close_list, dist, i, max_depth, min_node, n, n_gs, nx, ny, obj, open_list, path, search_path, start_node, _, _i, _len, _ref;
       path = [];
       Node.prototype.start = start;
       Node.prototype.goal = goal;
@@ -482,12 +450,11 @@
       start_node = new Node(Node.prototype.start);
       start_node.fs = start_node.hs;
       open_list.push(start_node);
-      search_to = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
-      max_depth = 20;
-      c = 0;
-      while (c < max_depth) {
-        if (!open_list) {
-          return 1;
+      search_path = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+      max_depth = 100;
+      for (_ = 1; 1 <= max_depth ? _ <= max_depth : _ >= max_depth; 1 <= max_depth ? _++ : _--) {
+        if (open_list.size() < 1) {
+          return [];
         }
         open_list.sort(function(a, b) {
           return a.fs - b.fs;
@@ -504,8 +471,8 @@
           return path.reverse();
         }
         n_gs = min_node.fs - min_node.hs;
-        for (_i = 0, _len = search_to.length; _i < _len; _i++) {
-          i = search_to[_i];
+        for (_i = 0, _len = search_path.length; _i < _len; _i++) {
+          i = search_path[_i];
           _ref = [i[0] + min_node.pos[0], i[1] + min_node.pos[1]], nx = _ref[0], ny = _ref[1];
           if (!this._map[nx][ny]) {
             dist = Math.pow(min_node.pos[0] - nx, 2) + Math.pow(min_node.pos[1] - ny, 2);
@@ -529,9 +496,8 @@
             }
           }
         }
-        c++;
       }
-      return null;
+      return [];
     };
     Map.prototype.render = function(g, cam) {
       var color, i, j, pos, w, x, y, _ref, _results;
@@ -564,6 +530,49 @@
         }).call(this));
       }
       return _results;
+    };
+    Map.prototype._rotate90 = function(map) {
+      var i, j, res, _ref;
+      res = [];
+      for (i = 0, _ref = map[0].length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+        res[i] = (function() {
+          var _i, _len, _results;
+          _results = [];
+          for (_i = 0, _len = map.length; _i < _len; _i++) {
+            j = map[_i];
+            _results.push(j[i]);
+          }
+          return _results;
+        })();
+      }
+      return res;
+    };
+    Map.prototype._set_wall = function(map) {
+      var i, x, y, _i, _len;
+      x = map.length;
+      y = map[0].length;
+      map[0] = (function() {
+        var _ref, _results;
+        _results = [];
+        for (i = 0, _ref = map[0].length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+          _results.push(1);
+        }
+        return _results;
+      })();
+      map[map.length - 1] = (function() {
+        var _ref, _results;
+        _results = [];
+        for (i = 0, _ref = map[0].length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+          _results.push(1);
+        }
+        return _results;
+      })();
+      for (_i = 0, _len = map.length; _i < _len; _i++) {
+        i = map[_i];
+        i[0] = 1;
+        i[i.length - 1] = 1;
+      }
+      return map;
     };
     return Map;
   })();
@@ -630,125 +639,70 @@
   })();
   maps = {
     filed1: "\n                                           .........\n                                    ................... .\n                               ...........            ......\n                            ....                      ..........\n                         .....              .....        ...... .......\n                 ..........              .........        ............ .....\n                 ............          ...... . ....        ............ . ..\n             .....    ..    ...        ..  ..........       . ..................\n     ..     ......          .........................       . .......   ...... ..\n    .....    ...     ..        .......  ...............      ....        ........\n  ...... ......    .....         ..................... ..   ....         ........\n  .........   ......  ...............  ................... ....            ......\n ...........    ... ... .... .   ..   .. ........ ............             . .....\n ...........    ...... ...       ....................           ......\n............   .......... .    .......... ...... .. .       ...........\n .. ........ .......   ....   ...... .   ............      .... .......\n . ..............       .... .. .       ..............   ...... ..... ..\n  .............          .......       ......       ......... . ...... .\n  ..     .... ..         ... .       ....         .........   ...........\n ...       .......   ........       .. .        .... ....  ... ..........\n.. .         ......  .........      .............. ..  .....  ...    .....\n.....         ......................................      ....        ....\n .....       ........    ... ................... ....     ...        ....\n   ....   ........        ...........................  .....        .....\n   ...........  ..        ........ .............. ... .. .         .....\n       ......                 .........................           .. ..\n                                .....................          .......\n                                    ...................        ......\n                                        .............",
-    debug: "             ....\n          ...........\n        ..............\n      .... ........... .\n     .......     ........\n.........    ..     ......\n........   ......    .......\n.........   .....    .......\n .................. ........\n     .......................\n     ....................\n           .............\n              ......\n               ...\n"
+    debug: "             ....\n          ...........\n        ..............\n      .... ........... .\n     .......  ..  ........\n.........    ..     ......\n........   ......    .......\n.........   .....    .......\n .................. ........\n     .......................\n     ....................\n           .............\n              ......\n               ...\n"
   };
   base_block = [[1, 1, 0, 1, 1], [1, 0, 0, 1, 1], [0, 0, 0, 0, 0], [1, 0, 0, 0, 1], [1, 1, 0, 1, 1]];
-  ObjectGroup = {
-    Player: 0,
-    Enemy: 1,
-    Item: 2,
-    is_battler: function(group_id) {
-      return group_id === this.Player || group_id === this.Enemy;
-    }
-  };
-  Status = (function() {
-    function Status(params, lv) {
-      if (params == null) {
-        params = {};
-      }
-      this.lv = lv != null ? lv : 1;
-      this.params = params;
-      this.build_status(params);
-      this.hp = this.MAX_HP;
-      this.sp = this.MAX_SP;
-      this.wt = 0;
-      this.exp = 0;
-      this.next_lv = this.lv * 50;
-    }
-    Status.prototype.build_status = function(params, lv) {
-      if (params == null) {
-        params = {};
-      }
-      if (lv == null) {
-        lv = 1;
-      }
-      this.MAX_HP = params.hp || 30;
-      this.MAX_WT = params.wt || 10;
-      this.MAX_SP = params.sp || 10;
-      this.atk = params.atk || 10;
-      this.def = params.def || 1.0;
-      this.res = params.res || 1.0;
-      this.regenerate = params.regenerate || 3;
-      this.atack_range = params.atack_range || 50;
-      this.sight_range = params.sight_range || 80;
-      return this.speed = params.speed || 6;
-    };
-    Status.prototype.get_exp = function(point) {
-      var lv;
-      this.exp += point;
-      if (this.exp >= this.next_lv) {
-        this.exp = 0;
-        this.lv++;
-        this.build(lv = this.lv);
-        return this.set_next_exp();
-      }
-    };
-    Status.prototype.set_next_exp = function() {
-      return this.next_lv = this.lv * 30;
-    };
-    return Status;
-  })();
-  Battler = (function() {
-    __extends(Battler, Sprite);
-    function Battler(x, y, group, status) {
+  Character = (function() {
+    __extends(Character, Sprite);
+    Character.prototype.scale = null;
+    Character.prototype.status = {};
+    Character.prototype.state = null;
+    function Character(x, y, group, status) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
       this.group = group != null ? group : ObjectGroup.Enemy;
       if (status == null) {
         status = {};
       }
-      Battler.__super__.constructor.call(this, this.x, this.y, this.scale);
-      if (!status) {
-        status = {
-          hp: 50,
-          wt: 22,
-          atk: 10,
-          def: 1.0,
-          atack_range: 30,
-          sight_range: 80,
-          speed: 6
-        };
-      }
-      this.status = new Status(status);
+      Character.__super__.constructor.call(this, this.x, this.y);
       this.state = {
         alive: true,
         active: false
       };
-      this.scale = 10;
       this.targeting = null;
       this.dir = 0;
       this.cnt = 0;
       this.id = ~~(Math.random() * 100);
       this.animation = [];
     }
-    Battler.prototype.update = function(objs, cmap, keys, mouse) {
-      this.cnt += 1;
-      this.regenerate();
-      this.check_state();
-      if (this.state.alive) {
-        this.set_target(this.get_targets_in_range(objs, this.status.sight_range));
-        this.move(objs, cmap, keys, mouse);
-        return this.act(keys, objs);
-      }
-    };
-    Battler.prototype.has_target = function() {
-      if (this.targeting) {
+    Character.prototype.has_target = function() {
+      if (this.targeting !== null) {
         return true;
       } else {
         return false;
       }
     };
-    Battler.prototype.is_alive = function() {
-      if (this.state.alive) {
-        return true;
+    Character.prototype.is_targeted = function(objs) {
+      var i;
+      return __indexOf.call((function() {
+        var _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = objs.length; _i < _len; _i++) {
+          i = objs[_i];
+          _results.push(i.targeting != null);
+        }
+        return _results;
+      })(), this) >= 0;
+    };
+    Character.prototype.is_alive = function() {
+      if (this.status.hp > 1) {
+        return this.state.alive = true;
       } else {
-        return false;
+        return this.state.alive = false;
       }
     };
-    Battler.prototype.add_animation = function(animation) {
+    Character.prototype.is_dead = function() {
+      return !this.is_alive();
+    };
+    Character.prototype.find_obj = function(group_id, targets, range) {
+      return targets.filter(__bind(function(t) {
+        return t.group === group_id && this.get_distance(t) < range && t.is_alive();
+      }, this));
+    };
+    Character.prototype.add_animation = function(animation) {
       return this.animation.push(animation);
     };
-    Battler.prototype.render_animation = function(g, x, y) {
+    Character.prototype.render_animation = function(g, x, y) {
       var n, _ref, _results;
       _results = [];
       for (n = 0, _ref = this.animation.length; 0 <= _ref ? n < _ref : n > _ref; 0 <= _ref ? n++ : n--) {
@@ -760,7 +714,7 @@
       }
       return _results;
     };
-    Battler.prototype.set_dir = function(x, y) {
+    Character.prototype.set_dir = function(x, y) {
       var rx, ry;
       rx = x - this.x;
       ry = y - this.y;
@@ -770,39 +724,27 @@
         return this.dir = Math.PI - Math.atan(ry / -rx);
       }
     };
-    Battler.prototype.check_state = function() {
-      if (this.state.poizon) {
-        this.status.hp -= 1;
-      }
-      if (this.status.hp < 1) {
-        this.status.hp = 0;
-        this.state.alive = false;
-        this.state.targeting = null;
-      }
-      if (this.status.hp > this.status.MAX_HP) {
-        this.status.hp = this.status.MAX_HP;
-        this.state.alive = true;
-      }
-      if (this.targeting) {
-        if (!this.targeting.state.alive) {
+    Character.prototype._update_state = function() {
+      var _ref;
+      if (this.is_alive()) {
+        this.regenerate();
+        if ((_ref = this.targeting) != null ? _ref.is_dead() : void 0) {
           return this.targeting = null;
         }
+      } else {
+        return this.state.targeting = null;
       }
     };
-    Battler.prototype.regenerate = function() {
+    Character.prototype.regenerate = function() {
       var r;
-      if (this.targeting) {
-        r = 2;
-      } else {
-        r = 1;
-      }
+      r = (this.targeting ? 2 : 1);
       if (!(this.cnt % (24 / this.status.regenerate * r)) && this.state.alive) {
         if (this.status.hp < this.status.MAX_HP) {
           return this.status.hp += 1;
         }
       }
     };
-    Battler.prototype.act = function(target) {
+    Character.prototype.act = function(target) {
       var d;
       if (target == null) {
         target = this.targeting;
@@ -825,17 +767,15 @@
         return this.status.wt = 0;
       }
     };
-    Battler.prototype.move = function(x, y) {};
-    Battler.prototype.invoke = function(target) {};
-    Battler.prototype.atack = function() {
+    Character.prototype.atack = function() {
       var amount;
       amount = ~~(this.status.atk * (this.targeting.status.def + Math.random() / 4));
       this.targeting.status.hp -= amount;
       my.mes(this.name + " atack " + this.targeting.name + " " + amount + "damage");
       this.targeting.add_animation(new Animation_Slash());
-      return this.targeting.check_state();
+      return this.targeting._update_state();
     };
-    Battler.prototype.set_target = function(targets) {
+    Character.prototype.set_target = function(targets) {
       var before;
       if (this.has_target()) {
         before = true;
@@ -851,7 +791,7 @@
         return my.mes(this.name + " find " + this.targeting.name);
       }
     };
-    Battler.prototype.change_target = function(targets) {
+    Character.prototype.change_target = function(targets) {
       var i, _ref, _ref2, _results;
       if (targets == null) {
         targets = this.targeting;
@@ -878,44 +818,7 @@
         return this.targeting;
       }
     };
-    Battler.prototype.get_targets_in_range = function(targets, range) {
-      var buff, d, enemies, t, _i, _j, _len, _len2;
-      if (range == null) {
-        range = this.status.sight_range;
-      }
-      enemies = [];
-      for (_i = 0, _len = targets.length; _i < _len; _i++) {
-        t = targets[_i];
-        if (t.group !== this.group && ObjectGroup.is_battler(t.group)) {
-          enemies.push(t);
-        }
-      }
-      buff = [];
-      for (_j = 0, _len2 = enemies.length; _j < _len2; _j++) {
-        t = enemies[_j];
-        d = this.get_distance(t);
-        if (d < range && t.state.alive) {
-          buff[buff.length] = t;
-        }
-      }
-      return buff;
-    };
-    Battler.prototype.get_leader = function(targets, range) {
-      var t, _i, _len;
-      if (range == null) {
-        range = this.status.sight_range;
-      }
-      for (_i = 0, _len = targets.length; _i < _len; _i++) {
-        t = targets[_i];
-        if (t.state.leader && t.group === this.group) {
-          if (this.get_distance(t) < this.status.sight_range) {
-            return t;
-          }
-        }
-      }
-      return null;
-    };
-    Battler.prototype.render_reach_circle = function(g, pos) {
+    Character.prototype.render_reach_circle = function(g, pos) {
       var alpha, color;
       this.init_cv(g, color = "rgb(250,50,50)", alpha = 0.3);
       g.arc(pos.vx, pos.vy, this.status.atack_range, 0, Math.PI * 2, true);
@@ -924,7 +827,7 @@
       g.arc(pos.vx, pos.vy, this.status.sight_range, 0, Math.PI * 2, true);
       return g.stroke();
     };
-    Battler.prototype.render_dir_allow = function(g, pos) {
+    Character.prototype.render_dir_allow = function(g, pos) {
       var color, nx, ny;
       nx = ~~(30 * Math.cos(this.dir));
       ny = ~~(30 * Math.sin(this.dir));
@@ -933,9 +836,9 @@
       g.lineTo(pos.vx + nx, pos.vy + ny);
       return g.stroke();
     };
-    Battler.prototype.render_targeting = function(g, pos, cam) {
-      var alpha, color, t;
-      if (this.targeting) {
+    Character.prototype.render_targeting = function(g, pos, cam) {
+      var alpha, color, t, _ref;
+      if ((_ref = this.targeting) != null ? _ref.is_alive() : void 0) {
         this.targeting.render_targeted(g, pos);
         this.init_cv(g, color = "rgb(0,0,255)", alpha = 0.5);
         g.moveTo(pos.vx, pos.vy);
@@ -947,18 +850,18 @@
         return g.fill();
       }
     };
-    Battler.prototype.render_state = function(g, pos) {
+    Character.prototype.render_state = function(g, pos) {
       this.init_cv(g);
       this.render_gages(g, pos.vx, pos.vy + 15, 40, 6, this.status.hp / this.status.MAX_HP);
       return this.render_gages(g, pos.vx, pos.vy + 22, 40, 6, this.status.wt / this.status.MAX_WT);
     };
-    Battler.prototype.render_dead = function(g, pos) {
+    Character.prototype.render_dead = function(g, pos) {
       var color;
       this.init_cv(g, color = 'rgb(55, 55, 55)');
       g.arc(pos.vx, pos.vy, this.scale, 0, Math.PI * 2, true);
       return g.fill();
     };
-    Battler.prototype.render_gages = function(g, x, y, w, h, percent) {
+    Character.prototype.render_gages = function(g, x, y, w, h, percent) {
       if (percent == null) {
         percent = 1;
       }
@@ -976,7 +879,7 @@
       g.lineTo(x - w / 2 + 1, y - h / 2 + 1);
       return g.fill();
     };
-    Battler.prototype.render_targeted = function(g, pos, color) {
+    Character.prototype.render_targeted = function(g, pos, color) {
       var alpha, beat, ms;
       if (color == null) {
         color = "rgb(255,0,0)";
@@ -994,7 +897,7 @@
       g.lineTo(pos.vx, pos.vy - 12 + ms * 10);
       return g.fill();
     };
-    Battler.prototype.render = function(g, cam) {
+    Character.prototype.render = function(g, cam) {
       var pos;
       this.init_cv(g);
       pos = this.getpos_relative(cam);
@@ -1009,18 +912,169 @@
       }
       return this.render_animation(g, pos.vx, pos.vy);
     };
-    return Battler;
+    return Character;
+  })();
+  Walker = (function() {
+    __extends(Walker, Character);
+    Walker.prototype.following = null;
+    Walker.prototype.targeting = null;
+    function Walker(x, y, group, status) {
+      this.x = x;
+      this.y = y;
+      this.group = group != null ? group : ObjectGroup.Enemy;
+      if (status == null) {
+        status = {};
+      }
+      Walker.__super__.constructor.call(this, this.x, this.y, this.group, status);
+      this.cnt = ~~(Math.random() * 24);
+      this.distination = [this.x, this.y];
+      this._path = [];
+    }
+    Walker.prototype.update = function(objs, cmap, keys, mouse) {
+      var enemies;
+      this.cnt += 1;
+      if (this.is_alive()) {
+        this._update_state();
+        enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
+        if (this.has_target()) {
+          if (this.targeting.is_dead() || this.get_distance(this.targeting) > this.status.sight_range * 1.5) {
+            this.targeting = null;
+          }
+        } else if (enemies.size() > 0) {
+          this.targeting = enemies[0];
+          my.mes("" + this.name + " find " + this.targeting.name + ")");
+        }
+        this.move(objs, cmap, keys, mouse);
+        return this.act(keys, objs);
+      }
+    };
+    Walker.prototype.move = function(objs, cmap) {
+      var c, d, dp, nx, ny, wide, _ref;
+      if (this.has_target()) {
+        d = this.get_distance(this.targeting);
+        if (d < this.status.atack_range) {
+          return;
+        }
+      }
+      if (this.has_target() && this.to && !this.cnt % 24) {
+        this._path = this._get_path(cmap);
+        this.to = this._path.shift();
+      } else if (this.to) {
+        dp = cmap.get_point(this.to[0], this.to[1]);
+        _ref = this._trace(dp.x, dp.y), nx = _ref[0], ny = _ref[1];
+        wide = 7;
+        if ((dp.x - wide < nx && nx < dp.x + wide) && (dp.y - wide < ny && ny < dp.y + wide)) {
+          if (this._path.length > 0) {
+            this.to = this._path.shift();
+          } else {
+            this.to = null;
+          }
+        }
+      } else {
+        if (this.targeting) {
+          this._path = this._get_path(cmap);
+          this.to = this._path.shift();
+        } else {
+          c = cmap.get_cell(this.x, this.y);
+          c.x += randint(-1, 1);
+          c.y += randint(-1, 1);
+          this.to = [c.x, c.y];
+        }
+      }
+      if (!cmap.collide(nx, ny)) {
+        if (nx != null) {
+          this.x = nx;
+        }
+        if (ny != null) {
+          this.y = ny;
+        }
+      }
+      if (this.x === this._lx && this.y === this._ly) {
+        c = cmap.get_cell(this.x, this.y);
+        c.x += randint(-1, 1);
+        c.y += randint(-1, 1);
+        this.to = [c.x, c.y];
+      }
+      this._lx = this.x;
+      return this._ly = this.y;
+    };
+    Walker.prototype._get_path = function(cmap) {
+      var from, to;
+      from = cmap.get_cell(this.x, this.y);
+      to = cmap.get_cell(this.targeting.x, this.targeting.y);
+      return cmap.search_min_path([from.x, from.y], [to.x, to.y]);
+    };
+    Walker.prototype._trace = function(to_x, to_y) {
+      var nx, ny;
+      this.set_dir(to_x, to_y);
+      nx = this.x + ~~(this.status.speed * Math.cos(this.dir));
+      ny = this.y + ~~(this.status.speed * Math.sin(this.dir));
+      return [nx, ny];
+    };
+    Walker.prototype._wander = function(cmap) {
+      var c, d, to_x, to_y, wide, _ref, _ref2, _ref3;
+      wide = 32 / 4;
+      if ((this.x - wide < (_ref = this.distination[0]) && _ref < this.x + wide) && (this.y - wide < (_ref2 = this.distination[1]) && _ref2 < this.y + wide)) {
+        c = cmap.get_cell(this.x, this.y);
+        d = cmap.get_point(c.x + randint(-1, 1), c.y + randint(-1, 1));
+        if (!cmap.collide(d.x, d.y)) {
+          this.distination = [d.x, d.y];
+        }
+      }
+      if (this.distination) {
+        _ref3 = this.distination, to_x = _ref3[0], to_y = _ref3[1];
+        return this._trace(to_x, to_y);
+      }
+      return [this.x, this.y];
+    };
+    return Walker;
+  })();
+  Goblin = (function() {
+    __extends(Goblin, Walker);
+    Goblin.prototype.name = "Goblin";
+    Goblin.prototype.scale = 1;
+    function Goblin(x, y, group) {
+      this.x = x;
+      this.y = y;
+      this.group = group;
+      this.dir = 0;
+      this.status = new Status({
+        hp: 50,
+        wt: 30,
+        atk: 10,
+        def: 1.0,
+        sight_range: 120
+      });
+      Goblin.__super__.constructor.call(this, this.x, this.y, this.group, status);
+    }
+    Goblin.prototype.render_object = function(g, pos) {
+      var beat, color, ms;
+      if (this.group === ObjectGroup.Player) {
+        color = "rgb(255,255,255)";
+      } else if (this.group === ObjectGroup.Enemy) {
+        color = "rgb(55,55,55)";
+      }
+      this.init_cv(g, color = color);
+      beat = 20;
+      ms = ~~(new Date() / 100) % beat / beat;
+      if (ms > 0.5) {
+        ms = 1 - ms;
+      }
+      g.arc(pos.vx, pos.vy, (1.3 + ms) * this.scale, 0, Math.PI * 2, true);
+      return g.fill();
+    };
+    return Goblin;
   })();
   Player = (function() {
-    __extends(Player, Battler);
+    __extends(Player, Walker);
+    Player.prototype.scale = 8;
+    Player.prototype.name = "Player";
     function Player(x, y, group) {
-      var status;
       this.x = x;
       this.y = y;
       this.group = group != null ? group : ObjectGroup.Player;
-      this.name = "Player";
       Player.__super__.constructor.call(this, this.x, this.y, this.group);
-      status = {
+      this.status = new Status({
         hp: 120,
         wt: 20,
         atk: 10,
@@ -1028,23 +1082,18 @@
         atack_range: 50,
         sight_range: 80,
         speed: 6
-      };
-      this.status = new Status(status);
+      });
       this.binded_skill = {
         one: new Skill_Heal(),
         two: new Skill_Smash(),
         three: new Skill_Meteor()
       };
       this.state.leader = true;
-      this.mosue = {
+      this.mouse = {
         x: 0,
         y: 0
       };
     }
-    Player.prototype.update = function(objs, cmap, keys, mouse) {
-      this.mouse = mouse;
-      return Player.__super__.update.call(this, objs, cmap, keys, this.mouse);
-    };
     Player.prototype.set_mouse_dir = function(x, y) {
       var rx, ry;
       rx = x - 320;
@@ -1153,155 +1202,6 @@
     };
     return Player;
   })();
-  Monster = (function() {
-    __extends(Monster, Battler);
-    function Monster(x, y, group, status) {
-      this.x = x;
-      this.y = y;
-      this.group = group != null ? group : ObjectGroup.Enemy;
-      if (status == null) {
-        status = {};
-      }
-      Monster.__super__.constructor.call(this, this.x, this.y, this.group, status);
-      this.scale = 5;
-      this.dir = 0;
-      this.cnt = ~~(Math.random() * 24);
-      this.distination = [this.x, this.y];
-      this._path = [];
-    }
-    Monster.prototype.update = function(objs, cmap) {
-      return Monster.__super__.update.call(this, objs, cmap);
-    };
-    Monster.prototype.trace = function(to_x, to_y) {
-      var nx, ny;
-      this.set_dir(to_x, to_y);
-      nx = this.x + ~~(this.status.speed * Math.cos(this.dir));
-      ny = this.y + ~~(this.status.speed * Math.sin(this.dir));
-      return [nx, ny];
-    };
-    Monster.prototype.wander = function(cmap) {
-      var c, d, to_x, to_y, wide, _ref, _ref2, _ref3;
-      wide = 32 / 4;
-      if ((this.x - wide < (_ref = this.distination[0]) && _ref < this.x + wide) && (this.y - wide < (_ref2 = this.distination[1]) && _ref2 < this.y + wide)) {
-        c = cmap.get_cell(this.x, this.y);
-        d = cmap.get_point(c.x + randint(-1, 1), c.y + randint(-1, 1));
-        if (!cmap.collide(d.x, d.y)) {
-          this.distination = [d.x, d.y];
-        }
-      }
-      if (this.distination) {
-        _ref3 = this.distination, to_x = _ref3[0], to_y = _ref3[1];
-        return this.trace(to_x, to_y);
-      }
-      return [this.x, this.y];
-    };
-    Monster.prototype.set_path = function(cmap) {
-      var buf, from, to;
-      from = cmap.get_cell(this.x, this.y);
-      to = cmap.get_cell(this.targeting.x, this.targeting.y);
-      if (buf = cmap.search_route([from.x, from.y], [to.x, to.y])) {
-        this._path = buf;
-        return this.to = this._path.shift();
-      } else {
-        my.mes(this.name + " lost " + this.targeting.name);
-        return this.targeting = null;
-      }
-    };
-    Monster.prototype.move = function(objs, cmap) {
-      var c, d, dp, leader, nx, ny, wide, _ref;
-      leader = this.get_leader(objs);
-      if (this.has_target()) {
-        d = this.get_distance(this.targeting);
-        if (d < this.status.atack_range) {
-          return;
-        }
-      }
-      if (this.has_target() && this.to && !this.cnt % 24) {
-        this.set_path(cmap);
-      } else if (this.to) {
-        dp = cmap.get_point(this.to[0], this.to[1]);
-        _ref = this.trace(dp.x, dp.y), nx = _ref[0], ny = _ref[1];
-        wide = 7;
-        if ((dp.x - wide < nx && nx < dp.x + wide) && (dp.y - wide < ny && ny < dp.y + wide)) {
-          if (this._path.length > 0) {
-            this.to = this._path.shift();
-          } else {
-            this.to = null;
-          }
-        }
-      } else {
-        if (this.targeting) {
-          this.set_path(cmap);
-        } else {
-          c = cmap.get_cell(this.x, this.y);
-          c.x += randint(-1, 1);
-          c.y += randint(-1, 1);
-          this.to = [c.x, c.y];
-        }
-      }
-      if (!cmap.collide(nx, ny)) {
-        if (nx != null) {
-          this.x = nx;
-        }
-        if (ny != null) {
-          this.y = ny;
-        }
-      }
-      if (this.x === this._lx && this.y === this._ly) {
-        c = cmap.get_cell(this.x, this.y);
-        c.x += randint(-1, 1);
-        c.y += randint(-1, 1);
-        this.to = [c.x, c.y];
-      }
-      this._lx = this.x;
-      return this._ly = this.y;
-    };
-    return Monster;
-  })();
-  Goblin = (function() {
-    __extends(Goblin, Monster);
-    function Goblin(x, y, group) {
-      var status;
-      this.x = x;
-      this.y = y;
-      this.group = group;
-      this.name = "Goblin";
-      status = {
-        hp: 50,
-        wt: 30,
-        atk: 10,
-        def: 1.0,
-        sight_range: 120
-      };
-      Goblin.__super__.constructor.call(this, this.x, this.y, this.group, status);
-    }
-    Goblin.prototype.update = function(objs, cmap) {
-      return Goblin.__super__.update.call(this, objs, cmap);
-    };
-    Goblin.prototype.move = function(cmap, objs) {
-      return Goblin.__super__.move.call(this, cmap, objs);
-    };
-    Goblin.prototype.render = function(g, cam) {
-      return Goblin.__super__.render.call(this, g, cam);
-    };
-    Goblin.prototype.render_object = function(g, pos) {
-      var beat, color, ms;
-      if (this.group === ObjectGroup.Player) {
-        color = "rgb(255,255,255)";
-      } else if (this.group === ObjectGroup.Enemy) {
-        color = "rgb(55,55,55)";
-      }
-      this.init_cv(g, color = color);
-      beat = 20;
-      ms = ~~(new Date() / 100) % beat / beat;
-      if (ms > 0.5) {
-        ms = 1 - ms;
-      }
-      g.arc(pos.vx, pos.vy, (1.3 + ms) * this.scale, 0, Math.PI * 2, true);
-      return g.fill();
-    };
-    return Goblin;
-  })();
   Mouse = (function() {
     __extends(Mouse, Sprite);
     function Mouse() {
@@ -1315,6 +1215,69 @@
       return cy = ~~((this.y + mouse.y - 240) / cmap.cell);
     };
     return Mouse;
+  })();
+  ObjectGroup = {
+    Player: 0,
+    Enemy: 1,
+    Item: 2,
+    is_battler: function(group_id) {
+      return group_id === this.Player || group_id === this.Enemy;
+    },
+    get_against: function(obj) {
+      switch (obj.group) {
+        case this.Player:
+          return this.Enemy;
+        case this.Enemy:
+          return this.Player;
+      }
+    }
+  };
+  Status = (function() {
+    function Status(params, lv) {
+      if (params == null) {
+        params = {};
+      }
+      this.lv = lv != null ? lv : 1;
+      this.params = params;
+      this.build_status(params);
+      this.hp = this.MAX_HP;
+      this.sp = this.MAX_SP;
+      this.wt = 0;
+      this.exp = 0;
+      this.next_lv = this.lv * 50;
+    }
+    Status.prototype.build_status = function(params, lv) {
+      if (params == null) {
+        params = {};
+      }
+      if (lv == null) {
+        lv = 1;
+      }
+      this.MAX_HP = params.hp || 30;
+      this.MAX_WT = params.wt || 10;
+      this.MAX_SP = params.sp || 10;
+      this.atk = params.atk || 10;
+      this.def = params.def || 1.0;
+      this.res = params.res || 1.0;
+      this.regenerate = params.regenerate || 3;
+      this.atack_range = params.atack_range || 50;
+      this.sight_range = params.sight_range || 80;
+      return this.speed = params.speed || 6;
+    };
+    Status.prototype.get_exp = function(point) {
+      var lv;
+      this.exp += point;
+      if (this.exp >= this.next_lv) {
+        this.exp = 0;
+        this.lv++;
+        this.build(lv = this.lv);
+        return this.set_next_exp();
+      }
+    };
+    Status.prototype.set_next_exp = function() {
+      return this.next_lv = this.lv * 30;
+    };
+    return Status;
   })();
   Skill = (function() {
     function Skill(ct, lv) {

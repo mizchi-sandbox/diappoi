@@ -1,66 +1,12 @@
-ObjectGroup =
-  Player : 0
-  Enemy  : 1
-  Item   : 2
-  is_battler : (group_id)->
-    group_id in [@Player, @Enemy]
-
-class Status
-  constructor: (params = {}, @lv = 1) ->
-    @params = params
-    @build_status(params)
-    # @set_next_lv()
-
-    @hp = @MAX_HP
-    @sp = @MAX_SP
-    @wt = 0
-    @exp = 0
-    @next_lv = @lv * 50
-
-  build_status:(params={},lv=1)->
-    @MAX_HP = params.hp or 30
-    @MAX_WT = params.wt or 10
-    @MAX_SP = params.sp or 10
-    @atk = params.atk or 10
-    @def = params.def or 1.0
-    @res = params.res or 1.0
-    @regenerate = params.regenerate or 3
-    @atack_range = params.atack_range or 50
-    @sight_range = params.sight_range or 80
-    @speed = params.speed or 6
-
-  get_exp:(point)->
-    @exp += point
-    if @exp >= @next_lv
-      @exp = 0
-      @lv++
-      @build(lv=@lv)
-      @set_next_exp()
-
-  set_next_exp:()->
-    @next_lv = @lv * 30
-
-  # set_status:()->
-  #   @next_lv = @lv * 30
-
-class Battler extends Sprite
+class Character extends Sprite
+  scale : null
+  status : {}
+  state : null
   constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
-    super @x, @y,@scale
-    if not status
-      status =
-        hp  : 50
-        wt  : 22
-        atk : 10
-        def : 1.0
-        atack_range : 30
-        sight_range : 80
-        speed : 6
-    @status = new Status status
-    # @category = "battler"
+    super @x, @y
     @state =
       alive : true
       active : false
-    @scale =10
     @targeting = null
     @dir = 0
     @cnt = 0
@@ -68,21 +14,24 @@ class Battler extends Sprite
 
     @animation = []
 
-  update:(objs, cmap, keys, mouse)->
-    @cnt += 1
-    @regenerate()
-    @check_state()
-
-    if @state.alive
-      @set_target(@get_targets_in_range(objs,@status.sight_range))
-      @move(objs,cmap, keys,mouse)
-      @act(keys,objs)
-
   has_target:()->
-    if @targeting then return true else false
+    if @targeting isnt null then true else false
+
+  is_targeted:(objs)->
+     @ in (i.targeting? for i in objs)
 
   is_alive:()->
-    if @state.alive then return true else false
+    if @status.hp > 1
+      @state.alive = true
+    else
+      @state.alive = false
+
+  is_dead:()->
+    not @is_alive()
+
+  find_obj:(group_id,targets, range)->
+    targets.filter (t)=>
+      t.group is group_id and @get_distance(t) < range and t.is_alive()
 
   add_animation:(animation)->
     @animation.push(animation)
@@ -102,29 +51,21 @@ class Battler extends Sprite
     else
       @dir = Math.PI - Math.atan( ry / - rx  )
 
-  check_state:()->
-    if @state.poizon
-       @status.hp -= 1
-
-    if @status.hp < 1
-      @status.hp = 0
-      @state.alive = false
+  _update_state:()->
+    if @is_alive()
+      @regenerate()
+      if @targeting?.is_dead()
+         @targeting = null
+    else
       @state.targeting = null
 
-    if @status.hp > @status.MAX_HP
-      @status.hp = @status.MAX_HP
-      @state.alive = true
-
-    if @targeting
-      if not @targeting.state.alive
-        @targeting = null
 
   regenerate: ()->
-    if @targeting then r = 2 else r = 1
+    r = (if @targeting then 2 else 1)
 
     if not (@cnt % (24/@status.regenerate*r)) and @state.alive
       if @status.hp < @status.MAX_HP
-          @status.hp += 1
+        @status.hp += 1
 
   act:(target=@targeting)->
     if @targeting
@@ -141,20 +82,15 @@ class Battler extends Sprite
     else
       @status.wt = 0
 
-  move:(x,y)-> #abstract
-
-  invoke: (target)->
-
   atack: ()->
     amount = ~~(@status.atk * ( @targeting.status.def + Math.random()/4 ))
     @targeting.status.hp -= amount
     my.mes(@name+" atack "+@targeting.name+" "+amount+"damage")
     @targeting.add_animation(new Animation_Slash())
-    @targeting.check_state()
+    @targeting._update_state()
 
   set_target:(targets)->
     before = true if @has_target()
-
     if targets.length > 0
       if not @has_target() or not @targeting.is_alive()
         @targeting = targets[0]
@@ -187,26 +123,6 @@ class Battler extends Sprite
       @targeting = null
       return @targeting
 
-  get_targets_in_range:(targets, range= @status.sight_range)->
-    enemies = []
-    for t in targets
-      if t.group != @group and ObjectGroup.is_battler t.group
-        enemies.push( t )
-
-    buff = []
-    for t in enemies
-      d = @get_distance(t)
-      if d < range and t.state.alive
-        buff[buff.length] = t
-    return buff
-
-  get_leader:(targets, range= @status.sight_range)->
-    for t in targets
-      if t.state.leader and t.group == @group
-        if (@get_distance(t) < @status.sight_range)
-          return t
-    return null
-
   render_reach_circle:(g,pos)->
       @init_cv(g , color = "rgb(250,50,50)",alpha=0.3)
       g.arc( pos.vx, pos.vy, @status.atack_range ,0,Math.PI*2,true)
@@ -225,7 +141,7 @@ class Battler extends Sprite
       g.stroke()
 
   render_targeting:(g,pos,cam)->
-    if @targeting
+    if @targeting?.is_alive()
       @targeting.render_targeted(g,pos)
       @init_cv(g,color="rgb(0,0,255)",alpha=0.5)
       g.moveTo(pos.vx,pos.vy)
@@ -296,12 +212,130 @@ class Battler extends Sprite
 
     @render_animation(g, pos.vx , pos.vy )
 
+class Walker extends Character
+  following: null
+  targeting: null
+  constructor: (@x,@y,@group=ObjectGroup.Enemy,status={}) ->
+    super(@x,@y,@group,status)
+    @cnt = ~~(Math.random() * 24)
+    @distination = [@x,@y]
+    @_path = []
 
-class Player extends Battler
+  update:(objs, cmap, keys, mouse)->
+    @cnt += 1
+    if @is_alive()
+      @_update_state()
+      enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
+      if @has_target()
+        # ターゲットが存在した場合
+        if @targeting.is_dead() or @get_distance(@targeting) > @status.sight_range*1.5
+          # 死んでる or 感知外
+          @targeting = null
+      else if enemies.size() > 0
+        # ターゲットが存在せず新たに目視した場合
+        @targeting = enemies[0]
+        my.mes "#{@name} find #{@targeting.name})"
+
+      @move(objs,cmap, keys,mouse)
+      @act(keys,objs)
+
+  move: (objs ,cmap)->
+    if @has_target()
+      d = @get_distance(@targeting)
+      if d < @status.atack_range
+        return
+
+    if @has_target() and @to and not @cnt%24
+      # @_get_path(cmap)
+      @_path = @_get_path(cmap)
+      @to = @_path.shift()
+    else if @to
+      dp = cmap.get_point(@to[0],@to[1])
+      [nx,ny] = @_trace( dp.x , dp.y )
+      wide = 7
+      if dp.x-wide<nx<dp.x+wide and dp.y-wide<ny<dp.y+wide
+        if @_path.length > 0
+          @to = @_path.shift()
+        else
+          @to = null
+    else
+      if @targeting
+        @_path = @_get_path(cmap)
+        @to = @_path.shift()
+      else
+        c = cmap.get_cell(@x,@y)
+        c.x += randint(-1,1)
+        c.y += randint(-1,1)
+        @to = [c.x,c.y]
+
+    if not cmap.collide( nx,ny )
+      @x = nx if nx?
+      @y = ny if ny?
+
+    if @x == @_lx and @y == @_ly
+      c = cmap.get_cell(@x,@y)
+      c.x += randint(-1,1)
+      c.y += randint(-1,1)
+      @to = [c.x,c.y]
+    @_lx = @x
+    @_ly = @y
+
+  _get_path:(cmap)->
+    from = cmap.get_cell( @x ,@y)
+    to = cmap.get_cell( @targeting.x ,@targeting.y)
+    return cmap.search_min_path( [from.x,from.y] ,[to.x,to.y] )
+
+  _trace: (to_x , to_y)->
+    @set_dir(to_x,to_y)
+    nx = @x + ~~(@status.speed * Math.cos(@dir))
+    ny = @y + ~~(@status.speed * Math.sin(@dir))
+    return [nx ,ny]
+
+  _wander:(cmap)->
+    wide = 32/4
+    if @x-wide<@distination[0]<@x+wide and @y-wide<@distination[1]<@y+wide
+      c = cmap.get_cell(@x,@y)
+      d = cmap.get_point( c.x+randint(-1,1) ,c.y+randint(-1,1) )
+      if not cmap.collide( d.x ,d.y )
+        @distination = [d.x,d.y]
+    # @dir = Math.PI * 2 * Math.random()
+    if @distination # @cnt % 24 < 8
+      [to_x , to_y] = @distination
+      return @_trace(to_x,to_y)
+    return [@x,@y]
+
+
+class Goblin extends Walker
+  name : "Goblin"
+  scale : 1
+  constructor: (@x,@y,@group) ->
+    @dir = 0
+    @status = new Status
+      hp  : 50
+      wt  : 30
+      atk : 10
+      def : 1.0
+      sight_range : 120
+    super(@x,@y,@group,status)
+
+  render_object:(g,pos)->
+    if @group == ObjectGroup.Player
+      color = "rgb(255,255,255)"
+    else if @group == ObjectGroup.Enemy
+      color = "rgb(55,55,55)"
+    @init_cv(g,color=color)
+    beat = 20
+    ms = ~~(new Date()/100) % beat / beat
+    ms = 1 - ms if ms > 0.5
+    g.arc( pos.vx, pos.vy, ( 1.3 + ms ) * @scale ,0,Math.PI*2,true)
+    g.fill()
+
+class Player extends Walker
+  scale : 8
+  name : "Player"
   constructor: (@x,@y,@group=ObjectGroup.Player) ->
-    @name = "Player"
     super(@x,@y,@group)
-    status =
+    @status = new Status
       hp : 120
       wt : 20
       atk : 10
@@ -309,7 +343,6 @@ class Player extends Battler
       atack_range : 50
       sight_range : 80
       speed : 6
-    @status = new Status(status)
 
     @binded_skill =
       one: new Skill_Heal()
@@ -317,14 +350,14 @@ class Player extends Battler
       three: new Skill_Meteor()
     @state.leader =true
 
-    @mosue =
+    @mouse =
       x: 0
       y: 0
 
-  update: (objs, cmap, keys,@mouse)->
-    # if keys.space
-    #   @set_target(objs)
-    super(objs,cmap , keys,@mouse)
+  # update: (objs, cmap, keys,@mouse)->
+  #   # if keys.space
+  #   #   @set_target(objs)
+  #   super(objs,cmap , keys,@mouse)
 
   set_mouse_dir: (x,y)->
     rx = x - 320
@@ -415,165 +448,6 @@ class Player extends Battler
       g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
       g.stroke()
 
-class Monster extends Battler
-  constructor: (@x,@y,@group=ObjectGroup.Enemy,status={}) ->
-    super(@x,@y,@group,status)
-    @scale = 5
-    @dir = 0
-    @cnt = ~~(Math.random() * 24)
-    @distination = [@x,@y]
-    @_path = []
-
-  update: (objs, cmap)->
-    super(objs, cmap)
-
-  trace: (to_x , to_y)->
-    @set_dir(to_x,to_y)
-    nx = @x + ~~(@status.speed * Math.cos(@dir))
-    ny = @y + ~~(@status.speed * Math.sin(@dir))
-    return [nx ,ny]
-
-  wander:(cmap)->
-    wide = 32/4
-    if @x-wide<@distination[0]<@x+wide and @y-wide<@distination[1]<@y+wide
-      c = cmap.get_cell(@x,@y)
-      d = cmap.get_point( c.x+randint(-1,1) ,c.y+randint(-1,1) )
-      if not cmap.collide( d.x ,d.y )
-        @distination = [d.x,d.y]
-
-    # @dir = Math.PI * 2 * Math.random()
-
-    if @distination # @cnt % 24 < 8
-      [to_x , to_y] = @distination
-      return @trace(to_x,to_y)
-    return [@x,@y]
-    # return [nx ,ny]             #
-
-  # move: (objs ,cmap)->
-  #   # if target exist , trace
-  #   leader =  @get_leader(objs)
-  #   destination = null
-
-  #   if @targeting
-  #     # target 発見時
-  #     distance = @get_distance(@targeting)
-  #     if distance > @status.atack_range
-  #       [nx,ny] = @trace( @targeting.x , @targeting.y )
-  #     else
-
-  #   else if leader
-  #     distance = @get_distance(leader)
-  #     # リーダー 発見時
-  #     if distance > @status.sight_range/2
-  #       [nx,ny] = @trace( leader.x , leader.y )
-  #     else if leader is @
-  #       [nx,ny] = @wander(cmap)
-  #     else
-  #   else
-  #     [nx,ny] = @wander(cmap)
-
-  #   if not cmap.collide( nx,ny )
-  #     @x = nx if nx?
-  #     @y = ny if ny?
-
-  #   # reset distination if this cant move
-  #   if @x == @_lx and @y == @_ly
-  #     @distination = [@x,@y]
-
-  #   @_lx = @x
-  #   @_ly = @y
-
-  set_path:(cmap)->
-    from = cmap.get_cell( @x ,@y)
-    to = cmap.get_cell( @targeting.x ,@targeting.y)
-    if buf = cmap.search_route( [from.x,from.y] ,[to.x,to.y] )
-      @_path = buf
-      @to = @_path.shift()
-    else
-      my.mes(@name+" lost "+@targeting.name)
-      @targeting = null
-
-  move: (objs ,cmap)->
-    # if target exist , trace
-    leader =  @get_leader(objs)
-    # console.log @_path
-
-    if @has_target()
-      d = @get_distance(@targeting)
-      if d < @status.atack_range
-        return
-
-    if @has_target() and @to and not @cnt%24
-      @set_path(cmap)
-
-    else if @to
-      dp = cmap.get_point(@to[0],@to[1])
-      [nx,ny] = @trace( dp.x , dp.y )
-      wide = 7
-      if dp.x-wide<nx<dp.x+wide and dp.y-wide<ny<dp.y+wide
-        if @_path.length > 0
-          @to = @_path.shift()
-        else
-          @to = null
-    else
-      if @targeting
-        @set_path(cmap)
-      else
-        c = cmap.get_cell(@x,@y)
-        c.x += randint(-1,1)
-        c.y += randint(-1,1)
-        # @_path = [[c.x,c.y]]
-        @to = [c.x,c.y]
-        # [nx,ny] = @wander(cmap)
-
-    if not cmap.collide( nx,ny )
-      @x = nx if nx?
-      @y = ny if ny?
-
-    # reset distination if this cant move
-    if @x == @_lx and @y == @_ly
-      c = cmap.get_cell(@x,@y)
-      c.x += randint(-1,1)
-      c.y += randint(-1,1)
-      @to = [c.x,c.y]
-    #   cp = cmap.get_cell(@x,@y)
-    #   @distination = [cp.x,cp.y]
-    @_lx = @x
-    @_ly = @y
-
-class Goblin extends Monster
-  constructor: (@x,@y,@group) ->
-    @name = "Goblin"
-    status =
-      hp  : 50
-      wt  : 30
-      atk : 10
-      def : 1.0
-      sight_range : 120
-    super(@x,@y,@group,status)
-
-  update: (objs, cmap)->
-    super(objs,cmap)
-
-  move: (cmap,objs)->
-    super(cmap,objs)
-
-  render: (g,cam)->
-    super(g,cam)
-
-  render_object:(g,pos)->
-    if @group == ObjectGroup.Player
-      color = "rgb(255,255,255)"
-    else if @group == ObjectGroup.Enemy
-      color = "rgb(55,55,55)"
-    @init_cv(g,color=color)
-    beat = 20
-    ms = ~~(new Date()/100) % beat / beat
-    ms = 1 - ms if ms > 0.5
-    g.arc( pos.vx, pos.vy, ( 1.3 + ms ) * @scale ,0,Math.PI*2,true)
-    g.fill()
-
-
 class Mouse extends Sprite
   constructor: () ->
     @x = 0
@@ -583,3 +457,49 @@ class Mouse extends Sprite
   render: (g,cam)->
     cx = ~~((@x+mouse.x-320)/cmap.cell)
     cy = ~~((@y+mouse.y-240)/cmap.cell)
+
+ObjectGroup =
+  Player : 0
+  Enemy  : 1
+  Item   : 2
+  is_battler : (group_id)->
+    group_id in [@Player, @Enemy]
+  get_against : (obj)->
+    switch obj.group
+      when @Player
+        return @Enemy
+      when @Enemy
+        return @Player
+class Status
+  constructor: (params = {}, @lv = 1) ->
+    @params = params
+    @build_status(params)
+    @hp = @MAX_HP
+    @sp = @MAX_SP
+    @wt = 0
+    @exp = 0
+    @next_lv = @lv * 50
+
+  build_status:(params={},lv=1)->
+    @MAX_HP = params.hp or 30
+    @MAX_WT = params.wt or 10
+    @MAX_SP = params.sp or 10
+    @atk = params.atk or 10
+    @def = params.def or 1.0
+    @res = params.res or 1.0
+    @regenerate = params.regenerate or 3
+    @atack_range = params.atack_range or 50
+    @sight_range = params.sight_range or 80
+    @speed = params.speed or 6
+
+  get_exp:(point)->
+    @exp += point
+    if @exp >= @next_lv
+      @exp = 0
+      @lv++
+      @build(lv=@lv)
+      @set_next_exp()
+
+  set_next_exp:()->
+    @next_lv = @lv * 30
+
