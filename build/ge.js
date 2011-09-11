@@ -778,22 +778,27 @@
         t = this.targeting_obj.getpos_relative(cam);
         g.lineTo(t.vx, t.vy);
         g.stroke();
-        g.init(color = "rgb(255,0,0)", alpha = 0.6);
-        return g.drawArc(true, pos.vx, pos.vy, this.scale * 0.7);
+        return g.init(color = "rgb(255,0,0)", alpha = 0.6);
       }
     };
     Character.prototype.render_state = function(g, pos) {
-      var text;
+      var color, text;
       g.init();
       this.render_gages(g, pos.vx, pos.vy + 15, 40, 6, this.status.hp / this.status.MAX_HP);
       g.init();
       this.render_gages(g, pos.vx, pos.vy + 22, 40, 6, this.selected_skill.ct / this.selected_skill.MAX_CT);
-      g.init();
       if (this.has_target()) {
         text = this.selected_skill.name;
       } else {
         text = "wander";
       }
+      color = Color.i(255, 0, 0);
+      if (this.has_target()) {
+        if (this.get_distance(this.targeting_obj) < this.selected_skill.range) {
+          color = Color.i(0, 255, 0);
+        }
+      }
+      g.init(color);
       return g.fillText(text, pos.vx + 23, pos.vy + 22);
     };
     Character.prototype.render_dead = function(g, pos) {
@@ -810,15 +815,17 @@
       g.init(Color.Green);
       return g.fillRect(x - w / 2 + 1, y - h / 2 + 1, w * percent, h - 2);
     };
-    Character.prototype.render_targeted = function(g, pos, color) {
-      var beat, ms;
-      if (color == null) {
-        color = "rgb(255,0,0)";
-      }
+    Character.prototype.render_targeted = function(g, pos) {
+      var beat, color, ms;
       beat = 60;
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
         ms = 1 - ms;
+      }
+      if (this.group === ObjectGroup.Player) {
+        color = Color.i(255, 0, 0);
+      } else if (this.group === ObjectGroup.Enemy) {
+        color = Color.i(0, 0, 255);
       }
       g.init(color, 0.7);
       return g.drawPath(true, [[pos.vx, pos.vy - 12 + ms * 10], [pos.vx - 6 - ms * 5, pos.vy - 20 + ms * 10], [pos.vx + 6 + ms * 5, pos.vy - 20 + ms * 10], [pos.vx, pos.vy - 12 + ms * 10]]);
@@ -830,8 +837,6 @@
       if (this.is_alive()) {
         this.render_object(g, pos);
         this.render_state(g, pos);
-        this.render_dir_allow(g, pos);
-        this.render_reach_circle(g, pos);
         this.render_targeting_obj(g, pos, cam);
       } else {
         this.render_dead(g, pos);
@@ -1032,9 +1037,10 @@
     Player.prototype.update = function(objs, cmap, keys, mouse) {
       var enemies;
       enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
-      if (keys.space) {
+      if (keys.space && this.__last === 0) {
         this.shift_target(enemies);
       }
+      this.__last = keys.space;
       return Player.__super__.update.call(this, objs, cmap, keys, mouse);
     };
     Player.prototype.set_mouse_dir = function(x, y) {
@@ -1100,22 +1106,30 @@
       g.drawArc(true, pos.vx, pos.vy, (1.3 - ms) * this.scale);
       roll = Math.PI * (this.cnt % 20) / 10;
       g.init(Color.i(128, 100, 162));
-      return g.drawArc(true, 320, 240, this.scale * 0.5);
+      g.drawArc(true, 320, 240, this.scale * 0.5);
+      g.init(Color.White);
+      return g.fillText("" + this.name, 315, 228);
     };
     Player.prototype.render = function(g, cam) {
       Player.__super__.render.call(this, g, cam);
       return this.render_mouse(g);
     };
     Player.prototype.render_skill_gage = function(g) {
-      var c, number, skill, _ref, _results;
+      var c, color, number, skill, _ref, _results;
       c = 0;
       _ref = this.skills;
       _results = [];
       for (number in _ref) {
         skill = _ref[number];
-        g.init();
-        g.fillText(skill.name, 20 + c * 50, 460);
-        this.render_gages(g, 40 + c * 50, 470, 40, 6, skill.ct / skill.MAX_CT);
+        color = Color.i(255, 0, 0);
+        if (this.has_target()) {
+          if (this.get_distance(this.targeting_obj) < skill.range) {
+            color = Color.i(0, 255, 0);
+          }
+        }
+        g.init(color);
+        g.fillText("[" + (c + 1) + "]" + skill.name, 20 + c * 50, 30);
+        this.render_gages(g, 40 + c * 50, 40, 40, 6, skill.ct / skill.MAX_CT);
         _results.push(c++);
       }
       return _results;

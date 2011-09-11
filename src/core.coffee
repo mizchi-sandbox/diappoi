@@ -37,11 +37,19 @@ class Game
     # setInterval ->
     #   self.enter()
     # , 1000 / @config.FPS
+
     animationLoop = ->
       self.enter()
       requestAnimationFrame animationLoop
-    animationLoop()
 
+    # animationLoop = ()->
+    #   setTimeout (->
+    #     requestAnimationFrame ->
+    #       animationLoop()
+    #   ), ~~(1000/24)
+    #   self.enter()
+
+    animationLoop()
 
 
   getkey: (self,which,to) ->

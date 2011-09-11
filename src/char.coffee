@@ -123,18 +123,25 @@ class Character extends Sprite
       g.stroke()
 
       g.init color = "rgb(255,0,0)",alpha=0.6
-      g.drawArc true,pos.vx, pos.vy , @scale*0.7
+      # g.drawArc true,pos.vx, pos.vy , @scale*0.7
 
   render_state: (g,pos)->
     g.init()
     @render_gages(g,pos.vx, pos.vy+15,40 , 6 , @status.hp/@status.MAX_HP)
     g.init()
     @render_gages(g,pos.vx, pos.vy+22,40 , 6 , @selected_skill.ct/@selected_skill.MAX_CT)
-    g.init()
+
+
+    # state
     if @has_target()
       text = @selected_skill.name
     else
       text = "wander"
+    color = Color.i 255,0,0
+    if @has_target()
+      if @get_distance(@targeting_obj) < @selected_skill.range
+        color = Color.i 0,255,0
+    g.init color
     g.fillText text , pos.vx+23, pos.vy+22
 
   render_dead: (g,pos)->
@@ -148,11 +155,15 @@ class Character extends Sprite
     g.init Color.Green
     g.fillRect x-w/2+1,y-h/2+1,w*percent,h-2
 
-  render_targeted: (g,pos,color="rgb(255,0,0)")->
+  render_targeted: (g,pos)->
     beat = 60
     ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
 
+    if @group is ObjectGroup.Player
+      color = Color.i(255,0,0)
+    else if @group is ObjectGroup.Enemy
+      color = Color.i(0,0,255)
     g.init color,0.7
     g.drawPath true,[
       [pos.vx        , pos.vy-12+ms*10]
@@ -167,9 +178,10 @@ class Character extends Sprite
 
     if @is_alive()
       @render_object(g,pos)
+
       @render_state(g,pos)
-      @render_dir_allow(g,pos)
-      @render_reach_circle(g,pos)
+      # @render_dir_allow(g,pos)
+      # @render_reach_circle(g,pos)
       @render_targeting_obj(g,pos,cam)
     else
       @render_dead(g,pos)
@@ -296,7 +308,12 @@ class Goblin extends Character
     beat = 20
     ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
+
     g.drawArc(true,pos.vx, pos.vy, ~~(1.3+ms)*@scale)
+
+    g.init Color.Red
+    g.fillText( "#{@name}" ,pos.vx-5, pos.vy-12)
+
 
 class Player extends Character
   scale : 8
@@ -327,8 +344,9 @@ class Player extends Character
 
   update:(objs, cmap, keys, mouse)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
-    if keys.space
+    if keys.space and @__last is 0
       @shift_target(enemies)
+    @__last = keys.space
     super objs,cmap,keys,mouse
 
   set_mouse_dir: (x,y)->
@@ -382,6 +400,8 @@ class Player extends Character
     g.init Color.i 128, 100, 162
     g.drawArc true , 320,240, @scale * 0.5
 
+    g.init Color.White
+    g.fillText( "#{@name}" ,315 ,  228)
 
   render: (g,cam)->
     super(g,cam)
@@ -390,9 +410,13 @@ class Player extends Character
   render_skill_gage: (g)->
     c = 0
     for number,skill of @skills
-      g.init()
-      g.fillText( skill.name ,20+c*50 ,  460)
-      @render_gages(g, 40+c*50 , 470,40 , 6 , skill.ct/skill.MAX_CT)
+      color = Color.i 255,0,0
+      if @has_target()
+        if @get_distance(@targeting_obj) < skill.range
+          color = Color.i 0,255,0
+      g.init color
+      g.fillText( "[#{c+1}]#{skill.name}" ,20+c*50 ,  30)
+      @render_gages(g, 40+c*50 , 40,40 , 6 , skill.ct/skill.MAX_CT)
       c++
 
   render_mouse: (g)->
