@@ -1448,7 +1448,7 @@
         var per, _ref;
         if ((0 <= (_ref = this.cnt++) && _ref < this.max_frame)) {
           if (this.cnt < this.max_frame / 2) {
-            g.init(Color.i(230, 55, 55), 0.4);
+            g.init(Color.i(230, 55, 55), 1 - this.cnt / this.max_frame);
             per = this.cnt / (this.max_frame / 2);
             g.drawArc(true, x, y, 30 * per);
           }

@@ -1125,7 +1125,7 @@ class Animation extends Sprite
     render:(g,x,y)->
       if 0 <= @cnt++ < @max_frame
         if @cnt < @max_frame/2
-          g.init Color.i(230,55,55),0.4
+          g.init Color.i(230,55,55),1 - @cnt/@max_frame
           per = @cnt/(@max_frame/2)
           g.drawArc true,x,y, 30*per
 
