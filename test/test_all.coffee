@@ -1193,7 +1193,7 @@ class FieldScene extends Scene
 
   render: (g)->
     @map.render(g, @_camera)
-    obj.render(g,@_camera) for obj in @objs
+    obj.render(g,@_camera) for obj in @objs.filter (e)=> e.get_distance(@_camera) < 400
     @map.render_after(g, @_camera)
 
     player = @_camera

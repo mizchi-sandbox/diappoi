@@ -1527,7 +1527,9 @@
     FieldScene.prototype.render = function(g) {
       var obj, player, _i, _len, _ref;
       this.map.render(g, this._camera);
-      _ref = this.objs;
+      _ref = this.objs.filter(__bind(function(e) {
+        return e.get_distance(this._camera) < 400;
+      }, this));
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         obj = _ref[_i];
         obj.render(g, this._camera);
