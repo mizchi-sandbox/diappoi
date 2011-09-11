@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, Burn, Canvas, Character, Color, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, conf, init_cv, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, DamageHit, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, conf, init_cv, maps, my, randint, rjoin, sjoin;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -590,14 +590,14 @@
       this.state = {
         active: false
       };
-      this.targeting = null;
+      this.targeting_obj = null;
       this.dir = 0;
       this.cnt = 0;
       this.id = ~~(Math.random() * 100);
       this.animation = [];
     }
     Character.prototype.has_target = function() {
-      if (this.targeting !== null) {
+      if (this.targeting_obj !== null) {
         return true;
       } else {
         return false;
@@ -610,7 +610,7 @@
         _results = [];
         for (_i = 0, _len = objs.length; _i < _len; _i++) {
           i = objs[_i];
-          _results.push(i.targeting != null);
+          _results.push(i.targeting_obj != null);
         }
         return _results;
       })(), this) >= 0;
@@ -660,16 +660,16 @@
         this.status.hp = 0;
       }
       if (this.is_alive()) {
-        if ((_ref = this.targeting) != null ? _ref.is_dead() : void 0) {
-          return this.targeting = null;
+        if ((_ref = this.targeting_obj) != null ? _ref.is_dead() : void 0) {
+          return this.targeting_obj = null;
         }
       } else {
-        return this.targeting = null;
+        return this.targeting_obj = null;
       }
     };
     Character.prototype.regenerate = function() {
       var r;
-      r = (this.targeting ? 2 : 1);
+      r = (this.targeting_obj ? 2 : 1);
       if (!(this.cnt % (24 / this.status.regenerate * r)) && this.is_alive()) {
         if (this.status.hp < this.status.MAX_HP) {
           return this.status.hp += 1;
@@ -679,22 +679,22 @@
     Character.prototype.shift_target = function(targets) {
       var cur, _ref;
       if (this.has_target() && targets.length > 0) {
-        if (_ref = !this.targeting, __indexOf.call(targets, _ref) >= 0) {
-          this.targeting = targets[0];
+        if (_ref = !this.targeting_obj, __indexOf.call(targets, _ref) >= 0) {
+          this.targeting_obj = targets[0];
           return;
         } else if (targets.size() === 1) {
-          this.targeting = targets[0];
+          this.targeting_obj = targets[0];
           return;
         }
         if (targets.size() > 1) {
-          cur = targets.indexOf(this.targeting);
+          cur = targets.indexOf(this.targeting_obj);
           console.log("before: " + cur + " " + (targets.size()));
           if (cur + 1 >= targets.size()) {
             cur = 0;
           } else {
             cur += 1;
           }
-          this.targeting = targets[cur];
+          this.targeting_obj = targets[cur];
           return console.log("after: " + cur);
         }
       }
@@ -710,13 +710,13 @@
       g.init(Color.i(255, 0, 0));
       return g.drawLine(pos.vx, pos.vy, ~~(30 * Math.cos(this.dir)), ~~(30 * Math.sin(this.dir)));
     };
-    Character.prototype.render_targeting = function(g, pos, cam) {
+    Character.prototype.render_targeting_obj = function(g, pos, cam) {
       var alpha, color, t, _ref;
-      if ((_ref = this.targeting) != null ? _ref.is_alive() : void 0) {
-        this.targeting.render_targeted(g, pos);
+      if ((_ref = this.targeting_obj) != null ? _ref.is_alive() : void 0) {
+        this.targeting_obj.render_targeted(g, pos);
         g.init(color = "rgb(0,0,255)", alpha = 0.5);
         g.moveTo(pos.vx, pos.vy);
-        t = this.targeting.getpos_relative(cam);
+        t = this.targeting_obj.getpos_relative(cam);
         g.lineTo(t.vx, t.vy);
         g.stroke();
         g.init(color = "rgb(255,0,0)", alpha = 0.6);
@@ -773,7 +773,7 @@
         this.render_state(g, pos);
         this.render_dir_allow(g, pos);
         this.render_reach_circle(g, pos);
-        this.render_targeting(g, pos, cam);
+        this.render_targeting_obj(g, pos, cam);
       } else {
         this.render_dead(g, pos);
       }
@@ -797,7 +797,7 @@
   Walker = (function() {
     __extends(Walker, Character);
     Walker.prototype.following = null;
-    Walker.prototype.targeting = null;
+    Walker.prototype.targeting_obj = null;
     function Walker(x, y, group, status) {
       this.x = x;
       this.y = y;
@@ -831,20 +831,20 @@
       var enemies;
       enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
       if (this.has_target()) {
-        if (this.targeting.is_dead() || this.get_distance(this.targeting) > this.status.sight_range * 1.5) {
-          my.mes("" + this.name + " lost track of " + this.targeting.name);
-          return this.targeting = null;
+        if (this.targeting_obj.is_dead() || this.get_distance(this.targeting_obj) > this.status.sight_range * 1.5) {
+          my.mes("" + this.name + " lost track of " + this.targeting_obj.name);
+          return this.targeting_obj = null;
         }
       } else if (enemies.size() > 0) {
-        this.targeting = enemies[0];
-        return my.mes("" + this.name + " find " + this.targeting.name);
+        this.targeting_obj = enemies[0];
+        return my.mes("" + this.name + " find " + this.targeting_obj.name);
       }
     };
     Walker.prototype.move = function(objs, cmap) {
       var c, dp, nx, ny, wide, _ref;
       if (this.has_target()) {
-        this.set_dir(this.targeting.x, this.targeting.y);
-        if (this.get_distance(this.targeting) < this.selected_skill.range) {
+        this.set_dir(this.targeting_obj.x, this.targeting_obj.y);
+        if (this.get_distance(this.targeting_obj) < this.selected_skill.range) {
           return;
         }
       }
@@ -863,7 +863,7 @@
           }
         }
       } else {
-        if (this.targeting) {
+        if (this.targeting_obj) {
           this._path = this._get_path(cmap);
           this.to = this._path.shift();
         } else {
@@ -889,7 +889,7 @@
     Walker.prototype._get_path = function(map) {
       var from, to;
       from = map.get_cell(this.x, this.y);
-      to = map.get_cell(this.targeting.x, this.targeting.y);
+      to = map.get_cell(this.targeting_obj.x, this.targeting_obj.y);
       return map.search_min_path([from.x, from.y], [to.x, to.y]);
     };
     Walker.prototype._trace = function(to_x, to_y) {
@@ -1147,11 +1147,12 @@
     return Status;
   })();
   Skill = (function() {
-    function Skill() {
+    function Skill(lv) {
+      this.lv = lv != null ? lv : 1;
+      this._build(this.lv);
       this.MAX_CT = this.CT * 24;
       this.ct = this.MAX_CT;
     }
-    Skill.prototype.exec = function(actor) {};
     Skill.prototype.charge = function(actor, is_selected) {
       if (this.ct < this.MAX_CT) {
         if (is_selected) {
@@ -1161,7 +1162,133 @@
         }
       }
     };
+    Skill.prototype.exec = function(actor, objs) {};
+    Skill.prototype._build = function(lv) {};
+    Skill.prototype._calc = function(actor, target) {
+      return 1;
+    };
+    Skill.prototype._get_targets = function(actor, objs) {
+      return [];
+    };
     return Skill;
+  })();
+  DamageHit = (function() {
+    __extends(DamageHit, Skill);
+    function DamageHit() {
+      DamageHit.__super__.constructor.apply(this, arguments);
+    }
+    DamageHit.prototype.range = 30;
+    DamageHit.prototype.auto = true;
+    DamageHit.prototype.CT = 1;
+    DamageHit.prototype.bg_charge = 0.2;
+    DamageHit.prototype.fg_charge = 1;
+    DamageHit.prototype.damage_rate = 1.0;
+    DamageHit.prototype.random_rate = 0.2;
+    DamageHit.prototype.effect = 'Slash';
+    DamageHit.prototype.exec = function(actor, objs) {
+      var amount, t, targets, _i, _len;
+      targets = this._get_targets(actor, objs);
+      if (this.ct >= this.MAX_CT && targets.size() > 0) {
+        for (_i = 0, _len = targets.length; _i < _len; _i++) {
+          t = targets[_i];
+          amount = this._calc(actor, t);
+          t.status.hp -= amount;
+          t.add_animation(new Anim.prototype[this.effect](amount));
+        }
+        return this.ct = 0;
+      }
+    };
+    return DamageHit;
+  })();
+  SingleHit = (function() {
+    __extends(SingleHit, DamageHit);
+    function SingleHit() {
+      SingleHit.__super__.constructor.apply(this, arguments);
+    }
+    SingleHit.prototype.effect = 'Slash';
+    SingleHit.prototype._get_targets = function(actor, objs) {
+      if (actor.has_target()) {
+        if (actor.get_distance(actor.targeting_obj) < this.range) {
+          return [actor.targeting_obj];
+        }
+      }
+      return [];
+    };
+    SingleHit.prototype._calc = function(actor, target) {
+      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    };
+    return SingleHit;
+  })();
+  AreaHit = (function() {
+    __extends(AreaHit, DamageHit);
+    function AreaHit() {
+      AreaHit.__super__.constructor.apply(this, arguments);
+    }
+    AreaHit.prototype.effect = 'Burn';
+    AreaHit.prototype._get_targets = function(actor, objs) {
+      return actor.find_obj(ObjectGroup.get_against(actor), objs, this.range);
+    };
+    AreaHit.prototype._calc = function(actor, target) {
+      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    };
+    return AreaHit;
+  })();
+  Skill_Atack = (function() {
+    __extends(Skill_Atack, SingleHit);
+    function Skill_Atack() {
+      Skill_Atack.__super__.constructor.apply(this, arguments);
+    }
+    Skill_Atack.prototype.name = "Atack";
+    Skill_Atack.prototype.range = 30;
+    Skill_Atack.prototype.CT = 1;
+    Skill_Atack.prototype.auto = true;
+    Skill_Atack.prototype.bg_charge = 0.2;
+    Skill_Atack.prototype.fg_charge = 1;
+    Skill_Atack.prototype.damage_rate = 1.0;
+    Skill_Atack.prototype.random_rate = 0.2;
+    Skill_Atack.prototype._build = function(lv) {
+      this.range -= lv;
+      this.CT -= lv / 40;
+      this.bg_charge += lv / 20;
+      this.fg_charge -= lv / 20;
+      return this.damage_rate += lv / 20;
+    };
+    return Skill_Atack;
+  })();
+  Skill_Smash = (function() {
+    __extends(Skill_Smash, SingleHit);
+    function Skill_Smash() {
+      Skill_Smash.__super__.constructor.apply(this, arguments);
+    }
+    Skill_Smash.prototype.name = "Smash";
+    Skill_Smash.prototype.range = 30;
+    Skill_Smash.prototype.CT = 2;
+    Skill_Smash.prototype.damage_rate = 2.2;
+    Skill_Smash.prototype.random_rate = 0.5;
+    Skill_Smash.prototype.bg_charge = 0.5;
+    Skill_Smash.prototype.fg_charge = 1;
+    Skill_Smash.prototype._build = function(lv) {
+      this.range -= lv;
+      this.CT -= lv / 10;
+      this.bg_charge += lv / 20;
+      this.fg_charge -= lv / 20;
+      return this.damage_rate += lv / 20;
+    };
+    return Skill_Smash;
+  })();
+  Skill_Meteor = (function() {
+    __extends(Skill_Meteor, AreaHit);
+    function Skill_Meteor() {
+      Skill_Meteor.__super__.constructor.apply(this, arguments);
+    }
+    Skill_Meteor.prototype.name = "Meteor";
+    Skill_Meteor.prototype.range = 80;
+    Skill_Meteor.prototype.auto = true;
+    Skill_Meteor.prototype.CT = 4;
+    Skill_Meteor.prototype.bg_charge = 0.5;
+    Skill_Meteor.prototype.fg_charge = 1;
+    Skill_Meteor.prototype.effect = 'Burn';
+    return Skill_Meteor;
   })();
   Skill_Heal = (function() {
     __extends(Skill_Heal, Skill);
@@ -1186,87 +1313,6 @@
     };
     return Skill_Heal;
   })();
-  Skill_Atack = (function() {
-    __extends(Skill_Atack, Skill);
-    Skill_Atack.prototype.name = "Atack";
-    Skill_Atack.prototype.range = 30;
-    Skill_Atack.prototype.auto = true;
-    Skill_Atack.prototype.CT = 1;
-    Skill_Atack.prototype.bg_charge = 0.2;
-    Skill_Atack.prototype.fg_charge = 1;
-    Skill_Atack.prototype.damage_rate = 1.0;
-    Skill_Atack.prototype.random_rate = 0.2;
-    function Skill_Atack(lv) {
-      this.lv = lv != null ? lv : 1;
-      Skill_Atack.__super__.constructor.call(this);
-      this.range -= this.lv;
-      this.CT -= this.lv / 10;
-      this.bg_charge += this.lv / 20;
-      this.fg_charge -= this.lv / 20;
-      this.damage_rate += this.lv / 20;
-    }
-    Skill_Atack.prototype.exec = function(actor) {
-      var amount, target;
-      if (actor.has_target()) {
-        target = actor.targeting;
-        if (this.ct >= this.MAX_CT && actor.get_distance(target) < this.range) {
-          amount = this.calc_amount(actor, target);
-          target.status.hp -= amount;
-          this.ct = 0;
-          console.log(this.name);
-          return target.add_animation(new Anim.prototype.Slash(amount));
-        }
-      }
-    };
-    Skill_Atack.prototype.calc_amount = function(actor, target) {
-      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
-    };
-    return Skill_Atack;
-  })();
-  Skill_Smash = (function() {
-    __extends(Skill_Smash, Skill_Atack);
-    function Skill_Smash() {
-      Skill_Smash.__super__.constructor.apply(this, arguments);
-    }
-    Skill_Smash.prototype.name = "Smash";
-    Skill_Smash.prototype.range = 30;
-    Skill_Smash.prototype.CT = 2;
-    Skill_Smash.prototype.damage_rate = 2.2;
-    Skill_Smash.prototype.random_rate = 0.5;
-    Skill_Smash.prototype.bg_charge = 0.5;
-    Skill_Smash.prototype.fg_charge = 1;
-    return Skill_Smash;
-  })();
-  Skill_Meteor = (function() {
-    __extends(Skill_Meteor, Skill);
-    Skill_Meteor.prototype.name = "Meteor";
-    Skill_Meteor.prototype.range = 80;
-    Skill_Meteor.prototype.auto = true;
-    Skill_Meteor.prototype.CT = 4;
-    Skill_Meteor.prototype.bg_charge = 0.5;
-    Skill_Meteor.prototype.fg_charge = 1;
-    function Skill_Meteor(lv) {
-      this.lv = lv != null ? lv : 1;
-      Skill_Meteor.__super__.constructor.call(this);
-    }
-    Skill_Meteor.prototype.exec = function(actor, objs) {
-      var t, targets, _i, _len;
-      if (this.ct >= this.MAX_CT) {
-        targets = actor.find_obj(ObjectGroup.get_against(actor), objs, this.range);
-        if (targets.length > 0) {
-          console.log(targets.length);
-          for (_i = 0, _len = targets.length; _i < _len; _i++) {
-            t = targets[_i];
-            t.status.hp -= 20;
-            t.add_animation(new Anim.prototype.Burn);
-          }
-          this.ct = 0;
-          return console.log("Meteor!");
-        }
-      }
-    };
-    return Skill_Meteor;
-  })();
   Skill_ThrowBomb = (function() {
     __extends(Skill_ThrowBomb, Skill);
     Skill_ThrowBomb.prototype.name = "Throw Bomb";
@@ -1281,18 +1327,16 @@
       this.range = 120;
       this.effect_range = 30;
     }
-    Skill_ThrowBomb.prototype.exec = function(actor, targets, mouse) {
-      var t, targets_on_focus, _i, _len;
+    Skill_ThrowBomb.prototype.exec = function(actor, objs, mouse) {
+      var t, targets, _i, _len;
       if (this.ct >= this.MAX_CT) {
-        targets_on_focus = actor.get_targets_in_range(targets = targets, this.range);
-        if (targets_on_focus.length) {
-          console.log(targets_on_focus.length);
-          for (_i = 0, _len = targets_on_focus.length; _i < _len; _i++) {
-            t = targets_on_focus[_i];
+        targets = mouse.find_obj(ObjectGroup.get_against(actor), objs, this.range);
+        if (targets.size() > 0) {
+          for (_i = 0, _len = targets.length; _i < _len; _i++) {
+            t = targets[_i];
             t.status.hp -= 20;
           }
-          this.ct = 0;
-          return console.log("Meteor!");
+          return this.ct = 0;
         }
       }
     };
@@ -1338,7 +1382,8 @@
     })(),
     Burn: Burn = (function() {
       __extends(Burn, Animation);
-      function Burn() {
+      function Burn(amount) {
+        this.amount = amount;
         Burn.__super__.constructor.call(this, 24);
       }
       Burn.prototype.render = function(g, x, y) {

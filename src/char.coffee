@@ -6,7 +6,7 @@ class Character extends Sprite
     super @x, @y
     @state =
       active : false
-    @targeting = null
+    @targeting_obj = null
     @dir = 0
     @cnt = 0
     @id = ~~(Math.random() * 100)
@@ -14,10 +14,10 @@ class Character extends Sprite
     @animation = []
 
   has_target:()->
-    if @targeting isnt null then true else false
+    if @targeting_obj isnt null then true else false
 
   is_targeted:(objs)->
-     @ in (i.targeting? for i in objs)
+     @ in (i.targeting_obj? for i in objs)
 
   is_alive:()->
     return @status.hp > 1
@@ -50,32 +50,32 @@ class Character extends Sprite
     @status.hp = @status.MAX_HP if @status.hp > @status.MAX_HP
     @status.hp = 0 if @status.hp < 0
     if @is_alive()
-      if @targeting?.is_dead()
-         @targeting = null
+      if @targeting_obj?.is_dead()
+         @targeting_obj = null
     else
-      @targeting = null
+      @targeting_obj = null
 
   regenerate: ()->
-    r = (if @targeting then 2 else 1)
+    r = (if @targeting_obj then 2 else 1)
     if not (@cnt % (24/@status.regenerate*r)) and @is_alive()
       if @status.hp < @status.MAX_HP
         @status.hp += 1
   shift_target:(targets)->
     if @has_target() and targets.length > 0
-      if not @targeting in targets
-        @targeting = targets[0]
+      if not @targeting_obj in targets
+        @targeting_obj = targets[0]
         return
       else if targets.size() == 1
-        @targeting = targets[0]
+        @targeting_obj = targets[0]
         return
       if targets.size() > 1
-        cur = targets.indexOf @targeting
+        cur = targets.indexOf @targeting_obj
         console.log "before: #{cur} #{targets.size()}"
         if cur+1 >= targets.size()
           cur = 0
         else
           cur += 1
-        @targeting = targets[cur]
+        @targeting_obj = targets[cur]
         console.log "after: #{cur}"
 
   render_reach_circle:(g,pos)->
@@ -88,12 +88,12 @@ class Character extends Sprite
     g.init Color.i(255,0,0)
     g.drawLine pos.vx,pos.vy,~~(30 * Math.cos(@dir)),~~(30 * Math.sin(@dir))
 
-  render_targeting:(g,pos,cam)->
-    if @targeting?.is_alive()
-      @targeting.render_targeted(g,pos)
+  render_targeting_obj:(g,pos,cam)->
+    if @targeting_obj?.is_alive()
+      @targeting_obj.render_targeted(g,pos)
       g.init color="rgb(0,0,255)",alpha=0.5
       g.moveTo(pos.vx,pos.vy)
-      t = @targeting.getpos_relative(cam)
+      t = @targeting_obj.getpos_relative(cam)
       g.lineTo(t.vx,t.vy)
       g.stroke()
 
@@ -145,7 +145,7 @@ class Character extends Sprite
       @render_state(g,pos)
       @render_dir_allow(g,pos)
       @render_reach_circle(g,pos)
-      @render_targeting(g,pos,cam)
+      @render_targeting_obj(g,pos,cam)
     else
       @render_dead(g,pos)
     @render_animation(g, pos.vx , pos.vy )
@@ -159,7 +159,7 @@ class Character extends Sprite
 
 class Walker extends Character
   following: null
-  targeting: null
+  targeting_obj: null
   constructor: (@x,@y,@group=ObjectGroup.Enemy,status={}) ->
     super(@x,@y,@group,status)
     @cnt = ~~(Math.random() * 24)
@@ -182,20 +182,20 @@ class Walker extends Character
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
     if @has_target()
       # ターゲットが存在した場合
-      if @targeting.is_dead() or @get_distance(@targeting) > @status.sight_range*1.5
+      if @targeting_obj.is_dead() or @get_distance(@targeting_obj) > @status.sight_range*1.5
         # 死んでる or 感知外
-        my.mes "#{@name} lost track of #{@targeting.name}"
-        @targeting = null
+        my.mes "#{@name} lost track of #{@targeting_obj.name}"
+        @targeting_obj = null
     else if enemies.size() > 0
       # 新たに目視した場合
-      @targeting = enemies[0]
-      my.mes "#{@name} find #{@targeting.name}"
+      @targeting_obj = enemies[0]
+      my.mes "#{@name} find #{@targeting_obj.name}"
 
   move: (objs ,cmap)->
     # for wait
     if @has_target()
-      @set_dir(@targeting.x,@targeting.y)
-      return if @get_distance(@targeting) < @selected_skill.range
+      @set_dir(@targeting_obj.x,@targeting_obj.y)
+      return if @get_distance(@targeting_obj) < @selected_skill.range
 
     if @has_target() and @to and not @cnt%24
     # for trace
@@ -212,7 +212,7 @@ class Walker extends Character
           @to = null
     # for wander
     else
-      if @targeting
+      if @targeting_obj
         @_path = @_get_path(cmap)
         @to = @_path.shift()
       else
@@ -232,7 +232,7 @@ class Walker extends Character
 
   _get_path:(map)->
     from = map.get_cell( @x ,@y)
-    to = map.get_cell( @targeting.x ,@targeting.y)
+    to = map.get_cell( @targeting_obj.x ,@targeting_obj.y)
     return map.search_min_path( [from.x,from.y] ,[to.x,to.y] )
 
   _trace: (to_x , to_y)->

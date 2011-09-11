@@ -1,15 +1,97 @@
 class Skill
-  constructor: () ->
+  constructor: (@lv=1) ->
+    @_build(@lv)
     @MAX_CT = @CT * 24
     @ct = @MAX_CT
 
-  exec:(actor)->
   charge:(actor,is_selected)->
     if @ct < @MAX_CT
       if is_selected
         @ct += @fg_charge
       else
         @ct += @bg_charge
+  exec:(actor,objs)->
+  _build:(lv)->
+  _calc:(actor,target)-> return 1
+  _get_targets:(actor,objs)-> return []
+
+class DamageHit extends Skill
+  range : 30
+  auto: true
+  CT : 1
+  bg_charge : 0.2
+  fg_charge : 1
+  damage_rate : 1.0
+  random_rate : 0.2
+  effect : 'Slash'
+
+  exec:(actor,objs)->
+    targets = @_get_targets(actor,objs)
+    if @ct >= @MAX_CT and targets.size() > 0
+      for t in targets
+        amount = @_calc actor,t
+        t.status.hp -= amount
+        t.add_animation new Anim.prototype[@effect] amount
+      @ct = 0
+
+class SingleHit extends DamageHit
+  effect : 'Slash'
+  _get_targets:(actor,objs)->
+    if actor.has_target()
+      if actor.get_distance(actor.targeting_obj) < @range
+        return [ actor.targeting_obj ]
+    return []
+  _calc : (actor,target)->
+    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
+
+class AreaHit extends DamageHit
+  effect : 'Burn'
+  _get_targets:(actor,objs)->
+    return actor.find_obj ObjectGroup.get_against(actor), objs , @range
+  _calc : (actor,target)->
+    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
+
+class Skill_Atack extends SingleHit
+  name : "Atack"
+  range : 30
+  CT : 1
+  auto: true
+  bg_charge : 0.2
+  fg_charge : 1
+  damage_rate : 1.0
+  random_rate : 0.2
+
+  _build:(lv)->
+    @range -= lv
+    @CT -= lv/40
+    @bg_charge += lv/20
+    @fg_charge -= lv/20
+    @damage_rate += lv/20
+
+class Skill_Smash extends SingleHit
+  name : "Smash"
+  range : 30
+  CT : 2
+  damage_rate : 2.2
+  random_rate : 0.5
+  bg_charge : 0.5
+  fg_charge : 1
+
+  _build: (lv) ->
+    @range -= lv
+    @CT -= lv/10
+    @bg_charge += lv/20
+    @fg_charge -= lv/20
+    @damage_rate += lv/20
+
+class Skill_Meteor extends AreaHit
+  name : "Meteor"
+  range : 80
+  auto: true
+  CT : 4
+  bg_charge : 0.5
+  fg_charge : 1
+  effect : 'Burn'
 
 class Skill_Heal extends Skill
   name : "Heal"
@@ -29,72 +111,6 @@ class Skill_Heal extends Skill
       @ct = 0
       console.log "do healing"
 
-class Skill_Atack extends Skill
-  name : "Atack"
-  range : 30
-  auto: true
-  CT : 1
-  bg_charge : 0.2
-  fg_charge : 1
-  damage_rate : 1.0
-  random_rate : 0.2
-
-  constructor: (@lv=1) ->
-    super()
-    @range -= @lv
-    @CT -= @lv/10
-    @bg_charge += @lv/20
-    @fg_charge -= @lv/20
-    @damage_rate += @lv/20
-
-
-  exec:(actor)->
-    if actor.has_target()
-      target = actor.targeting
-      if @ct >= @MAX_CT and actor.get_distance(target) < @range
-        amount = @calc_amount(actor,target)
-        target.status.hp -= amount
-        @ct = 0
-        console.log @name
-        target.add_animation new Anim::Slash amount
-  calc_amount : (actor,target)->
-    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
-
-class Skill_Smash extends Skill_Atack
-  name : "Smash"
-  range : 30
-  CT : 2
-  damage_rate : 2.2
-  random_rate : 0.5
-  bg_charge : 0.5
-  fg_charge : 1
-
-  # calc_amount : (actor,target)->
-  #   return ~~(actor.status.atk * ( target.status.def )*@damage_rate*randint(50,150)/100)
-
-class Skill_Meteor extends Skill
-  name : "Meteor"
-  range : 80
-  auto: true
-  CT : 4
-  bg_charge : 0.5
-  fg_charge : 1
-
-  constructor: (@lv=1) ->
-    super()
-
-  exec:(actor,objs)->
-    if @ct >= @MAX_CT
-      targets = actor.find_obj ObjectGroup.get_against(actor), objs , @range
-      if targets.length > 0
-        console.log targets.length
-        for t in targets
-          t.status.hp -= 20
-          t.add_animation new Anim::Burn
-        @ct = 0
-        console.log "Meteor!"
-
-
 class Skill_ThrowBomb extends Skill
   name : "Throw Bomb"
   range : 120
@@ -108,16 +124,15 @@ class Skill_ThrowBomb extends Skill
     @range = 120
     @effect_range = 30
 
-  exec:(actor,targets,mouse)->
+  exec:(actor,objs,mouse)->
     if @ct >= @MAX_CT
-      targets_on_focus = actor.get_targets_in_range(targets=targets , @range)
-      if targets_on_focus.length
-        console.log targets_on_focus.length
-        for t in targets_on_focus
+      targets = mouse.find_obj(ObjectGroup.get_against(actor), objs ,@range)
+      if targets.size()>0
+        for t in targets
           t.status.hp -= 20
         @ct = 0
-        console.log "Meteor!"
 
+####
 class Animation extends Sprite
   constructor: (max) ->
     super 0, 0
@@ -129,8 +144,6 @@ class Animation extends Sprite
   Slash: class Slash extends Animation
     constructor: (@amount) ->
       super 24
-      # @cnt = 0
-      # @max_frame = 24
     render:(g,x,y)->
       if 0 <= @cnt++ < @max_frame
         g.init Color.i(30,55,55)
@@ -153,7 +166,7 @@ class Animation extends Sprite
         return false
 
   Burn: class Burn extends Animation
-    constructor: () ->
+    constructor: (@amount) ->
       super 24
     render:(g,x,y)->
       if 0 <= @cnt++ < @max_frame
