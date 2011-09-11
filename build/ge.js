@@ -285,23 +285,34 @@
     function ItemObject(x, y) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
+      this.cnt = 0;
       this.group = ObjectGroup.Item;
       this.event_in = true;
     }
     ItemObject.prototype.update = function(objs, map, keys, mouse, camera) {
-      if (camera.get_distance(this) < this.size) {
-        this.event(objs, map, keys, mouse, camera);
-        return this.event_in = false;
+      this.cnt++;
+      if (camera.get_distance(this) < 30) {
+        if (this.event_in) {
+          this.event(objs, map, keys, mouse, camera);
+          this.event_in = false;
+          return this.cnt = 0;
+        }
       }
     };
     ItemObject.prototype.event = function(objs, map, keys, mouse, camera) {
       return console.log("you got item");
     };
     ItemObject.prototype.render = function(g, cam) {
-      var color, pos;
+      var alpha, color, pos;
       pos = this.getpos_relative(cam);
-      g.init(color = "rgb(255,0,255)");
-      return g.drawArc(true, pos.vx, pos.vy, this.size, 0, Math.PI * 2, true);
+      if (this.is_alive()) {
+        g.init(color = "rgb(255,0,255)");
+        g.drawArc(true, pos.vx, pos.vy, this.size, 0, Math.PI * 2, true);
+      }
+      if (this.is_dead()) {
+        g.init(color = "rgb(255,0,255)", alpha = 1 - this.cnt / 120);
+        return g.drawArc(true, pos.vx, pos.vy, this.size, 0, Math.PI * 2, true);
+      }
     };
     return ItemObject;
   })();

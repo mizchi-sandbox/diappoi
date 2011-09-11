@@ -206,21 +206,29 @@ class ItemObject extends Sprite
     not @is_alive()
 
   constructor: (@x=0,@y=0) ->
+    @cnt = 0
     @group = ObjectGroup.Item
     @event_in = true
 
   update:(objs,map , keys ,mouse,camera)->
-    if camera.get_distance(@) < @size
-      @event(objs,map , keys ,mouse,camera)
-      @event_in = false
+    @cnt++
+    if camera.get_distance(@) < 30
+      if @event_in
+        @event(objs,map , keys ,mouse,camera)
+        @event_in = false
+        @cnt=0
 
   event : (objs,map , keys ,mouse,camera)->
     console.log "you got item"
 
   render: (g,cam)->
     pos = @getpos_relative cam
-    g.init color="rgb(255,0,255)"
-    g.drawArc true ,pos.vx,pos.vy, @size ,0,Math.PI*2,true
+    if @is_alive()
+      g.init color="rgb(255,0,255)"
+      g.drawArc true ,pos.vx,pos.vy, @size ,0,Math.PI*2,true
+    if @is_dead()
+      g.init color="rgb(255,0,255)",alpha = 1-@cnt/120
+      g.drawArc true ,pos.vx,pos.vy, @size ,0,Math.PI*2,true
 
 
 class HealObject extends ItemObject
