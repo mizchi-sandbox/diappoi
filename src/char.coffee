@@ -15,7 +15,7 @@ class Character extends Sprite
     @id = ~~(Math.random() * 100)
     @animation = []
 
-    @cnt = ~~(Math.random() * 24)
+    @cnt = ~~(Math.random() * 60)
     @distination = [@x,@y]
     @_path = []
 
@@ -71,9 +71,10 @@ class Character extends Sprite
 
   regenerate: ()->
     r = (if @targeting_obj then 2 else 1)
-    if not (@cnt % (24/@status.regenerate*r)) and @is_alive()
+    if @is_alive()
       if @status.hp < @status.MAX_HP
         @status.hp += 1
+
   shift_target:(targets)->
     if @has_target() and targets.length > 0
       if not @targeting_obj in targets
@@ -148,7 +149,7 @@ class Character extends Sprite
     g.fillRect x-w/2+1,y-h/2+1,w*percent,h-2
 
   render_targeted: (g,pos,color="rgb(255,0,0)")->
-    beat = 24
+    beat = 60
     ms = ~~(new Date()/100) % beat / beat
     ms = 1 - ms if ms > 0.5
 
@@ -184,9 +185,8 @@ class Character extends Sprite
   search : (objs)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
     if @has_target()
-      # ターゲットが存在した場合
       if @targeting_obj.is_dead() or @get_distance(@targeting_obj) > @status.sight_range*1.5
-        # 死んでる or 感知外
+        # ターゲットが死 or 感知外
         my.mes "#{@name} lost track of #{@targeting_obj.name}"
         @targeting_obj = null
     else if enemies.size() > 0
@@ -194,35 +194,38 @@ class Character extends Sprite
       @targeting_obj = enemies[0]
       my.mes "#{@name} find #{@targeting_obj.name}"
 
+  _update_path : (cmap)->
+    @_path = @_get_path(cmap)
+    @to = @_path.shift()
+
   move: (objs ,cmap)->
     # for wait
     if @has_target()
       @set_dir(@targeting_obj.x,@targeting_obj.y)
       return if @get_distance(@targeting_obj) < @selected_skill.range
+    else
+      return if @cnt%60 < 15
 
-    if @has_target() and @to and not @cnt%24
-    # for trace
-      @_path = @_get_path(cmap)
-      @to = @_path.shift()
-    else if @to
+    if @has_target() and @cnt%60 is 0
+      @_update_path(cmap)
+
+    if @to
+    # 目的地が設定されてる場合
       dp = cmap.get_point(@to[0],@to[1])
       [nx,ny] = @_trace( dp.x , dp.y )
-      wide = 7
+      wide = @status.speed
       if dp.x-wide<nx<dp.x+wide and dp.y-wide<ny<dp.y+wide
         if @_path.length > 0
           @to = @_path.shift()
         else
           @to = null
-    # for wander
     else
       if @has_target()
-        @_path = @_get_path(cmap)
-        @to = @_path.shift()
+        @_update_path(cmap)
       else
         c = cmap.get_cell(@x,@y)
         @to = [c.x+randint(-1,1),c.y+randint(-1,1)]
 
-    # check collidion
     if not cmap.collide( nx,ny )
       @x = nx if nx?
       @y = ny if ny?
@@ -236,7 +239,7 @@ class Character extends Sprite
   _get_path:(map)->
     from = map.get_cell( @x ,@y)
     to = map.get_cell( @targeting_obj.x ,@targeting_obj.y)
-    return map.search_min_path( [from.x,from.y] ,[to.x,to.y] )
+    return map.search_path( [from.x,from.y] ,[to.x,to.y] )
 
   _trace: (to_x , to_y)->
     @set_dir(to_x,to_y)
@@ -249,7 +252,7 @@ class Character extends Sprite
     @cnt += 1
     if @is_alive()
       @check()
-      @regenerate()
+      @regenerate() if @cnt%60 == 0
       @search objs
       @move(objs,cmap, keys,mouse)
       @change_skill(keys,objs)
@@ -267,6 +270,7 @@ class Goblin extends Character
       atk : 10
       def : 1.0
       sight_range : 120
+      speed : 4
     super(@x,@y,@group,status)
 
     @skills =
@@ -305,7 +309,7 @@ class Player extends Character
       def: 0.8
       atack_range : 50
       sight_range : 80
-      speed : 6
+      speed : 3
 
     @skills =
       one: new Skill_Atack()
@@ -334,7 +338,6 @@ class Player extends Character
       @dir = Math.atan( ry / rx  )
     else
       @dir = Math.PI - Math.atan( ry / - rx  )
-
 
   move: (objs,cmap, keys, mouse)->
     @dir = @set_mouse_dir(mouse.x , mouse.y)

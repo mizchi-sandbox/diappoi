@@ -1,7 +1,7 @@
 class Skill
   constructor: (@lv=1) ->
     @_build(@lv)
-    @MAX_CT = @CT * 24
+    @MAX_CT = @CT * 60
     @ct = @MAX_CT
 
   charge:(actor,is_selected)->
@@ -118,7 +118,6 @@ class Skill_ThrowBomb extends Skill
   CT : 4
   bg_charge : 0.5
   fg_charge : 1
-
   constructor: (@lv=1) ->
     super(@lv)
     @range = 120
@@ -143,7 +142,7 @@ class Animation extends Sprite
 (Anim = {}).prototype =
   Slash: class Slash extends Animation
     constructor: (@amount) ->
-      super 24
+      super 60
     render:(g,x,y)->
       if 0 <= @cnt++ < @max_frame
         g.init Color.i(30,55,55)
@@ -167,7 +166,7 @@ class Animation extends Sprite
 
   Burn: class Burn extends Animation
     constructor: (@amount) ->
-      super 24
+      super 60
     render:(g,x,y)->
       if 0 <= @cnt++ < @max_frame
         if @cnt < @max_frame/2

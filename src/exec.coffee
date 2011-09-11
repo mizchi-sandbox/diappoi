@@ -1,10 +1,10 @@
-conf =
+Conf =
   WINDOW_WIDTH: 640
   WINDOW_HEIGHT: 480
   VIEW_X: 320
   VIEW_Y: 240
   CANVAS_NAME: "game"
-  FPS : 24
+  FPS : 60
 
 window.requestAnimationFrame = (->
   window.requestAnimationFrame or window.webkitRequestAnimationFrame or window.mozRequestAnimationFrame or window.oRequestAnimationFrame or window.msRequestAnimationFrame or (callback, element) ->
@@ -12,7 +12,7 @@ window.requestAnimationFrame = (->
 )()
 
 window.onload = ->
-  game = new Game conf
+  game = new Game Conf
 
   # device control
   gamewindow = document.getElementById('game')

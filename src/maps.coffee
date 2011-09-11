@@ -62,7 +62,7 @@ class Map extends Sprite
     y = ~~(y / @cell)
     return @_map[x][y]
 
-  search_min_path: (start,goal)->
+  search_path: (start,goal)->
     path = []
     Node::start = start
     Node::goal = goal
@@ -125,24 +125,24 @@ class Map extends Sprite
       for j in [0 ... @_map[i].length]
         if @_map[i][j]
 
-          g.init color="rgb(30,30,30)"
-          w = 8
-          x = pos.vx+i*@cell
-          y = pos.vy+j*@cell
-          g.moveTo(x         ,y+@cell)
-          g.lineTo(x+w       ,y+@cell-w)
-          g.lineTo(x+@cell+w ,y+@cell-w)
-          g.lineTo(x+@cell   ,y+@cell)
-          g.lineTo(x         ,y+@cell)
-          g.fill()
+          g.init color=Color.i 30,30,30
+          # w = 8
+          # x = pos.vx+i*@cell
+          # y = pos.vy+j*@cell
+          # g.moveTo(x         ,y+@cell)
+          # g.lineTo(x+w       ,y+@cell-w)
+          # g.lineTo(x+@cell+w ,y+@cell-w)
+          # g.lineTo(x+@cell   ,y+@cell)
+          # g.lineTo(x         ,y+@cell)
+          # g.fill()
 
-          g.init color="rgb(40,40,40)"
-          g.moveTo(x  ,y+@cell)
-          g.lineTo(x  ,y)
-          g.lineTo(x+w,y-w)
-          g.lineTo(x+w,y-w+@cell)
-          g.lineTo(x  ,y+@cell)
-          g.fill()
+          # g.init color="rgb(40,40,40)"
+          # g.moveTo(x  ,y+@cell)
+          # g.lineTo(x  ,y)
+          # g.lineTo(x+w,y-w)
+          # g.lineTo(x+w,y-w+@cell)
+          # g.lineTo(x  ,y+@cell)
+          # g.fill()
 
   render_after:(g,cam)->
     pos = @getpos_relative(cam)
@@ -150,11 +150,12 @@ class Map extends Sprite
       for j in [0 ... @_map[i].length]
         if @_map[i][j]
           g.init Color.i(50,50,50),alpha=1
-          w = 5
-          g.fillRect(
-            pos.vx + i * @cell+w,
-            pos.vy + j * @cell-w,
-            @cell , @cell)
+          x = pos.vx + i * @cell
+          y = pos.vy + j * @cell
+          if -@cell<x<640 and -@cell<y<480
+            g.fillRect(
+              x , y ,
+              @cell , @cell)
 
   _rotate90:(map)->
     res = []
@@ -174,12 +175,12 @@ class Map extends Sprite
 
 
 class SampleMap extends Map
-  max_object_count: 4
+  max_object_count: 18
   frame_count : 0
 
   constructor: (@context , @cell=32) ->
     super @cell
-    @_map = @load(maps.debug)
+    @_map = @load(maps.filed1)
 
   update:(objs,camera)->
     @_check_death(objs,camera)
@@ -200,10 +201,11 @@ class SampleMap extends Map
 
   _pop_monster: (objs) ->
     # リポップ条件確認
-    if objs.length < @max_object_count and @frame_count % 24*3 == 0
+    if objs.length < @max_object_count and @frame_count % 60*3 == 0
       group = (if Math.random() > 0.05 then ObjectGroup.Enemy else ObjectGroup.Player )
       random_point  = @get_rand_xy()
       objs.push( new Goblin(random_point.x, random_point.y, group) )
+
 
 class Node
   start: [null,null]

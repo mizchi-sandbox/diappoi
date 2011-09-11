@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, DamageHit, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, base_block, conf, init_cv, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, Conf, DamageHit, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, base_block, init_cv, maps, my, randint, rjoin, sjoin;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -412,7 +412,7 @@
       y = ~~(y / this.cell);
       return this._map[x][y];
     };
-    Map.prototype.search_min_path = function(start, goal) {
+    Map.prototype.search_path = function(start, goal) {
       var close_list, dist, i, max_depth, min_node, n, n_gs, nx, ny, obj, open_list, path, search_path, start_node, _, _i, _len, _ref;
       path = [];
       Node.prototype.start = start;
@@ -472,7 +472,7 @@
       return [];
     };
     Map.prototype.render = function(g, cam) {
-      var color, i, j, pos, w, x, y, _ref, _results;
+      var color, i, j, pos, _ref, _results;
       pos = this.getpos_relative(cam);
       _results = [];
       for (i = 0, _ref = this._map.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
@@ -480,7 +480,7 @@
           var _ref2, _results2;
           _results2 = [];
           for (j = 0, _ref2 = this._map[i].length; 0 <= _ref2 ? j < _ref2 : j > _ref2; 0 <= _ref2 ? j++ : j--) {
-            _results2.push(this._map[i][j] ? (g.init(color = "rgb(30,30,30)"), w = 8, x = pos.vx + i * this.cell, y = pos.vy + j * this.cell, g.moveTo(x, y + this.cell), g.lineTo(x + w, y + this.cell - w), g.lineTo(x + this.cell + w, y + this.cell - w), g.lineTo(x + this.cell, y + this.cell), g.lineTo(x, y + this.cell), g.fill(), g.init(color = "rgb(40,40,40)"), g.moveTo(x, y + this.cell), g.lineTo(x, y), g.lineTo(x + w, y - w), g.lineTo(x + w, y - w + this.cell), g.lineTo(x, y + this.cell), g.fill()) : void 0);
+            _results2.push(this._map[i][j] ? g.init(color = Color.i(30, 30, 30)) : void 0);
           }
           return _results2;
         }).call(this));
@@ -488,7 +488,7 @@
       return _results;
     };
     Map.prototype.render_after = function(g, cam) {
-      var alpha, i, j, pos, w, _ref, _results;
+      var alpha, i, j, pos, x, y, _ref, _results;
       pos = this.getpos_relative(cam);
       _results = [];
       for (i = 0, _ref = this._map.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
@@ -496,7 +496,7 @@
           var _ref2, _results2;
           _results2 = [];
           for (j = 0, _ref2 = this._map[i].length; 0 <= _ref2 ? j < _ref2 : j > _ref2; 0 <= _ref2 ? j++ : j--) {
-            _results2.push(this._map[i][j] ? (g.init(Color.i(50, 50, 50), alpha = 1), w = 5, g.fillRect(pos.vx + i * this.cell + w, pos.vy + j * this.cell - w, this.cell, this.cell)) : void 0);
+            _results2.push(this._map[i][j] ? (g.init(Color.i(50, 50, 50), alpha = 1), x = pos.vx + i * this.cell, y = pos.vy + j * this.cell, (-this.cell < x && x < 640) && (-this.cell < y && y < 480) ? g.fillRect(x, y, this.cell, this.cell) : void 0) : void 0);
           }
           return _results2;
         }).call(this));
@@ -550,13 +550,13 @@
   })();
   SampleMap = (function() {
     __extends(SampleMap, Map);
-    SampleMap.prototype.max_object_count = 4;
+    SampleMap.prototype.max_object_count = 18;
     SampleMap.prototype.frame_count = 0;
     function SampleMap(context, cell) {
       this.context = context;
       this.cell = cell != null ? cell : 32;
       SampleMap.__super__.constructor.call(this, this.cell);
-      this._map = this.load(maps.debug);
+      this._map = this.load(maps.filed1);
     }
     SampleMap.prototype.update = function(objs, camera) {
       this._check_death(objs, camera);
@@ -583,7 +583,7 @@
     };
     SampleMap.prototype._pop_monster = function(objs) {
       var group, random_point;
-      if (objs.length < this.max_object_count && this.frame_count % 24 * 3 === 0) {
+      if (objs.length < this.max_object_count && this.frame_count % 60 * 3 === 0) {
         group = (Math.random() > 0.05 ? ObjectGroup.Enemy : ObjectGroup.Player);
         random_point = this.get_rand_xy();
         return objs.push(new Goblin(random_point.x, random_point.y, group));
@@ -634,7 +634,7 @@
       this.cnt = 0;
       this.id = ~~(Math.random() * 100);
       this.animation = [];
-      this.cnt = ~~(Math.random() * 24);
+      this.cnt = ~~(Math.random() * 60);
       this.distination = [this.x, this.y];
       this._path = [];
     }
@@ -714,7 +714,7 @@
     Character.prototype.regenerate = function() {
       var r;
       r = (this.targeting_obj ? 2 : 1);
-      if (!(this.cnt % (24 / this.status.regenerate * r)) && this.is_alive()) {
+      if (this.is_alive()) {
         if (this.status.hp < this.status.MAX_HP) {
           return this.status.hp += 1;
         }
@@ -815,7 +815,7 @@
       if (color == null) {
         color = "rgb(255,0,0)";
       }
-      beat = 24;
+      beat = 60;
       ms = ~~(new Date() / 100) % beat / beat;
       if (ms > 0.5) {
         ms = 1 - ms;
@@ -864,6 +864,10 @@
         return my.mes("" + this.name + " find " + this.targeting_obj.name);
       }
     };
+    Character.prototype._update_path = function(cmap) {
+      this._path = this._get_path(cmap);
+      return this.to = this._path.shift();
+    };
     Character.prototype.move = function(objs, cmap) {
       var c, dp, nx, ny, wide, _ref;
       if (this.has_target()) {
@@ -871,14 +875,18 @@
         if (this.get_distance(this.targeting_obj) < this.selected_skill.range) {
           return;
         }
+      } else {
+        if (this.cnt % 60 < 15) {
+          return;
+        }
       }
-      if (this.has_target() && this.to && !this.cnt % 24) {
-        this._path = this._get_path(cmap);
-        this.to = this._path.shift();
-      } else if (this.to) {
+      if (this.has_target() && this.cnt % 60 === 0) {
+        this._update_path(cmap);
+      }
+      if (this.to) {
         dp = cmap.get_point(this.to[0], this.to[1]);
         _ref = this._trace(dp.x, dp.y), nx = _ref[0], ny = _ref[1];
-        wide = 7;
+        wide = this.status.speed;
         if ((dp.x - wide < nx && nx < dp.x + wide) && (dp.y - wide < ny && ny < dp.y + wide)) {
           if (this._path.length > 0) {
             this.to = this._path.shift();
@@ -888,8 +896,7 @@
         }
       } else {
         if (this.has_target()) {
-          this._path = this._get_path(cmap);
-          this.to = this._path.shift();
+          this._update_path(cmap);
         } else {
           c = cmap.get_cell(this.x, this.y);
           this.to = [c.x + randint(-1, 1), c.y + randint(-1, 1)];
@@ -914,7 +921,7 @@
       var from, to;
       from = map.get_cell(this.x, this.y);
       to = map.get_cell(this.targeting_obj.x, this.targeting_obj.y);
-      return map.search_min_path([from.x, from.y], [to.x, to.y]);
+      return map.search_path([from.x, from.y], [to.x, to.y]);
     };
     Character.prototype._trace = function(to_x, to_y) {
       this.set_dir(to_x, to_y);
@@ -925,7 +932,9 @@
       this.cnt += 1;
       if (this.is_alive()) {
         this.check();
-        this.regenerate();
+        if (this.cnt % 60 === 0) {
+          this.regenerate();
+        }
         this.search(objs);
         this.move(objs, cmap, keys, mouse);
         this.change_skill(keys, objs);
@@ -952,7 +961,8 @@
         hp: 50,
         atk: 10,
         def: 1.0,
-        sight_range: 120
+        sight_range: 120,
+        speed: 4
       });
       Goblin.__super__.constructor.call(this, this.x, this.y, this.group, status);
       this.skills = {
@@ -1001,7 +1011,7 @@
         def: 0.8,
         atack_range: 50,
         sight_range: 80,
-        speed: 6
+        speed: 3
       });
       this.skills = {
         one: new Skill_Atack(),
@@ -1198,7 +1208,7 @@
     function Skill(lv) {
       this.lv = lv != null ? lv : 1;
       this._build(this.lv);
-      this.MAX_CT = this.CT * 24;
+      this.MAX_CT = this.CT * 60;
       this.ct = this.MAX_CT;
     }
     Skill.prototype.charge = function(actor, is_selected) {
@@ -1405,7 +1415,7 @@
       __extends(Slash, Animation);
       function Slash(amount) {
         this.amount = amount;
-        Slash.__super__.constructor.call(this, 24);
+        Slash.__super__.constructor.call(this, 60);
       }
       Slash.prototype.render = function(g, x, y) {
         var per, zangeki, _ref;
@@ -1432,7 +1442,7 @@
       __extends(Burn, Animation);
       function Burn(amount) {
         this.amount = amount;
-        Burn.__super__.constructor.call(this, 24);
+        Burn.__super__.constructor.call(this, 60);
       }
       Burn.prototype.render = function(g, x, y) {
         var per, _ref;
@@ -1499,10 +1509,12 @@
       this.set_camera(player);
     }
     FieldScene.prototype.enter = function(keys, mouse) {
-      var obj, _i, _len, _ref;
-      _ref = this.objs;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        obj = _ref[_i];
+      var near_obj, obj, _i, _len;
+      near_obj = this.objs.filter(__bind(function(e) {
+        return e.get_distance(this._camera) < 400;
+      }, this));
+      for (_i = 0, _len = near_obj.length; _i < _len; _i++) {
+        obj = near_obj[_i];
         obj.update(this.objs, this.map, keys, mouse);
       }
       this.map.update(this.objs, this._camera);
@@ -1628,13 +1640,13 @@
       return this.stroke();
     }
   };
-  conf = {
+  Conf = {
     WINDOW_WIDTH: 640,
     WINDOW_HEIGHT: 480,
     VIEW_X: 320,
     VIEW_Y: 240,
     CANVAS_NAME: "game",
-    FPS: 24
+    FPS: 60
   };
   window.requestAnimationFrame = (function() {
     return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback, element) {
@@ -1643,7 +1655,7 @@
   })();
   window.onload = function() {
     var game, gamewindow;
-    game = new Game(conf);
+    game = new Game(Conf);
     gamewindow = document.getElementById('game');
     gamewindow.onmousemove = function(e) {
       game.mouse.x = e.x - gamewindow.offsetLeft;

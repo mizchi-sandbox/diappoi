@@ -43,8 +43,8 @@ class FieldScene extends Scene
     @set_camera( player )
 
   enter: (keys,mouse) ->
-    # @objs.map (i)-> i.update(@objs,@map,keys,mouse)
-    obj.update(@objs, @map,keys,mouse) for obj in @objs
+    near_obj = @objs.filter (e)=> e.get_distance(@_camera) < 400
+    obj.update(@objs, @map,keys,mouse) for obj in near_obj
     @map.update @objs,@_camera
     @frame_count++
     return @name
