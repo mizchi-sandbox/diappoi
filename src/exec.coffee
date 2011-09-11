@@ -6,6 +6,11 @@ conf =
   CANVAS_NAME: "game"
   FPS : 24
 
+window.requestAnimationFrame = (->
+  window.requestAnimationFrame or window.webkitRequestAnimationFrame or window.mozRequestAnimationFrame or window.oRequestAnimationFrame or window.msRequestAnimationFrame or (callback, element) ->
+    window.setTimeout callback, 1000 / 60
+)()
+
 window.onload = ->
   game = new Game conf
 
@@ -22,3 +27,4 @@ window.onload = ->
 
   # game start
   game.start(game)
+

@@ -2,6 +2,9 @@ class Character extends Sprite
   scale : null
   status : {}
   state : null
+  following_obj: null
+  targeting_obj: null
+
   constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
     super @x, @y
     @state =
@@ -10,14 +13,30 @@ class Character extends Sprite
     @dir = 0
     @cnt = 0
     @id = ~~(Math.random() * 100)
-
     @animation = []
+
+    @cnt = ~~(Math.random() * 24)
+    @distination = [@x,@y]
+    @_path = []
+
+  update:(objs, cmap, keys, mouse)->
+    @cnt += 1
+    if @is_alive()
+      @check()
+      @regenerate()
+      @search objs
+      @move(objs,cmap, keys,mouse)
+      @change_skill(keys,objs)
+      for name,skill of @skills
+        skill.charge @, skill is @selected_skill
+      @selected_skill.exec @,objs
+
 
   has_target:()->
     if @targeting_obj isnt null then true else false
 
-  is_targeted:(objs)->
-     @ in (i.targeting_obj? for i in objs)
+  is_following:()->
+    if @following_obj isnt null then true else false
 
   is_alive:()->
     return @status.hp > 1
@@ -28,15 +47,10 @@ class Character extends Sprite
     targets.filter (t)=>
       t.group is group_id and @get_distance(t) < range and t.is_alive()
 
-  add_animation:(animation)->
-    @animation.push(animation)
-
-  render_animation:(g,x, y)->
-    for n in [0...@animation.length]
-      if not @animation[n].render(g,x,y)
-        @animation.splice(n,1)
-        @render_animation(g,x,y)
-        break
+  add_damage : (amount)->
+    @status.hp -= amount
+    @check()
+    return @is_alive()
 
   set_dir: (x,y)->
     rx = x - @x
@@ -77,6 +91,16 @@ class Character extends Sprite
           cur += 1
         @targeting_obj = targets[cur]
         console.log "after: #{cur}"
+
+  add_animation:(animation)->
+    @animation.push(animation)
+
+  render_animation:(g,x, y)->
+    for n in [0...@animation.length]
+      if not @animation[n].render(g,x,y)
+        @animation.splice(n,1)
+        @render_animation(g,x,y)
+        break
 
   render_reach_circle:(g,pos)->
     g.init()
@@ -157,27 +181,6 @@ class Character extends Sprite
         console.log "set #{@selected_skill.name}"
         break
 
-class Walker extends Character
-  following: null
-  targeting_obj: null
-  constructor: (@x,@y,@group=ObjectGroup.Enemy,status={}) ->
-    super(@x,@y,@group,status)
-    @cnt = ~~(Math.random() * 24)
-    @distination = [@x,@y]
-    @_path = []
-
-  update:(objs, cmap, keys, mouse)->
-    @cnt += 1
-    if @is_alive()
-      @check()
-      @regenerate()
-      @search objs
-      @move(objs,cmap, keys,mouse)
-      @change_skill(keys,objs)
-      for name,skill of @skills
-        skill.charge @, skill is @selected_skill
-      @selected_skill.exec @,objs
-
   search : (objs)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
     if @has_target()
@@ -212,7 +215,7 @@ class Walker extends Character
           @to = null
     # for wander
     else
-      if @targeting_obj
+      if @has_target()
         @_path = @_get_path(cmap)
         @to = @_path.shift()
       else
@@ -242,8 +245,19 @@ class Walker extends Character
       @y + ~~(@status.speed * Math.sin(@dir))
     ]
 
+  update:(objs, cmap, keys, mouse)->
+    @cnt += 1
+    if @is_alive()
+      @check()
+      @regenerate()
+      @search objs
+      @move(objs,cmap, keys,mouse)
+      @change_skill(keys,objs)
+      for name,skill of @skills
+        skill.charge @, skill is @selected_skill
+      @selected_skill.exec @,objs
 
-class Goblin extends Walker
+class Goblin extends Character
   name : "Goblin"
   scale : 1
   constructor: (@x,@y,@group) ->
@@ -257,9 +271,16 @@ class Goblin extends Walker
 
     @skills =
       one: new Skill_Atack(10)
-      two: new Skill_Smash()
+      two: new Skill_Heal()
     @selected_skill = @skills['one']
-  change_skill: ()->
+
+  change_skill: (_)->
+    if @status.hp < 10
+      console.log '#{@name}:warning'
+      @selected_skill = @skills['two']
+    else
+      @selected_skill = @skills['one']
+
     # @set_skill keys
 
   render_object:(g,pos)->
@@ -273,7 +294,7 @@ class Goblin extends Walker
     ms = 1 - ms if ms > 0.5
     g.drawArc(true,pos.vx, pos.vy, ~~(1.3+ms)*@scale)
 
-class Player extends Walker
+class Player extends Character
   scale : 8
   name : "Player"
   constructor: (@x,@y,@group=ObjectGroup.Player) ->

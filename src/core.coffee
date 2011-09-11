@@ -34,9 +34,15 @@ class Game
     @draw(@scenes[@scene_name])
 
   start: (self) ->
-    setInterval ->
+    # setInterval ->
+    #   self.enter()
+    # , 1000 / @config.FPS
+    animationLoop = ->
       self.enter()
-    , 1000 / @config.FPS
+      requestAnimationFrame animationLoop
+    animationLoop()
+
+
 
   getkey: (self,which,to) ->
     switch which
@@ -141,3 +147,4 @@ init_cv = (g,color="rgb(255,255,255)",alpha=1)->
   g.strokeStyle = color
   g.fillStyle = color
   g.globalAlpha = alpha
+

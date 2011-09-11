@@ -1,18 +1,18 @@
 (function() {
-  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, DamageHit, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Walker, base_block, conf, init_cv, maps, my, randint, rjoin, sjoin;
-  var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
+  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, DamageHit, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, base_block, conf, init_cv, maps, my, randint, rjoin, sjoin;
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
+    for (var i = 0, l = this.length; i < l; i++) {
+      if (this[i] === item) return i;
+    }
+    return -1;
+  }, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
     ctor.prototype = parent.prototype;
     child.prototype = new ctor;
     child.__super__ = parent.prototype;
     return child;
-  }, __indexOf = Array.prototype.indexOf || function(item) {
-    for (var i = 0, l = this.length; i < l; i++) {
-      if (this[i] === item) return i;
-    }
-    return -1;
-  }, __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+  };
   Game = (function() {
     function Game(conf) {
       var canvas;
@@ -54,9 +54,12 @@
       return this.draw(this.scenes[this.scene_name]);
     };
     Game.prototype.start = function(self) {
-      return setInterval(function() {
-        return self.enter();
-      }, 1000 / this.config.FPS);
+      var animationLoop;
+      animationLoop = function() {
+        self.enter();
+        return requestAnimationFrame(animationLoop);
+      };
+      return animationLoop();
     };
     Game.prototype.getkey = function(self, which, to) {
       switch (which) {
@@ -241,6 +244,40 @@
         vx: 320 + this.x - cam.x,
         vy: 240 + this.y - cam.y
       };
+    };
+    Sprite.prototype.find_obj = function(group_id, targets, range) {
+      return targets.filter(__bind(function(t) {
+        return t.group === group_id && this.get_distance(t) < range;
+      }, this));
+    };
+    Sprite.prototype.is_targeted = function(objs) {
+      var i;
+      return __indexOf.call((function() {
+        var _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = objs.length; _i < _len; _i++) {
+          i = objs[_i];
+          _results.push(i.targeting_obj != null);
+        }
+        return _results;
+      })(), this) >= 0;
+    };
+    Sprite.prototype.has_target = function() {
+      return false;
+    };
+    Sprite.prototype.is_following = function() {
+      return false;
+    };
+    Sprite.prototype.is_alive = function() {
+      return false;
+    };
+    Sprite.prototype.is_dead = function() {
+      return !this.is_alive();
+    };
+    Sprite.prototype.find_obj = function(group_id, targets, range) {
+      return targets.filter(__bind(function(t) {
+        return t.group === group_id && this.get_distance(t) < range && t.is_alive();
+      }, this));
     };
     return Sprite;
   })();
@@ -579,6 +616,8 @@
     Character.prototype.scale = null;
     Character.prototype.status = {};
     Character.prototype.state = null;
+    Character.prototype.following_obj = null;
+    Character.prototype.targeting_obj = null;
     function Character(x, y, group, status) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
@@ -595,7 +634,27 @@
       this.cnt = 0;
       this.id = ~~(Math.random() * 100);
       this.animation = [];
+      this.cnt = ~~(Math.random() * 24);
+      this.distination = [this.x, this.y];
+      this._path = [];
     }
+    Character.prototype.update = function(objs, cmap, keys, mouse) {
+      var name, skill, _ref;
+      this.cnt += 1;
+      if (this.is_alive()) {
+        this.check();
+        this.regenerate();
+        this.search(objs);
+        this.move(objs, cmap, keys, mouse);
+        this.change_skill(keys, objs);
+        _ref = this.skills;
+        for (name in _ref) {
+          skill = _ref[name];
+          skill.charge(this, skill === this.selected_skill);
+        }
+        return this.selected_skill.exec(this, objs);
+      }
+    };
     Character.prototype.has_target = function() {
       if (this.targeting_obj !== null) {
         return true;
@@ -603,17 +662,12 @@
         return false;
       }
     };
-    Character.prototype.is_targeted = function(objs) {
-      var i;
-      return __indexOf.call((function() {
-        var _i, _len, _results;
-        _results = [];
-        for (_i = 0, _len = objs.length; _i < _len; _i++) {
-          i = objs[_i];
-          _results.push(i.targeting_obj != null);
-        }
-        return _results;
-      })(), this) >= 0;
+    Character.prototype.is_following = function() {
+      if (this.following_obj !== null) {
+        return true;
+      } else {
+        return false;
+      }
     };
     Character.prototype.is_alive = function() {
       return this.status.hp > 1;
@@ -626,20 +680,10 @@
         return t.group === group_id && this.get_distance(t) < range && t.is_alive();
       }, this));
     };
-    Character.prototype.add_animation = function(animation) {
-      return this.animation.push(animation);
-    };
-    Character.prototype.render_animation = function(g, x, y) {
-      var n, _ref, _results;
-      _results = [];
-      for (n = 0, _ref = this.animation.length; 0 <= _ref ? n < _ref : n > _ref; 0 <= _ref ? n++ : n--) {
-        if (!this.animation[n].render(g, x, y)) {
-          this.animation.splice(n, 1);
-          this.render_animation(g, x, y);
-          break;
-        }
-      }
-      return _results;
+    Character.prototype.add_damage = function(amount) {
+      this.status.hp -= amount;
+      this.check();
+      return this.is_alive();
     };
     Character.prototype.set_dir = function(x, y) {
       var rx, ry;
@@ -698,6 +742,21 @@
           return console.log("after: " + cur);
         }
       }
+    };
+    Character.prototype.add_animation = function(animation) {
+      return this.animation.push(animation);
+    };
+    Character.prototype.render_animation = function(g, x, y) {
+      var n, _ref, _results;
+      _results = [];
+      for (n = 0, _ref = this.animation.length; 0 <= _ref ? n < _ref : n > _ref; 0 <= _ref ? n++ : n--) {
+        if (!this.animation[n].render(g, x, y)) {
+          this.animation.splice(n, 1);
+          this.render_animation(g, x, y);
+          break;
+        }
+      }
+      return _results;
     };
     Character.prototype.render_reach_circle = function(g, pos) {
       var alpha;
@@ -792,42 +851,7 @@
       }
       return _results;
     };
-    return Character;
-  })();
-  Walker = (function() {
-    __extends(Walker, Character);
-    Walker.prototype.following = null;
-    Walker.prototype.targeting_obj = null;
-    function Walker(x, y, group, status) {
-      this.x = x;
-      this.y = y;
-      this.group = group != null ? group : ObjectGroup.Enemy;
-      if (status == null) {
-        status = {};
-      }
-      Walker.__super__.constructor.call(this, this.x, this.y, this.group, status);
-      this.cnt = ~~(Math.random() * 24);
-      this.distination = [this.x, this.y];
-      this._path = [];
-    }
-    Walker.prototype.update = function(objs, cmap, keys, mouse) {
-      var name, skill, _ref;
-      this.cnt += 1;
-      if (this.is_alive()) {
-        this.check();
-        this.regenerate();
-        this.search(objs);
-        this.move(objs, cmap, keys, mouse);
-        this.change_skill(keys, objs);
-        _ref = this.skills;
-        for (name in _ref) {
-          skill = _ref[name];
-          skill.charge(this, skill === this.selected_skill);
-        }
-        return this.selected_skill.exec(this, objs);
-      }
-    };
-    Walker.prototype.search = function(objs) {
+    Character.prototype.search = function(objs) {
       var enemies;
       enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
       if (this.has_target()) {
@@ -840,7 +864,7 @@
         return my.mes("" + this.name + " find " + this.targeting_obj.name);
       }
     };
-    Walker.prototype.move = function(objs, cmap) {
+    Character.prototype.move = function(objs, cmap) {
       var c, dp, nx, ny, wide, _ref;
       if (this.has_target()) {
         this.set_dir(this.targeting_obj.x, this.targeting_obj.y);
@@ -863,7 +887,7 @@
           }
         }
       } else {
-        if (this.targeting_obj) {
+        if (this.has_target()) {
           this._path = this._get_path(cmap);
           this.to = this._path.shift();
         } else {
@@ -886,20 +910,37 @@
       this._lx_ = this.x;
       return this._ly_ = this.y;
     };
-    Walker.prototype._get_path = function(map) {
+    Character.prototype._get_path = function(map) {
       var from, to;
       from = map.get_cell(this.x, this.y);
       to = map.get_cell(this.targeting_obj.x, this.targeting_obj.y);
       return map.search_min_path([from.x, from.y], [to.x, to.y]);
     };
-    Walker.prototype._trace = function(to_x, to_y) {
+    Character.prototype._trace = function(to_x, to_y) {
       this.set_dir(to_x, to_y);
       return [this.x + ~~(this.status.speed * Math.cos(this.dir)), this.y + ~~(this.status.speed * Math.sin(this.dir))];
     };
-    return Walker;
+    Character.prototype.update = function(objs, cmap, keys, mouse) {
+      var name, skill, _ref;
+      this.cnt += 1;
+      if (this.is_alive()) {
+        this.check();
+        this.regenerate();
+        this.search(objs);
+        this.move(objs, cmap, keys, mouse);
+        this.change_skill(keys, objs);
+        _ref = this.skills;
+        for (name in _ref) {
+          skill = _ref[name];
+          skill.charge(this, skill === this.selected_skill);
+        }
+        return this.selected_skill.exec(this, objs);
+      }
+    };
+    return Character;
   })();
   Goblin = (function() {
-    __extends(Goblin, Walker);
+    __extends(Goblin, Character);
     Goblin.prototype.name = "Goblin";
     Goblin.prototype.scale = 1;
     function Goblin(x, y, group) {
@@ -916,11 +957,18 @@
       Goblin.__super__.constructor.call(this, this.x, this.y, this.group, status);
       this.skills = {
         one: new Skill_Atack(10),
-        two: new Skill_Smash()
+        two: new Skill_Heal()
       };
       this.selected_skill = this.skills['one'];
     }
-    Goblin.prototype.change_skill = function() {};
+    Goblin.prototype.change_skill = function(_) {
+      if (this.status.hp < 10) {
+        console.log('#{@name}:warning');
+        return this.selected_skill = this.skills['two'];
+      } else {
+        return this.selected_skill = this.skills['one'];
+      }
+    };
     Goblin.prototype.render_object = function(g, pos) {
       var beat, color, ms;
       if (this.group === ObjectGroup.Player) {
@@ -939,7 +987,7 @@
     return Goblin;
   })();
   Player = (function() {
-    __extends(Player, Walker);
+    __extends(Player, Character);
     Player.prototype.scale = 8;
     Player.prototype.name = "Player";
     function Player(x, y, group) {
@@ -1192,7 +1240,7 @@
         for (_i = 0, _len = targets.length; _i < _len; _i++) {
           t = targets[_i];
           amount = this._calc(actor, t);
-          t.status.hp -= amount;
+          t.add_damage(amount);
           t.add_animation(new Anim.prototype[this.effect](amount));
         }
         return this.ct = 0;
@@ -1239,7 +1287,7 @@
       Skill_Atack.__super__.constructor.apply(this, arguments);
     }
     Skill_Atack.prototype.name = "Atack";
-    Skill_Atack.prototype.range = 30;
+    Skill_Atack.prototype.range = 60;
     Skill_Atack.prototype.CT = 1;
     Skill_Atack.prototype.auto = true;
     Skill_Atack.prototype.bg_charge = 0.2;
@@ -1295,7 +1343,7 @@
     Skill_Heal.prototype.name = "Heal";
     Skill_Heal.prototype.range = 0;
     Skill_Heal.prototype.auto = false;
-    Skill_Heal.prototype.CT = 1;
+    Skill_Heal.prototype.CT = 4;
     Skill_Heal.prototype.bg_charge = 0.5;
     Skill_Heal.prototype.fg_charge = 1;
     function Skill_Heal(lv) {
@@ -1588,6 +1636,11 @@
     CANVAS_NAME: "game",
     FPS: 24
   };
+  window.requestAnimationFrame = (function() {
+    return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback, element) {
+      return window.setTimeout(callback, 1000 / 60);
+    };
+  })();
   window.onload = function() {
     var game, gamewindow;
     game = new Game(conf);

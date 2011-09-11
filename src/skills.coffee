@@ -30,7 +30,7 @@ class DamageHit extends Skill
     if @ct >= @MAX_CT and targets.size() > 0
       for t in targets
         amount = @_calc actor,t
-        t.status.hp -= amount
+        t.add_damage(amount)
         t.add_animation new Anim.prototype[@effect] amount
       @ct = 0
 
@@ -53,7 +53,7 @@ class AreaHit extends DamageHit
 
 class Skill_Atack extends SingleHit
   name : "Atack"
-  range : 30
+  range : 60
   CT : 1
   auto: true
   bg_charge : 0.2
@@ -97,7 +97,7 @@ class Skill_Heal extends Skill
   name : "Heal"
   range : 0
   auto: false
-  CT : 1
+  CT : 4
   bg_charge : 0.5
   fg_charge : 1
 
