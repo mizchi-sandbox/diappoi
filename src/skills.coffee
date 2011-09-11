@@ -51,6 +51,16 @@ class AreaHit extends DamageHit
   _calc : (actor,target)->
     return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
 
+class TargetAreaHit extends DamageHit
+  effect : 'Burn'
+  _get_targets:(actor,objs)->
+    if actor.has_target()
+      if actor.get_distance(actor.targeting_obj) < @range
+        return actor.targeting_obj.find_obj ObjectGroup.get_against(actor), objs , @range
+    []
+  _calc : (actor,target)->
+    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
+
 class Skill_Atack extends SingleHit
   name : "Atack"
   range : 60
@@ -83,15 +93,23 @@ class Skill_Smash extends SingleHit
     @bg_charge += lv/20
     @fg_charge -= lv/20
     @damage_rate += lv/20
+  _calc : (actor,target)->
+    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
 
-class Skill_Meteor extends AreaHit
+class Skill_Meteor extends TargetAreaHit
   name : "Meteor"
   range : 80
   auto: true
   CT : 4
+  damage_rate : 5
+  random_rate : 0.1
+
   bg_charge : 0.5
   fg_charge : 1
   effect : 'Burn'
+
+  _calc : (actor,target)->
+    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
 
 class Skill_Heal extends Skill
   name : "Heal"

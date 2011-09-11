@@ -48,6 +48,7 @@ class Character extends Sprite
       t.group is group_id and @get_distance(t) < range and t.is_alive()
 
   die : (actor)->
+    @cnt = 0
     if @group == ObjectGroup.Enemy
       gold = randint(0,100)
       GameData.gold += gold
@@ -153,7 +154,7 @@ class Character extends Sprite
     g.fillText text , pos.vx+23, pos.vy+22
 
   render_dead: (g,pos)->
-    g.init color='rgb(55, 55, 55)'
+    g.init color='rgb(128, 0, 0)',alpha=1-@cnt/120
     g.drawArc true ,pos.vx,pos.vy, @scale
 
   render_gages:( g, x , y, w, h ,percent=1) ->
@@ -466,6 +467,7 @@ class Status
     @MAX_HP = params.hp or 30
     @MAX_SP = params.sp or 10
     @atk = params.atk or 10
+    @mgc = params.mgc or 10
     @def = params.def or 1.0
     @res = params.res or 1.0
     @regenerate = params.regenerate or 3

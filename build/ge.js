@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, Conf, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Sys, TresureObject, base_block, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, Conf, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Sys, TargetAreaHit, TresureObject, base_block, maps, my, randint, rjoin, sjoin;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -601,7 +601,7 @@
       var i, player, start_point, _ref, _results;
       _results = [];
       for (i = 0, _ref = objs.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-        if (objs[i].is_dead()) {
+        if (objs[i].is_dead() && objs[i].cnt > 120) {
           if (objs[i] === camera) {
             start_point = this.get_rand_xy();
             player = new Player(start_point.x, start_point.y, 0);
@@ -721,6 +721,7 @@
     };
     Character.prototype.die = function(actor) {
       var gold;
+      this.cnt = 0;
       if (this.group === ObjectGroup.Enemy) {
         gold = randint(0, 100);
         GameData.gold += gold;
@@ -858,8 +859,8 @@
       return g.fillText(text, pos.vx + 23, pos.vy + 22);
     };
     Character.prototype.render_dead = function(g, pos) {
-      var color;
-      g.init(color = 'rgb(55, 55, 55)');
+      var alpha, color;
+      g.init(color = 'rgb(128, 0, 0)', alpha = 1 - this.cnt / 120);
       return g.drawArc(true, pos.vx, pos.vy, this.scale);
     };
     Character.prototype.render_gages = function(g, x, y, w, h, percent) {
@@ -1254,6 +1255,7 @@
       this.MAX_HP = params.hp || 30;
       this.MAX_SP = params.sp || 10;
       this.atk = params.atk || 10;
+      this.mgc = params.mgc || 10;
       this.def = params.def || 1.0;
       this.res = params.res || 1.0;
       this.regenerate = params.regenerate || 3;
@@ -1363,6 +1365,25 @@
     };
     return AreaHit;
   })();
+  TargetAreaHit = (function() {
+    __extends(TargetAreaHit, DamageHit);
+    function TargetAreaHit() {
+      TargetAreaHit.__super__.constructor.apply(this, arguments);
+    }
+    TargetAreaHit.prototype.effect = 'Burn';
+    TargetAreaHit.prototype._get_targets = function(actor, objs) {
+      if (actor.has_target()) {
+        if (actor.get_distance(actor.targeting_obj) < this.range) {
+          return actor.targeting_obj.find_obj(ObjectGroup.get_against(actor), objs, this.range);
+        }
+      }
+      return [];
+    };
+    TargetAreaHit.prototype._calc = function(actor, target) {
+      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    };
+    return TargetAreaHit;
+  })();
   Skill_Atack = (function() {
     __extends(Skill_Atack, SingleHit);
     function Skill_Atack() {
@@ -1404,10 +1425,13 @@
       this.fg_charge -= lv / 20;
       return this.damage_rate += lv / 20;
     };
+    Skill_Smash.prototype._calc = function(actor, target) {
+      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    };
     return Skill_Smash;
   })();
   Skill_Meteor = (function() {
-    __extends(Skill_Meteor, AreaHit);
+    __extends(Skill_Meteor, TargetAreaHit);
     function Skill_Meteor() {
       Skill_Meteor.__super__.constructor.apply(this, arguments);
     }
@@ -1415,9 +1439,14 @@
     Skill_Meteor.prototype.range = 80;
     Skill_Meteor.prototype.auto = true;
     Skill_Meteor.prototype.CT = 4;
+    Skill_Meteor.prototype.damage_rate = 5;
+    Skill_Meteor.prototype.random_rate = 0.1;
     Skill_Meteor.prototype.bg_charge = 0.5;
     Skill_Meteor.prototype.fg_charge = 1;
     Skill_Meteor.prototype.effect = 'Burn';
+    Skill_Meteor.prototype._calc = function(actor, target) {
+      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    };
     return Skill_Meteor;
   })();
   Skill_Heal = (function() {

@@ -452,7 +452,7 @@ class SampleMap extends Map
   _sweep: (objs,camera)->
     for i in [0 ... objs.length]
       # if ObjectGroup.is_battler(objs[i]) and i.is_dead()
-      if objs[i].is_dead()
+      if objs[i].is_dead() and objs[i].cnt > 120
         if objs[i] is camera
           start_point = @get_rand_xy()
           player  =  new Player(start_point.x ,start_point.y, 0)
@@ -597,6 +597,7 @@ class Character extends Sprite
       t.group is group_id and @get_distance(t) < range and t.is_alive()
 
   die : (actor)->
+    @cnt = 0
     if @group == ObjectGroup.Enemy
       gold = randint(0,100)
       GameData.gold += gold
@@ -702,7 +703,7 @@ class Character extends Sprite
     g.fillText text , pos.vx+23, pos.vy+22
 
   render_dead: (g,pos)->
-    g.init color='rgb(55, 55, 55)'
+    g.init color='rgb(128, 0, 0)',alpha=1-@cnt/120
     g.drawArc true ,pos.vx,pos.vy, @scale
 
   render_gages:( g, x , y, w, h ,percent=1) ->
@@ -1015,6 +1016,7 @@ class Status
     @MAX_HP = params.hp or 30
     @MAX_SP = params.sp or 10
     @atk = params.atk or 10
+    @mgc = params.mgc or 10
     @def = params.def or 1.0
     @res = params.res or 1.0
     @regenerate = params.regenerate or 3
@@ -1087,6 +1089,16 @@ class AreaHit extends DamageHit
   _calc : (actor,target)->
     return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
 
+class TargetAreaHit extends DamageHit
+  effect : 'Burn'
+  _get_targets:(actor,objs)->
+    if actor.has_target()
+      if actor.get_distance(actor.targeting_obj) < @range
+        return actor.targeting_obj.find_obj ObjectGroup.get_against(actor), objs , @range
+    []
+  _calc : (actor,target)->
+    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
+
 class Skill_Atack extends SingleHit
   name : "Atack"
   range : 60
@@ -1119,15 +1131,23 @@ class Skill_Smash extends SingleHit
     @bg_charge += lv/20
     @fg_charge -= lv/20
     @damage_rate += lv/20
+  _calc : (actor,target)->
+    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
 
-class Skill_Meteor extends AreaHit
+class Skill_Meteor extends TargetAreaHit
   name : "Meteor"
   range : 80
   auto: true
   CT : 4
+  damage_rate : 5
+  random_rate : 0.1
+
   bg_charge : 0.5
   fg_charge : 1
   effect : 'Burn'
+
+  _calc : (actor,target)->
+    return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
 
 class Skill_Heal extends Skill
   name : "Heal"
