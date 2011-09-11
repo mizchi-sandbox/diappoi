@@ -30,7 +30,7 @@ class DamageHit extends Skill
     if @ct >= @MAX_CT and targets.size() > 0
       for t in targets
         amount = @_calc actor,t
-        t.add_damage(amount)
+        t.add_damage(actor,amount)
         t.add_animation new Anim.prototype[@effect] amount
       @ct = 0
 

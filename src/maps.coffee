@@ -183,12 +183,13 @@ class SampleMap extends Map
     @_map = @load(maps.filed1)
 
   update:(objs,camera)->
-    @_check_death(objs,camera)
+    @_sweep(objs,camera)
     @_pop_monster(objs)
 
-  _check_death: (objs,camera)->
+  _sweep: (objs,camera)->
     for i in [0 ... objs.length]
-      if not objs[i].is_alive()
+      # if ObjectGroup.is_battler(objs[i]) and i.is_dead()
+      if objs[i].is_dead()
         if objs[i] is camera
           start_point = @get_rand_xy()
           player  =  new Player(start_point.x ,start_point.y, 0)
@@ -202,9 +203,12 @@ class SampleMap extends Map
   _pop_monster: (objs) ->
     # リポップ条件確認
     if objs.length < @max_object_count and @frame_count % 60*3 == 0
-      group = (if Math.random() > 0.05 then ObjectGroup.Enemy else ObjectGroup.Player )
       random_point  = @get_rand_xy()
-      objs.push( new Goblin(random_point.x, random_point.y, group) )
+      if Math.random() < 0.9
+        group = (if Math.random() > 0.05 then ObjectGroup.Enemy else ObjectGroup.Player )
+        objs.push( new Goblin(random_point.x, random_point.y, group) )
+      else
+        objs.push( new MoneyObject(random_point.x, random_point.y) )
 
 
 class Node

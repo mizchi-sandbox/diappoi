@@ -85,13 +85,6 @@ my =
     xd = Math.pow (x1-x2) ,2
     yd = Math.pow (y1-y2) ,2
     return Math.sqrt xd+yd
-
-  init_cv: (g,color="rgb(255,255,255)",alpha=1)->
-    g.beginPath()
-    g.strokeStyle = color
-    g.fillStyle = color
-    g.globalAlpha = alpha
-
   gen_map:(x,y)->
     map = []
     for i in [0..20]
@@ -149,10 +142,4 @@ Color =
   Black : "rgb(0,0,0)"
   i : (r,g,b)->
     "rgb(#{r},#{g},#{b})"
-
-init_cv = (g,color="rgb(255,255,255)",alpha=1)->
-  g.beginPath()
-  g.strokeStyle = color
-  g.fillStyle = color
-  g.globalAlpha = alpha
 

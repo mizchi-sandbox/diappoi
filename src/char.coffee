@@ -47,9 +47,17 @@ class Character extends Sprite
     targets.filter (t)=>
       t.group is group_id and @get_distance(t) < range and t.is_alive()
 
-  add_damage : (amount)->
+  die : (actor)->
+    if @group == ObjectGroup.Enemy
+      gold = randint(0,100)
+      GameData.gold += gold
+    Sys::message "#{@name} is killed by #{actor.name}." if actor
+    Sys::message "You got #{gold}G." if gold
+
+  add_damage : (actor, amount)->
+    before = @is_alive()
     @status.hp -= amount
-    @check()
+    @die(actor) if @is_dead() and before
     return @is_alive()
 
   set_dir: (x,y)->
@@ -137,7 +145,7 @@ class Character extends Sprite
       text = @selected_skill.name
     else
       text = "wander"
-    color = Color.i 255,0,0
+    color = Color.Grey
     if @has_target()
       if @get_distance(@targeting_obj) < @selected_skill.range
         color = Color.i 0,255,0
@@ -311,7 +319,7 @@ class Goblin extends Character
 
     g.drawArc(true,pos.vx, pos.vy, ~~(1.3+ms)*@scale)
 
-    g.init Color.Red
+    g.init Color.Grey
     g.fillText( "#{@name}" ,pos.vx-5, pos.vy-12)
 
 
@@ -410,7 +418,7 @@ class Player extends Character
   render_skill_gage: (g)->
     c = 0
     for number,skill of @skills
-      color = Color.i 255,0,0
+      color = Color.Grey
       if @has_target()
         if @get_distance(@targeting_obj) < skill.range
           color = Color.i 0,255,0

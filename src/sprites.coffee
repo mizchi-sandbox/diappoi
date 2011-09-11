@@ -51,14 +51,64 @@ ObjectGroup =
         return @Player
 
 class ItemObject extends Sprite
-  constructor: (@x=0,@y=0,@scale=10) ->
+  size : 10
+  is_alive:()->
+    @event_in
+  is_dead:()->
+    not @is_alive()
+
+  constructor: (@x=0,@y=0) ->
     @group = ObjectGroup.Item
-  update:()->
+    @event_in = true
+
+  update:(objs,map , keys ,mouse,camera)->
+    if camera.get_distance(@) < @size
+      @event(objs,map , keys ,mouse,camera)
+      @event_in = false
+
+  event : (objs,map , keys ,mouse,camera)->
+    console.log "you got item"
 
   render: (g,cam)->
-    g.init color="rgb(0,0,255)"
     pos = @getpos_relative cam
-    g.beginPath()
-    g.arc(pos.vx,pos.vy, 15 - ms ,0,Math.PI*2,true)
-    g.stroke()
+    g.init color="rgb(255,0,255)"
+    g.drawArc true ,pos.vx,pos.vy, @size ,0,Math.PI*2,true
+
+
+class HealObject extends ItemObject
+  event : (objs,map , keys ,mouse,player)->
+    player.status.hp += 30
+    player.check()
+
+  # render: (g,cam)->
+  #   g.init color="rgb(0,0,255)"
+  #   pos = @getpos_relative cam
+  #   g.init Color.White
+  #   g.drawArc true ,pos.vx,pos.vy, 10 ,0,Math.PI*2,true
+
+
+class MoneyObject extends ItemObject
+  constructor:(x,y)->
+    super(x,y)
+    @amount = randint(0,100)
+  event : (objs,map , keys ,mouse,player)->
+    GameData.gold += @amount
+    Sys::message "You got #{@amount}G / #{GameData.gold} "
+
+class TresureObject extends ItemObject
+  constructor:(x,y)->
+    super(x,y)
+    @potential = randint(0,100)
+  event : (objs,map , keys ,mouse,player)->
+    Sys::message "You got a item#{@potential}"
+
+GameData =
+  gold : 0
+  items : []
+
+Sys = new Object
+Sys.prototype =
+  message : (text)->
+    elm = $("<li>").text(text)
+    $("#message").prepend(elm)
 

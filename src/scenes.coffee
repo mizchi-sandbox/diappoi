@@ -36,15 +36,15 @@ class FieldScene extends Scene
     @map = new SampleMap(@,32)
     @mouse = new Mouse()
 
-    # mapの中のランダムな空白にプレーヤーを初期化
     start_point = @map.get_rand_xy()
     player  =  new Player(start_point.x ,start_point.y, 0)
     @objs = [player]
+    # @objs.push new HealObject(start_point.x+20 ,start_point.y)
     @set_camera( player )
 
   enter: (keys,mouse) ->
     near_obj = @objs.filter (e)=> e.get_distance(@_camera) < 400
-    obj.update(@objs, @map,keys,mouse) for obj in near_obj
+    obj.update(@objs, @map,keys,mouse,@_camera) for obj in near_obj
     @map.update @objs,@_camera
     @frame_count++
     return @name

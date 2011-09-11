@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, Conf, DamageHit, FieldScene, Game, Goblin, ItemObject, Map, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, base_block, init_cv, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, Conf, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Sys, TresureObject, base_block, maps, my, randint, rjoin, sjoin;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -121,18 +121,6 @@
       yd = Math.pow(y1 - y2, 2);
       return Math.sqrt(xd + yd);
     },
-    init_cv: function(g, color, alpha) {
-      if (color == null) {
-        color = "rgb(255,255,255)";
-      }
-      if (alpha == null) {
-        alpha = 1;
-      }
-      g.beginPath();
-      g.strokeStyle = color;
-      g.fillStyle = color;
-      return g.globalAlpha = alpha;
-    },
     gen_map: function(x, y) {
       var i, j, map;
       map = [];
@@ -208,18 +196,6 @@
     i: function(r, g, b) {
       return "rgb(" + r + "," + g + "," + b + ")";
     }
-  };
-  init_cv = function(g, color, alpha) {
-    if (color == null) {
-      color = "rgb(255,255,255)";
-    }
-    if (alpha == null) {
-      alpha = 1;
-    }
-    g.beginPath();
-    g.strokeStyle = color;
-    g.fillStyle = color;
-    return g.globalAlpha = alpha;
   };
   Sprite = (function() {
     function Sprite(x, y, scale) {
@@ -299,23 +275,82 @@
   };
   ItemObject = (function() {
     __extends(ItemObject, Sprite);
-    function ItemObject(x, y, scale) {
+    ItemObject.prototype.size = 10;
+    ItemObject.prototype.is_alive = function() {
+      return this.event_in;
+    };
+    ItemObject.prototype.is_dead = function() {
+      return !this.is_alive();
+    };
+    function ItemObject(x, y) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
-      this.scale = scale != null ? scale : 10;
       this.group = ObjectGroup.Item;
+      this.event_in = true;
     }
-    ItemObject.prototype.update = function() {};
+    ItemObject.prototype.update = function(objs, map, keys, mouse, camera) {
+      if (camera.get_distance(this) < this.size) {
+        this.event(objs, map, keys, mouse, camera);
+        return this.event_in = false;
+      }
+    };
+    ItemObject.prototype.event = function(objs, map, keys, mouse, camera) {
+      return console.log("you got item");
+    };
     ItemObject.prototype.render = function(g, cam) {
       var color, pos;
-      g.init(color = "rgb(0,0,255)");
       pos = this.getpos_relative(cam);
-      g.beginPath();
-      g.arc(pos.vx, pos.vy, 15 - ms, 0, Math.PI * 2, true);
-      return g.stroke();
+      g.init(color = "rgb(255,0,255)");
+      return g.drawArc(true, pos.vx, pos.vy, this.size, 0, Math.PI * 2, true);
     };
     return ItemObject;
   })();
+  HealObject = (function() {
+    __extends(HealObject, ItemObject);
+    function HealObject() {
+      HealObject.__super__.constructor.apply(this, arguments);
+    }
+    HealObject.prototype.event = function(objs, map, keys, mouse, player) {
+      player.status.hp += 30;
+      return player.check();
+    };
+    return HealObject;
+  })();
+  MoneyObject = (function() {
+    __extends(MoneyObject, ItemObject);
+    function MoneyObject(x, y) {
+      MoneyObject.__super__.constructor.call(this, x, y);
+      this.amount = randint(0, 100);
+    }
+    MoneyObject.prototype.event = function(objs, map, keys, mouse, player) {
+      GameData.gold += this.amount;
+      return Sys.prototype.message("You got " + this.amount + "G / " + GameData.gold + " ");
+    };
+    return MoneyObject;
+  })();
+  TresureObject = (function() {
+    __extends(TresureObject, ItemObject);
+    function TresureObject(x, y) {
+      TresureObject.__super__.constructor.call(this, x, y);
+      this.potential = randint(0, 100);
+    }
+    TresureObject.prototype.event = function(objs, map, keys, mouse, player) {
+      return Sys.prototype.message("You got a item" + this.potential);
+    };
+    return TresureObject;
+  })();
+  GameData = {
+    gold: 0,
+    items: []
+  };
+  Sys = new Object;
+  Sys.prototype = {
+    message: function(text) {
+      var elm;
+      elm = $("<li>").text(text);
+      return $("#message").prepend(elm);
+    }
+  };
   Map = (function() {
     __extends(Map, Sprite);
     function Map(cell) {
@@ -559,14 +594,14 @@
       this._map = this.load(maps.filed1);
     }
     SampleMap.prototype.update = function(objs, camera) {
-      this._check_death(objs, camera);
+      this._sweep(objs, camera);
       return this._pop_monster(objs);
     };
-    SampleMap.prototype._check_death = function(objs, camera) {
+    SampleMap.prototype._sweep = function(objs, camera) {
       var i, player, start_point, _ref, _results;
       _results = [];
       for (i = 0, _ref = objs.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-        if (!objs[i].is_alive()) {
+        if (objs[i].is_dead()) {
           if (objs[i] === camera) {
             start_point = this.get_rand_xy();
             player = new Player(start_point.x, start_point.y, 0);
@@ -584,9 +619,13 @@
     SampleMap.prototype._pop_monster = function(objs) {
       var group, random_point;
       if (objs.length < this.max_object_count && this.frame_count % 60 * 3 === 0) {
-        group = (Math.random() > 0.05 ? ObjectGroup.Enemy : ObjectGroup.Player);
         random_point = this.get_rand_xy();
-        return objs.push(new Goblin(random_point.x, random_point.y, group));
+        if (Math.random() < 0.9) {
+          group = (Math.random() > 0.05 ? ObjectGroup.Enemy : ObjectGroup.Player);
+          return objs.push(new Goblin(random_point.x, random_point.y, group));
+        } else {
+          return objs.push(new MoneyObject(random_point.x, random_point.y));
+        }
       }
     };
     return SampleMap;
@@ -680,9 +719,26 @@
         return t.group === group_id && this.get_distance(t) < range && t.is_alive();
       }, this));
     };
-    Character.prototype.add_damage = function(amount) {
+    Character.prototype.die = function(actor) {
+      var gold;
+      if (this.group === ObjectGroup.Enemy) {
+        gold = randint(0, 100);
+        GameData.gold += gold;
+      }
+      if (actor) {
+        Sys.prototype.message("" + this.name + " is killed by " + actor.name + ".");
+      }
+      if (gold) {
+        return Sys.prototype.message("You got " + gold + "G.");
+      }
+    };
+    Character.prototype.add_damage = function(actor, amount) {
+      var before;
+      before = this.is_alive();
       this.status.hp -= amount;
-      this.check();
+      if (this.is_dead() && before) {
+        this.die(actor);
+      }
       return this.is_alive();
     };
     Character.prototype.set_dir = function(x, y) {
@@ -792,7 +848,7 @@
       } else {
         text = "wander";
       }
-      color = Color.i(255, 0, 0);
+      color = Color.Grey;
       if (this.has_target()) {
         if (this.get_distance(this.targeting_obj) < this.selected_skill.range) {
           color = Color.i(0, 255, 0);
@@ -997,7 +1053,9 @@
       if (ms > 0.5) {
         ms = 1 - ms;
       }
-      return g.drawArc(true, pos.vx, pos.vy, ~~(1.3 + ms) * this.scale);
+      g.drawArc(true, pos.vx, pos.vy, ~~(1.3 + ms) * this.scale);
+      g.init(Color.Grey);
+      return g.fillText("" + this.name, pos.vx - 5, pos.vy - 12);
     };
     return Goblin;
   })();
@@ -1121,7 +1179,7 @@
       _results = [];
       for (number in _ref) {
         skill = _ref[number];
-        color = Color.i(255, 0, 0);
+        color = Color.Grey;
         if (this.has_target()) {
           if (this.get_distance(this.targeting_obj) < skill.range) {
             color = Color.i(0, 255, 0);
@@ -1264,7 +1322,7 @@
         for (_i = 0, _len = targets.length; _i < _len; _i++) {
           t = targets[_i];
           amount = this._calc(actor, t);
-          t.add_damage(amount);
+          t.add_damage(actor, amount);
           t.add_animation(new Anim.prototype[this.effect](amount));
         }
         return this.ct = 0;
@@ -1529,7 +1587,7 @@
       }, this));
       for (_i = 0, _len = near_obj.length; _i < _len; _i++) {
         obj = near_obj[_i];
-        obj.update(this.objs, this.map, keys, mouse);
+        obj.update(this.objs, this.map, keys, mouse, this._camera);
       }
       this.map.update(this.objs, this._camera);
       this.frame_count++;
