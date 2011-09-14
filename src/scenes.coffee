@@ -39,7 +39,6 @@ class FieldScene extends Scene
     start_point = @map.get_rand_xy()
     player  =  new Player(start_point.x ,start_point.y, 0)
     @objs = [player]
-    # @objs.push new HealObject(start_point.x+20 ,start_point.y)
     @set_camera( player )
 
   enter: (keys,mouse) ->

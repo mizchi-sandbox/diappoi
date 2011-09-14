@@ -103,7 +103,7 @@ class Skill_Smash extends SingleHit
   _calc : (target)->
     return ~~(@actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
 
-class Skill_Meteor extends TargetAreaHit
+class Skill_Meteor extends AreaHit
   name : "Meteor"
   range : 80
   auto: true
@@ -125,9 +125,6 @@ class Skill_Heal extends Skill
   CT : 4
   bg_charge : 0.5
   fg_charge : 1
-
-  # constructor: (@actor,@lv=1) ->
-  #   super(@)
 
   exec:()->
     target = @actor

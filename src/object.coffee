@@ -8,6 +8,7 @@ Array::find = (pos)->
     if i.pos[0] == pos[0] and i.pos[1] == pos[1]
       return i
   return null
+# Rubinize
 Array::remove = (obj)-> @splice(@indexOf(obj),1)
 Array::size = ()-> @.length
 Array::first = ()-> @[0]
@@ -61,3 +62,21 @@ if CanvasRenderingContext2D?
   Canvas::drawArc = (fill , x,y,size,from=0, to=Math.PI*2,reverse=false)->
     @arc( x, y, size ,from ,to ,reverse)
     if fill then @fill() else @stroke()
+
+
+#===== UtilClass =====
+Util = {}
+Util.prototype =
+  extend : (obj, mixin) ->
+    obj[name] = method for name, method of mixin
+    obj
+
+  include : (klass, mixin) ->
+    @extend klass.prototype, mixin
+
+  dup : (obj)->
+    f = ()->
+    f.prototype = obj
+    new f
+
+include = Util::include

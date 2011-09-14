@@ -1,9 +1,9 @@
 class Character extends Sprite
   scale : null
-  status : {}
   state : null
   following_obj: null
   targeting_obj: null
+  status : {}
 
   constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
     super @x, @y
@@ -34,7 +34,7 @@ class Character extends Sprite
       @change_skill(keys,objs)
       for name,skill of @skills
         skill.charge @, skill is @selected_skill
-      @selected_skill.exec @,objs
+      @selected_skill.exec objs
 
   search : (objs)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
@@ -85,6 +85,8 @@ class Character extends Sprite
       @to = [c.x+randint(-1,1),c.y+randint(-1,1)]
     @_lx_ = @x
     @_ly_ = @y
+
+  equip : (item)->
 
   die : (actor)->
     @cnt = 0
@@ -270,11 +272,9 @@ class Goblin extends CharacterObject
   constructor: (@x,@y,@group) ->
     @dir = 0
     @status = new Status
-      hp  : 50
-      atk : 10
-      def : 1.0
-      sight_range : 120
-      speed : 4
+      str: 7
+      int: 2
+      dex: 6
     super(@x,@y,@group,@status)
 
     @skills =
@@ -314,12 +314,15 @@ class Player extends CharacterObject
   constructor: (@x,@y,@group=ObjectGroup.Player) ->
     super(@x,@y,@group)
     @status = new Status
-      hp : 120
-      atk : 10
-      def: 0.8
-      atack_range : 50
-      sight_range : 80
-      speed : 3
+      str: 10
+      int: 10
+      dex: 10
+      # hp : 120
+      # atk : 10
+      # def: 0.8
+      # atack_range : 50
+      # sight_range : 80
+      # speed : 3
 
     @skills =
       one: new Skill_Atack(@)
@@ -422,8 +425,6 @@ class Mouse extends Sprite
   constructor: (@x=0,@y=0) ->
   render_object: (g,pos)->
   render: (g,cam)->
-    # cx = ~~((@x+mouse.x-320)/cmap.cell)
-    # cy = ~~((@y+mouse.y-240)/cmap.cell)
 
 ObjectGroup =
   Player : 0
@@ -439,25 +440,30 @@ ObjectGroup =
         return @Player
 
 class Status
-  constructor: (params = {}, @lv = 1) ->
-    @params = params
-    @build_status(params)
+  constructor: (params = {}, equips = {}, @lv = 1) ->
+    # @params = params
+    # params =
+    #   str : 10
+    #   int : 10
+    #   dex : 10
+    @build_status(params,equips)
+
     @hp = @MAX_HP
     @sp = @MAX_SP
     @exp = 0
     @next_lv = @lv * 50
 
-  build_status:(params={},lv=1)->
-    @MAX_HP = params.hp or 30
-    @MAX_SP = params.sp or 10
-    @atk = params.atk or 10
-    @mgc = params.mgc or 10
-    @def = params.def or 1.0
-    @res = params.res or 1.0
-    @regenerate = params.regenerate or 3
-    @atack_range = params.atack_range or 50
-    @sight_range = params.sight_range or 80
-    @speed = params.speed or 6
+  build_status:(params={},equips)->
+    @MAX_HP = params.str*10
+    @MAX_SP = params.int*10
+    @atk = params.str
+    @mgc = params.int
+    @def = params.str / 10
+    @res = params.int
+
+    @regenerate = ~~(params.str/10)
+    @sight_range = params.dex*10
+    @speed = ~~(params.dex * 0.5)
 
   get_exp:(point)->
     @exp += point

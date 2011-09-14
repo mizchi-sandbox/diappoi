@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Burn, Canvas, Character, CharacterObject, Color, Conf, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Sys, TargetAreaHit, TresureObject, base_block, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, AreaHit, Burn, Canvas, Character, CharacterObject, Color, Conf, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Sys, TargetAreaHit, TresureObject, Util, base_block, include, maps, my, randint, rjoin, sjoin;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -655,10 +655,10 @@
   Character = (function() {
     __extends(Character, Sprite);
     Character.prototype.scale = null;
-    Character.prototype.status = {};
     Character.prototype.state = null;
     Character.prototype.following_obj = null;
     Character.prototype.targeting_obj = null;
+    Character.prototype.status = {};
     function Character(x, y, group, status) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
@@ -704,7 +704,7 @@
           skill = _ref[name];
           skill.charge(this, skill === this.selected_skill);
         }
-        return this.selected_skill.exec(this, objs);
+        return this.selected_skill.exec(objs);
       }
     };
     Character.prototype.search = function(objs) {
@@ -769,6 +769,7 @@
       this._lx_ = this.x;
       return this._ly_ = this.y;
     };
+    Character.prototype.equip = function(item) {};
     Character.prototype.die = function(actor) {
       var gold;
       this.cnt = 0;
@@ -1009,11 +1010,9 @@
       this.group = group;
       this.dir = 0;
       this.status = new Status({
-        hp: 50,
-        atk: 10,
-        def: 1.0,
-        sight_range: 120,
-        speed: 4
+        str: 7,
+        int: 2,
+        dex: 6
       });
       Goblin.__super__.constructor.call(this, this.x, this.y, this.group, this.status);
       this.skills = {
@@ -1064,12 +1063,9 @@
       this.group = group != null ? group : ObjectGroup.Player;
       Player.__super__.constructor.call(this, this.x, this.y, this.group);
       this.status = new Status({
-        hp: 120,
-        atk: 10,
-        def: 0.8,
-        atack_range: 50,
-        sight_range: 80,
-        speed: 3
+        str: 10,
+        int: 10,
+        dex: 10
       });
       this.skills = {
         one: new Skill_Atack(this),
@@ -1223,35 +1219,33 @@
     }
   };
   Status = (function() {
-    function Status(params, lv) {
+    function Status(params, equips, lv) {
       if (params == null) {
         params = {};
       }
+      if (equips == null) {
+        equips = {};
+      }
       this.lv = lv != null ? lv : 1;
-      this.params = params;
-      this.build_status(params);
+      this.build_status(params, equips);
       this.hp = this.MAX_HP;
       this.sp = this.MAX_SP;
       this.exp = 0;
       this.next_lv = this.lv * 50;
     }
-    Status.prototype.build_status = function(params, lv) {
+    Status.prototype.build_status = function(params, equips) {
       if (params == null) {
         params = {};
       }
-      if (lv == null) {
-        lv = 1;
-      }
-      this.MAX_HP = params.hp || 30;
-      this.MAX_SP = params.sp || 10;
-      this.atk = params.atk || 10;
-      this.mgc = params.mgc || 10;
-      this.def = params.def || 1.0;
-      this.res = params.res || 1.0;
-      this.regenerate = params.regenerate || 3;
-      this.atack_range = params.atack_range || 50;
-      this.sight_range = params.sight_range || 80;
-      return this.speed = params.speed || 6;
+      this.MAX_HP = params.str * 10;
+      this.MAX_SP = params.int * 10;
+      this.atk = params.str;
+      this.mgc = params.int;
+      this.def = params.str / 10;
+      this.res = params.int;
+      this.regenerate = ~~(params.str / 10);
+      this.sight_range = params.dex * 10;
+      return this.speed = ~~(params.dex * 0.5);
     };
     Status.prototype.get_exp = function(point) {
       var lv;
@@ -1433,7 +1427,7 @@
     return Skill_Smash;
   })();
   Skill_Meteor = (function() {
-    __extends(Skill_Meteor, TargetAreaHit);
+    __extends(Skill_Meteor, AreaHit);
     function Skill_Meteor() {
       Skill_Meteor.__super__.constructor.apply(this, arguments);
     }
@@ -1752,6 +1746,27 @@
       }
     };
   }
+  Util = {};
+  Util.prototype = {
+    extend: function(obj, mixin) {
+      var method, name;
+      for (name in mixin) {
+        method = mixin[name];
+        obj[name] = method;
+      }
+      return obj;
+    },
+    include: function(klass, mixin) {
+      return this.extend(klass.prototype, mixin);
+    },
+    dup: function(obj) {
+      var f;
+      f = function() {};
+      f.prototype = obj;
+      return new f;
+    }
+  };
+  include = Util.prototype.include;
   Conf = {
     WINDOW_WIDTH: 640,
     WINDOW_HEIGHT: 480,

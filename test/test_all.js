@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Burn, Canvas, Character, CharacterObject, Color, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Sys, TargetAreaHit, TresureObject, assert, base_block, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows;
+  var Anim, Animation, AreaHit, Armor, Blade, Burn, Canvas, Character, CharacterObject, ClothArmor, Color, Dagger, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, Item, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, SmallShield, Sprite, Status, Sys, TargetAreaHit, TresureObject, Util, Weapon, assert, base_block, include, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -655,10 +655,10 @@
   Character = (function() {
     __extends(Character, Sprite);
     Character.prototype.scale = null;
-    Character.prototype.status = {};
     Character.prototype.state = null;
     Character.prototype.following_obj = null;
     Character.prototype.targeting_obj = null;
+    Character.prototype.status = {};
     function Character(x, y, group, status) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
@@ -704,7 +704,7 @@
           skill = _ref[name];
           skill.charge(this, skill === this.selected_skill);
         }
-        return this.selected_skill.exec(this, objs);
+        return this.selected_skill.exec(objs);
       }
     };
     Character.prototype.search = function(objs) {
@@ -769,6 +769,7 @@
       this._lx_ = this.x;
       return this._ly_ = this.y;
     };
+    Character.prototype.equip = function(item) {};
     Character.prototype.die = function(actor) {
       var gold;
       this.cnt = 0;
@@ -1009,11 +1010,9 @@
       this.group = group;
       this.dir = 0;
       this.status = new Status({
-        hp: 50,
-        atk: 10,
-        def: 1.0,
-        sight_range: 120,
-        speed: 4
+        str: 7,
+        int: 2,
+        dex: 6
       });
       Goblin.__super__.constructor.call(this, this.x, this.y, this.group, this.status);
       this.skills = {
@@ -1064,12 +1063,9 @@
       this.group = group != null ? group : ObjectGroup.Player;
       Player.__super__.constructor.call(this, this.x, this.y, this.group);
       this.status = new Status({
-        hp: 120,
-        atk: 10,
-        def: 0.8,
-        atack_range: 50,
-        sight_range: 80,
-        speed: 3
+        str: 10,
+        int: 10,
+        dex: 10
       });
       this.skills = {
         one: new Skill_Atack(this),
@@ -1223,35 +1219,33 @@
     }
   };
   Status = (function() {
-    function Status(params, lv) {
+    function Status(params, equips, lv) {
       if (params == null) {
         params = {};
       }
+      if (equips == null) {
+        equips = {};
+      }
       this.lv = lv != null ? lv : 1;
-      this.params = params;
-      this.build_status(params);
+      this.build_status(params, equips);
       this.hp = this.MAX_HP;
       this.sp = this.MAX_SP;
       this.exp = 0;
       this.next_lv = this.lv * 50;
     }
-    Status.prototype.build_status = function(params, lv) {
+    Status.prototype.build_status = function(params, equips) {
       if (params == null) {
         params = {};
       }
-      if (lv == null) {
-        lv = 1;
-      }
-      this.MAX_HP = params.hp || 30;
-      this.MAX_SP = params.sp || 10;
-      this.atk = params.atk || 10;
-      this.mgc = params.mgc || 10;
-      this.def = params.def || 1.0;
-      this.res = params.res || 1.0;
-      this.regenerate = params.regenerate || 3;
-      this.atack_range = params.atack_range || 50;
-      this.sight_range = params.sight_range || 80;
-      return this.speed = params.speed || 6;
+      this.MAX_HP = params.str * 10;
+      this.MAX_SP = params.int * 10;
+      this.atk = params.str;
+      this.mgc = params.int;
+      this.def = params.str / 10;
+      this.res = params.int;
+      this.regenerate = ~~(params.str / 10);
+      this.sight_range = params.dex * 10;
+      return this.speed = ~~(params.dex * 0.5);
     };
     Status.prototype.get_exp = function(point) {
       var lv;
@@ -1433,7 +1427,7 @@
     return Skill_Smash;
   })();
   Skill_Meteor = (function() {
-    __extends(Skill_Meteor, TargetAreaHit);
+    __extends(Skill_Meteor, AreaHit);
     function Skill_Meteor() {
       Skill_Meteor.__super__.constructor.apply(this, arguments);
     }
@@ -1752,6 +1746,27 @@
       }
     };
   }
+  Util = {};
+  Util.prototype = {
+    extend: function(obj, mixin) {
+      var method, name;
+      for (name in mixin) {
+        method = mixin[name];
+        obj[name] = method;
+      }
+      return obj;
+    },
+    include: function(klass, mixin) {
+      return this.extend(klass.prototype, mixin);
+    },
+    dup: function(obj) {
+      var f;
+      f = function() {};
+      f.prototype = obj;
+      return new f;
+    }
+  };
+  include = Util.prototype.include;
   vows = require('vows');
   assert = require('assert');
   keys = {
@@ -1765,8 +1780,56 @@
     y: 240
   };
   p = console.log;
+  Item = (function() {
+    function Item() {}
+    return Item;
+  })();
+  Weapon = (function() {
+    __extends(Weapon, Item);
+    function Weapon() {
+      Weapon.__super__.constructor.apply(this, arguments);
+    }
+    Weapon.prototype.effect = null;
+    return Weapon;
+  })();
+  Armor = (function() {
+    __extends(Armor, Item);
+    function Armor() {
+      Armor.__super__.constructor.apply(this, arguments);
+    }
+    Armor.prototype.effect = null;
+    return Armor;
+  })();
+  Dagger = (function() {
+    __extends(Dagger, Weapon);
+    function Dagger() {
+      Dagger.__super__.constructor.apply(this, arguments);
+    }
+    return Dagger;
+  })();
+  Blade = (function() {
+    __extends(Blade, Weapon);
+    function Blade() {
+      Blade.__super__.constructor.apply(this, arguments);
+    }
+    return Blade;
+  })();
+  SmallShield = (function() {
+    __extends(SmallShield, Weapon);
+    function SmallShield() {
+      SmallShield.__super__.constructor.apply(this, arguments);
+    }
+    return SmallShield;
+  })();
+  ClothArmor = (function() {
+    __extends(ClothArmor, Armor);
+    function ClothArmor() {
+      ClothArmor.__super__.constructor.apply(this, arguments);
+    }
+    return ClothArmor;
+  })();
   vows.describe('Game Test').addBatch({
-    'combat test': {
+    'Combat': {
       topic: {
         player: new Player(100, 100, ObjectGroup.Player),
         goblin: new Goblin(100, 100, ObjectGroup.Enemy),
@@ -1781,7 +1844,7 @@
           player.update([player, goblin], m, keys, mouse);
           goblin.update([player, goblin], m);
         }
-        return assert.isTrue(goblin.is_dead());
+        return assert.isTrue(player.is_dead() || goblin.is_dead());
       },
       'Exec Attack Skill': function(topic) {
         var goblin, m, player;
@@ -1798,7 +1861,7 @@
         assert.isTrue(goblin.status.MAX_HP > goblin.status.hp);
         return assert.isTrue(player.selected_skill.lv === 4);
       },
-      'Change Target': function(topic) {
+      'TargetChange': function(topic) {
         var after, after2, before, goblin2, i, objs, _i, _len;
         goblin2 = new Goblin(100, 100, ObjectGroup.Enemy);
         goblin2.name += 2;
@@ -1814,6 +1877,44 @@
         after2 = topic.player.targeting_obj.name;
         assert.isTrue(before !== after);
         return assert.isTrue(before === after2);
+      },
+      'Equiptment': function(topic) {
+        var player;
+        player = topic.player;
+        player._equips_ = {
+          main_hand: new Dagger,
+          sub_hand: new SmallShield,
+          body: new ClothArmor
+        };
+        return player.equip(new Blade);
+      },
+      ' - Use Skill': {
+        topic: function(parent) {
+          parent.player.targeting_obj = parent.goblin;
+          return {
+            player: parent.player,
+            gen_targets: function() {
+              var _, _results;
+              _results = [];
+              for (_ = 1; _ <= 3; _++) {
+                _results.push(new Goblin(parent.player.x, parent.player.y, ObjectGroup.get_against(parent.player)));
+              }
+              return _results;
+            }
+          };
+        },
+        'Atack': function(topic) {
+          topic.player.selected_skill = new Skill_Atack(topic.player);
+          return topic.player.selected_skill.exec(topic.gen_targets());
+        },
+        'Meteor': function(topic) {
+          topic.player.selected_skill = new Skill_Meteor(topic.player);
+          return topic.player.selected_skill.exec(topic.gen_targets());
+        },
+        'Smash': function(topic) {
+          topic.player.selected_skill = new Skill_Smash(topic.player);
+          return topic.player.selected_skill.exec(topic.gen_targets());
+        }
       }
     }
   })["export"](module);
