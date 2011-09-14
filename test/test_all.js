@@ -346,7 +346,7 @@
         elm = $("<li>").text(text);
         return $("#message").prepend(elm);
       } else {
-        return console.log(text);
+        return console.log("[Message] " + text);
       }
     },
     debug: function(text) {
@@ -881,14 +881,12 @@
         }
         if (targets.size() > 1) {
           cur = targets.indexOf(this.targeting_obj);
-          console.log("before: " + cur + " " + (targets.size()));
           if (cur + 1 >= targets.size()) {
             cur = 0;
           } else {
             cur += 1;
           }
-          this.targeting_obj = targets[cur];
-          return console.log("after: " + cur);
+          return this.targeting_obj = targets[cur];
         }
       }
     };
@@ -1019,8 +1017,8 @@
       });
       Goblin.__super__.constructor.call(this, this.x, this.y, this.group, this.status);
       this.skills = {
-        one: new Skill_Atack(10),
-        two: new Skill_Heal()
+        one: new Skill_Atack(this, 3),
+        two: new Skill_Heal(this)
       };
       this.selected_skill = this.skills['one'];
     }
@@ -1074,10 +1072,10 @@
         speed: 3
       });
       this.skills = {
-        one: new Skill_Atack(),
-        two: new Skill_Smash(),
-        three: new Skill_Heal(),
-        four: new Skill_Meteor()
+        one: new Skill_Atack(this),
+        two: new Skill_Smash(this),
+        three: new Skill_Heal(this),
+        four: new Skill_Meteor(this)
       };
       this.selected_skill = this.skills['one'];
       this.state.leader = true;
@@ -1273,13 +1271,14 @@
     return Status;
   })();
   Skill = (function() {
-    function Skill(lv) {
+    function Skill(actor, lv) {
+      this.actor = actor;
       this.lv = lv != null ? lv : 1;
       this._build(this.lv);
       this.MAX_CT = this.CT * 60;
       this.ct = this.MAX_CT;
     }
-    Skill.prototype.charge = function(actor, is_selected) {
+    Skill.prototype.charge = function(is_selected) {
       if (this.ct < this.MAX_CT) {
         if (is_selected) {
           return this.ct += this.fg_charge;
@@ -1288,12 +1287,12 @@
         }
       }
     };
-    Skill.prototype.exec = function(actor, objs) {};
+    Skill.prototype.exec = function(objs) {};
     Skill.prototype._build = function(lv) {};
-    Skill.prototype._calc = function(actor, target) {
+    Skill.prototype._calc = function(target) {
       return 1;
     };
-    Skill.prototype._get_targets = function(actor, objs) {
+    Skill.prototype._get_targets = function(objs) {
       return [];
     };
     return Skill;
@@ -1311,14 +1310,14 @@
     DamageHit.prototype.damage_rate = 1.0;
     DamageHit.prototype.random_rate = 0.2;
     DamageHit.prototype.effect = 'Slash';
-    DamageHit.prototype.exec = function(actor, objs) {
+    DamageHit.prototype.exec = function(objs) {
       var amount, t, targets, _i, _len;
-      targets = this._get_targets(actor, objs);
+      targets = this._get_targets(objs);
       if (this.ct >= this.MAX_CT && targets.size() > 0) {
         for (_i = 0, _len = targets.length; _i < _len; _i++) {
           t = targets[_i];
-          amount = this._calc(actor, t);
-          t.add_damage(actor, amount);
+          amount = this._calc(t);
+          t.add_damage(this.actor, amount);
           t.add_animation(new Anim.prototype[this.effect](amount));
         }
         this.ct = 0;
@@ -1334,16 +1333,16 @@
       SingleHit.__super__.constructor.apply(this, arguments);
     }
     SingleHit.prototype.effect = 'Slash';
-    SingleHit.prototype._get_targets = function(actor, objs) {
-      if (actor.has_target()) {
-        if (actor.get_distance(actor.targeting_obj) < this.range) {
-          return [actor.targeting_obj];
+    SingleHit.prototype._get_targets = function(objs) {
+      if (this.actor.has_target()) {
+        if (this.actor.get_distance(this.actor.targeting_obj) < this.range) {
+          return [this.actor.targeting_obj];
         }
       }
       return [];
     };
-    SingleHit.prototype._calc = function(actor, target) {
-      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    SingleHit.prototype._calc = function(target) {
+      return ~~(this.actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
     };
     return SingleHit;
   })();
@@ -1353,11 +1352,11 @@
       AreaHit.__super__.constructor.apply(this, arguments);
     }
     AreaHit.prototype.effect = 'Burn';
-    AreaHit.prototype._get_targets = function(actor, objs) {
-      return actor.find_obj(ObjectGroup.get_against(actor), objs, this.range);
+    AreaHit.prototype._get_targets = function(objs) {
+      return this.actor.find_obj(ObjectGroup.get_against(this.actor), objs, this.range);
     };
-    AreaHit.prototype._calc = function(actor, target) {
-      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    AreaHit.prototype._calc = function(target) {
+      return ~~(this.actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
     };
     return AreaHit;
   })();
@@ -1367,22 +1366,22 @@
       TargetAreaHit.__super__.constructor.apply(this, arguments);
     }
     TargetAreaHit.prototype.effect = 'Burn';
-    TargetAreaHit.prototype._get_targets = function(actor, objs) {
-      if (actor.has_target()) {
-        if (actor.get_distance(actor.targeting_obj) < this.range) {
-          return actor.targeting_obj.find_obj(ObjectGroup.get_against(actor), objs, this.range);
+    TargetAreaHit.prototype._get_targets = function(objs) {
+      if (this.actor.has_target()) {
+        if (this.actor.get_distance(this.actor.targeting_obj) < this.range) {
+          return this.actor.targeting_obj.find_obj(ObjectGroup.get_against(this.actor), objs, this.range);
         }
       }
       return [];
     };
-    TargetAreaHit.prototype._calc = function(actor, target) {
-      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    TargetAreaHit.prototype._calc = function(target) {
+      return ~~(this.actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
     };
-    TargetAreaHit.prototype.exec = function(actor, objs) {
+    TargetAreaHit.prototype.exec = function(objs) {
       var res;
-      res = TargetAreaHit.__super__.exec.call(this, actor, objs);
+      res = TargetAreaHit.__super__.exec.call(this, objs);
       if (res) {
-        return actor.targeting_obj.add_animation(new Anim.prototype[this.effect](null, this.range * 1.5));
+        return this.actor.targeting_obj.add_animation(new Anim.prototype[this.effect](null, this.range * 1.5));
       }
     };
     return TargetAreaHit;
@@ -1428,8 +1427,8 @@
       this.fg_charge -= lv / 20;
       return this.damage_rate += lv / 20;
     };
-    Skill_Smash.prototype._calc = function(actor, target) {
-      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    Skill_Smash.prototype._calc = function(target) {
+      return ~~(this.actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
     };
     return Skill_Smash;
   })();
@@ -1447,26 +1446,25 @@
     Skill_Meteor.prototype.bg_charge = 0.5;
     Skill_Meteor.prototype.fg_charge = 1;
     Skill_Meteor.prototype.effect = 'Burn';
-    Skill_Meteor.prototype._calc = function(actor, target) {
-      return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    Skill_Meteor.prototype._calc = function(target) {
+      return ~~(this.actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
     };
     return Skill_Meteor;
   })();
   Skill_Heal = (function() {
     __extends(Skill_Heal, Skill);
+    function Skill_Heal() {
+      Skill_Heal.__super__.constructor.apply(this, arguments);
+    }
     Skill_Heal.prototype.name = "Heal";
     Skill_Heal.prototype.range = 0;
     Skill_Heal.prototype.auto = false;
     Skill_Heal.prototype.CT = 4;
     Skill_Heal.prototype.bg_charge = 0.5;
     Skill_Heal.prototype.fg_charge = 1;
-    function Skill_Heal(lv) {
-      this.lv = lv != null ? lv : 1;
-      Skill_Heal.__super__.constructor.call(this);
-    }
-    Skill_Heal.prototype.exec = function(actor) {
+    Skill_Heal.prototype.exec = function() {
       var target;
-      target = actor;
+      target = this.actor;
       if (this.ct >= this.MAX_CT) {
         target.status.hp += 30;
         this.ct = 0;
@@ -1489,10 +1487,10 @@
       this.range = 120;
       this.effect_range = 30;
     }
-    Skill_ThrowBomb.prototype.exec = function(actor, objs, mouse) {
+    Skill_ThrowBomb.prototype.exec = function(objs, mouse) {
       var t, targets, _i, _len;
       if (this.ct >= this.MAX_CT) {
-        targets = mouse.find_obj(ObjectGroup.get_against(actor), objs, this.range);
+        targets = mouse.find_obj(ObjectGroup.get_against(this.actor), objs, this.range);
         if (targets.size() > 0) {
           for (_i = 0, _len = targets.length; _i < _len; _i++) {
             t = targets[_i];
@@ -1774,35 +1772,48 @@
         goblin: new Goblin(100, 100, ObjectGroup.Enemy),
         map: new SampleMap()
       },
-      'Atack': {
-        'Attack until Dead': function(topic) {
-          var goblin, m, player;
-          player = topic.player;
-          goblin = topic.goblin;
-          m = topic.map;
-          while (player.is_alive() && goblin.is_alive()) {
-            player.update([player, goblin], m, keys, mouse);
-            goblin.update([player, goblin], m);
-          }
-          return assert.isTrue(goblin.is_dead());
-        },
-        'Shift Target': function(topic) {
-          var after, after2, before, goblin2, i, objs, _i, _len;
-          goblin2 = new Goblin(100, 100, ObjectGroup.Enemy);
-          goblin2.name += 2;
-          objs = [topic.player, topic.goblin, goblin2];
-          for (_i = 0, _len = objs.length; _i < _len; _i++) {
-            i = objs[_i];
-            i.update(objs, topic.map, keys, mouse);
-          }
-          before = topic.player.targeting_obj.name;
-          topic.player.shift_target([topic.goblin, goblin2]);
-          after = topic.player.targeting_obj.name;
-          topic.player.shift_target([topic.goblin, goblin2]);
-          after2 = topic.player.targeting_obj.name;
-          assert.isTrue(before !== after);
-          return assert.isTrue(before === after2);
+      'Attack until Dead': function(topic) {
+        var goblin, m, player;
+        player = topic.player;
+        goblin = topic.goblin;
+        m = topic.map;
+        while (player.is_alive() && goblin.is_alive()) {
+          player.update([player, goblin], m, keys, mouse);
+          goblin.update([player, goblin], m);
         }
+        return assert.isTrue(goblin.is_dead());
+      },
+      'Exec Attack Skill': function(topic) {
+        var goblin, m, player;
+        player = topic.player;
+        goblin = topic.goblin;
+        m = topic.map;
+        while (player.is_alive() && goblin.is_alive()) {
+          player.update([player, goblin], m, keys, mouse);
+          goblin.update([player, goblin], m);
+        }
+        player.targeting_obj = goblin;
+        player.selected_skill = new Skill_Atack(player, 4);
+        player.selected_skill.exec(player, [goblin]);
+        assert.isTrue(goblin.status.MAX_HP > goblin.status.hp);
+        return assert.isTrue(player.selected_skill.lv === 4);
+      },
+      'Change Target': function(topic) {
+        var after, after2, before, goblin2, i, objs, _i, _len;
+        goblin2 = new Goblin(100, 100, ObjectGroup.Enemy);
+        goblin2.name += 2;
+        objs = [topic.player, topic.goblin, goblin2];
+        for (_i = 0, _len = objs.length; _i < _len; _i++) {
+          i = objs[_i];
+          i.update(objs, topic.map, keys, mouse);
+        }
+        before = topic.player.targeting_obj.name;
+        topic.player.shift_target([topic.goblin, goblin2]);
+        after = topic.player.targeting_obj.name;
+        topic.player.shift_target([topic.goblin, goblin2]);
+        after2 = topic.player.targeting_obj.name;
+        assert.isTrue(before !== after);
+        return assert.isTrue(before === after2);
       }
     }
   })["export"](module);

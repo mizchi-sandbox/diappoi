@@ -121,7 +121,7 @@ Sys.prototype =
       elm = $("<li>").text(text)
       $("#message").prepend(elm)
     else
-      console.log text
+      console.log "[Message] #{text}"
 
   debug: (text)->
     console.log " -*- #{text}"

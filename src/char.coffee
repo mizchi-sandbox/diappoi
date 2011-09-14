@@ -278,8 +278,8 @@ class Goblin extends CharacterObject
     super(@x,@y,@group,@status)
 
     @skills =
-      one: new Skill_Atack(10)
-      two: new Skill_Heal()
+      one: new Skill_Atack(@,3)
+      two: new Skill_Heal(@)
     @selected_skill = @skills['one']
 
   change_skill: (_)->
@@ -322,10 +322,10 @@ class Player extends CharacterObject
       speed : 3
 
     @skills =
-      one: new Skill_Atack()
-      two: new Skill_Smash()
-      three: new Skill_Heal()
-      four: new Skill_Meteor()
+      one: new Skill_Atack(@)
+      two: new Skill_Smash(@)
+      three: new Skill_Heal(@)
+      four: new Skill_Meteor(@)
     @selected_skill = @skills['one']
     @state.leader =true
     @mouse =
