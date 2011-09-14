@@ -117,6 +117,11 @@ GameData =
 Sys = new Object
 Sys.prototype =
   message : (text)->
-    elm = $("<li>").text(text)
-    $("#message").prepend(elm)
+    if window?
+      elm = $("<li>").text(text)
+      $("#message").prepend(elm)
+    else
+      console.log text
 
+  debug: (text)->
+    console.log " -*- #{text}"

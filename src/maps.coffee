@@ -188,7 +188,6 @@ class SampleMap extends Map
 
   _sweep: (objs,camera)->
     for i in [0 ... objs.length]
-      # if ObjectGroup.is_battler(objs[i]) and i.is_dead()
       if objs[i].is_dead() and objs[i].cnt > 120
         if objs[i] is camera
           start_point = @get_rand_xy()

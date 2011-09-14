@@ -33,6 +33,8 @@ class DamageHit extends Skill
         t.add_damage(actor,amount)
         t.add_animation new Anim.prototype[@effect] amount
       @ct = 0
+      return true
+    return false
 
 class SingleHit extends DamageHit
   effect : 'Slash'
@@ -60,6 +62,11 @@ class TargetAreaHit extends DamageHit
     []
   _calc : (actor,target)->
     return ~~(actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
+
+  exec:(actor,objs)->
+    res = super actor,objs
+    if res
+      actor.targeting_obj.add_animation new Anim.prototype[@effect] null, @range*1.5
 
 class Skill_Atack extends SingleHit
   name : "Atack"
@@ -127,7 +134,7 @@ class Skill_Heal extends Skill
     if @ct >= @MAX_CT
       target.status.hp += 30
       @ct = 0
-      console.log "do healing"
+      Sys::debug "do healing"
 
 class Skill_ThrowBomb extends Skill
   name : "Throw Bomb"
@@ -183,7 +190,7 @@ class Animation extends Sprite
         return false
 
   Burn: class Burn extends Animation
-    constructor: (@amount) ->
+    constructor: (@amount,@size=30) ->
       super 60
     render:(g,x,y)->
       if 0 <= @cnt++ < @max_frame
@@ -192,7 +199,7 @@ class Animation extends Sprite
           per = @cnt/(@max_frame/2)
           g.drawArc true,x,y, 30*per
 
-        if @cnt < @max_frame
+        if @amount and @cnt < @max_frame
           per = @cnt/@max_frame
           g.init Color.i(255,55,55) ,1-@cnt/@max_frame
           g.strokeText "#{@amount}",x+10 ,y+20*per

@@ -52,6 +52,6 @@ coffee -c $DIST_DIR/${BUILDOUT}
 if [ "$1" = "test" ]; then
     echo ========== test ===========
     coffee -c $TEST_DIR/${TEST_BUILDOUT}
-    node $TEST_DIR/${TEST_BUILDOUT_JS}
+    vows $TEST_DIR/${TEST_BUILDOUT_JS} --spec
 fi
 

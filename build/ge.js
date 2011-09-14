@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Burn, Canvas, Character, Color, Conf, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Sys, TargetAreaHit, TresureObject, base_block, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, AreaHit, Burn, Canvas, Character, CharacterObject, Color, Conf, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, Sprite, Status, Sys, TargetAreaHit, TresureObject, base_block, maps, my, randint, rjoin, sjoin;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -135,22 +135,6 @@
         }
       }
       return map;
-    },
-    draw_line: function(g, x1, y1, x2, y2) {
-      g.moveTo(x1, y1);
-      g.lineTo(x2, y2);
-      return g.stroke();
-    },
-    draw_cell: function(g, x, y, cell, color) {
-      if (color == null) {
-        color = "grey";
-      }
-      g.moveTo(x, y);
-      g.lineTo(x + cell, y);
-      g.lineTo(x + cell, y + cell);
-      g.lineTo(x, y + cell);
-      g.lineTo(x, y);
-      return g.fill();
     },
     mklist: function(list, func) {
       var buf, i, _i, _len;
@@ -358,8 +342,15 @@
   Sys.prototype = {
     message: function(text) {
       var elm;
-      elm = $("<li>").text(text);
-      return $("#message").prepend(elm);
+      if (typeof window !== "undefined" && window !== null) {
+        elm = $("<li>").text(text);
+        return $("#message").prepend(elm);
+      } else {
+        return console.log(text);
+      }
+    },
+    debug: function(text) {
+      return console.log(" -*- " + text);
     }
   };
   Map = (function() {
@@ -688,12 +679,23 @@
       this.distination = [this.x, this.y];
       this._path = [];
     }
+    Character.prototype.regenerate = function() {
+      var r;
+      r = (this.targeting_obj ? 2 : 1);
+      if (this.is_alive()) {
+        if (this.status.hp < this.status.MAX_HP) {
+          return this.status.hp += 1;
+        }
+      }
+    };
     Character.prototype.update = function(objs, cmap, keys, mouse) {
       var name, skill, _ref;
       this.cnt += 1;
       if (this.is_alive()) {
         this.check();
-        this.regenerate();
+        if (this.cnt % 60 === 0) {
+          this.regenerate();
+        }
         this.search(objs);
         this.move(objs, cmap, keys, mouse);
         this.change_skill(keys, objs);
@@ -705,241 +707,18 @@
         return this.selected_skill.exec(this, objs);
       }
     };
-    Character.prototype.has_target = function() {
-      if (this.targeting_obj !== null) {
-        return true;
-      } else {
-        return false;
-      }
-    };
-    Character.prototype.is_following = function() {
-      if (this.following_obj !== null) {
-        return true;
-      } else {
-        return false;
-      }
-    };
-    Character.prototype.is_alive = function() {
-      return this.status.hp > 1;
-    };
-    Character.prototype.is_dead = function() {
-      return !this.is_alive();
-    };
-    Character.prototype.find_obj = function(group_id, targets, range) {
-      return targets.filter(__bind(function(t) {
-        return t.group === group_id && this.get_distance(t) < range && t.is_alive();
-      }, this));
-    };
-    Character.prototype.die = function(actor) {
-      var gold;
-      this.cnt = 0;
-      if (this.group === ObjectGroup.Enemy) {
-        gold = randint(0, 100);
-        GameData.gold += gold;
-      }
-      if (actor) {
-        Sys.prototype.message("" + this.name + " is killed by " + actor.name + ".");
-      }
-      if (gold) {
-        return Sys.prototype.message("You got " + gold + "G.");
-      }
-    };
-    Character.prototype.add_damage = function(actor, amount) {
-      var before;
-      before = this.is_alive();
-      this.status.hp -= amount;
-      if (this.is_dead() && before) {
-        this.die(actor);
-      }
-      return this.is_alive();
-    };
-    Character.prototype.set_dir = function(x, y) {
-      var rx, ry;
-      rx = x - this.x;
-      ry = y - this.y;
-      if (rx >= 0) {
-        return this.dir = Math.atan(ry / rx);
-      } else {
-        return this.dir = Math.PI - Math.atan(ry / -rx);
-      }
-    };
-    Character.prototype.check = function() {
-      var _ref;
-      if (this.status.hp > this.status.MAX_HP) {
-        this.status.hp = this.status.MAX_HP;
-      }
-      if (this.status.hp < 0) {
-        this.status.hp = 0;
-      }
-      if (this.is_alive()) {
-        if ((_ref = this.targeting_obj) != null ? _ref.is_dead() : void 0) {
-          return this.targeting_obj = null;
-        }
-      } else {
-        return this.targeting_obj = null;
-      }
-    };
-    Character.prototype.regenerate = function() {
-      var r;
-      r = (this.targeting_obj ? 2 : 1);
-      if (this.is_alive()) {
-        if (this.status.hp < this.status.MAX_HP) {
-          return this.status.hp += 1;
-        }
-      }
-    };
-    Character.prototype.shift_target = function(targets) {
-      var cur, _ref;
-      if (this.has_target() && targets.length > 0) {
-        if (_ref = !this.targeting_obj, __indexOf.call(targets, _ref) >= 0) {
-          this.targeting_obj = targets[0];
-          return;
-        } else if (targets.size() === 1) {
-          this.targeting_obj = targets[0];
-          return;
-        }
-        if (targets.size() > 1) {
-          cur = targets.indexOf(this.targeting_obj);
-          console.log("before: " + cur + " " + (targets.size()));
-          if (cur + 1 >= targets.size()) {
-            cur = 0;
-          } else {
-            cur += 1;
-          }
-          this.targeting_obj = targets[cur];
-          return console.log("after: " + cur);
-        }
-      }
-    };
-    Character.prototype.add_animation = function(animation) {
-      return this.animation.push(animation);
-    };
-    Character.prototype.render_animation = function(g, x, y) {
-      var n, _ref, _results;
-      _results = [];
-      for (n = 0, _ref = this.animation.length; 0 <= _ref ? n < _ref : n > _ref; 0 <= _ref ? n++ : n--) {
-        if (!this.animation[n].render(g, x, y)) {
-          this.animation.splice(n, 1);
-          this.render_animation(g, x, y);
-          break;
-        }
-      }
-      return _results;
-    };
-    Character.prototype.render_reach_circle = function(g, pos) {
-      var alpha;
-      g.init();
-      g.drawArc(false, pos.vx, pos.vy, this.selected_skill.range);
-      g.init(Color.i(50, 50, 50), alpha = 0.3);
-      return g.drawArc(false, pos.vx, pos.vy, this.status.sight_range);
-    };
-    Character.prototype.render_dir_allow = function(g, pos) {
-      g.init(Color.i(255, 0, 0));
-      return g.drawLine(pos.vx, pos.vy, ~~(30 * Math.cos(this.dir)), ~~(30 * Math.sin(this.dir)));
-    };
-    Character.prototype.render_targeting_obj = function(g, pos, cam) {
-      var alpha, color, t, _ref;
-      if ((_ref = this.targeting_obj) != null ? _ref.is_alive() : void 0) {
-        this.targeting_obj.render_targeted(g, pos);
-        g.init(color = "rgb(0,0,255)", alpha = 0.5);
-        g.moveTo(pos.vx, pos.vy);
-        t = this.targeting_obj.getpos_relative(cam);
-        g.lineTo(t.vx, t.vy);
-        g.stroke();
-        return g.init(color = "rgb(255,0,0)", alpha = 0.6);
-      }
-    };
-    Character.prototype.render_state = function(g, pos) {
-      var color, text;
-      g.init();
-      this.render_gages(g, pos.vx, pos.vy + 15, 40, 6, this.status.hp / this.status.MAX_HP);
-      g.init();
-      this.render_gages(g, pos.vx, pos.vy + 22, 40, 6, this.selected_skill.ct / this.selected_skill.MAX_CT);
-      if (this.has_target()) {
-        text = this.selected_skill.name;
-      } else {
-        text = "wander";
-      }
-      color = Color.Grey;
-      if (this.has_target()) {
-        if (this.get_distance(this.targeting_obj) < this.selected_skill.range) {
-          color = Color.i(0, 255, 0);
-        }
-      }
-      g.init(color);
-      return g.fillText(text, pos.vx + 23, pos.vy + 22);
-    };
-    Character.prototype.render_dead = function(g, pos) {
-      var alpha, color;
-      g.init(color = 'rgb(128, 0, 0)', alpha = 1 - this.cnt / 120);
-      return g.drawArc(true, pos.vx, pos.vy, this.scale);
-    };
-    Character.prototype.render_gages = function(g, x, y, w, h, percent) {
-      if (percent == null) {
-        percent = 1;
-      }
-      g.init(Color.Green);
-      g.strokeRect(x - w / 2, y - h / 2, w, h);
-      g.init(Color.Green);
-      return g.fillRect(x - w / 2 + 1, y - h / 2 + 1, w * percent, h - 2);
-    };
-    Character.prototype.render_targeted = function(g, pos) {
-      var beat, color, ms;
-      beat = 60;
-      ms = ~~(new Date() / 100) % beat / beat;
-      if (ms > 0.5) {
-        ms = 1 - ms;
-      }
-      if (this.group === ObjectGroup.Player) {
-        color = Color.i(255, 0, 0);
-      } else if (this.group === ObjectGroup.Enemy) {
-        color = Color.i(0, 0, 255);
-      }
-      g.init(color, 0.7);
-      return g.drawPath(true, [[pos.vx, pos.vy - 12 + ms * 10], [pos.vx - 6 - ms * 5, pos.vy - 20 + ms * 10], [pos.vx + 6 + ms * 5, pos.vy - 20 + ms * 10], [pos.vx, pos.vy - 12 + ms * 10]]);
-    };
-    Character.prototype.render = function(g, cam) {
-      var pos;
-      g.init();
-      pos = this.getpos_relative(cam);
-      if (this.is_alive()) {
-        this.render_object(g, pos);
-        this.render_state(g, pos);
-        this.render_targeting_obj(g, pos, cam);
-      } else {
-        this.render_dead(g, pos);
-      }
-      return this.render_animation(g, pos.vx, pos.vy);
-    };
-    Character.prototype.set_skill = function(keys) {
-      var k, v, _results;
-      _results = [];
-      for (k in keys) {
-        v = keys[k];
-        if (v && (k === "zero" || k === "one" || k === "two" || k === "three" || k === "four" || k === "five" || k === "six" || k === "seven" || k === "eight" || k === "nine")) {
-          this.selected_skill = this.skills[k];
-          console.log("set " + this.selected_skill.name);
-          break;
-        }
-      }
-      return _results;
-    };
     Character.prototype.search = function(objs) {
       var enemies;
       enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
       if (this.has_target()) {
         if (this.targeting_obj.is_dead() || this.get_distance(this.targeting_obj) > this.status.sight_range * 1.5) {
-          my.mes("" + this.name + " lost track of " + this.targeting_obj.name);
+          Sys.prototype.message("" + this.name + " lost track of " + this.targeting_obj.name);
           return this.targeting_obj = null;
         }
       } else if (enemies.size() > 0) {
         this.targeting_obj = enemies[0];
-        return my.mes("" + this.name + " find " + this.targeting_obj.name);
+        return Sys.prototype.message("" + this.name + " find " + this.targeting_obj.name);
       }
-    };
-    Character.prototype._update_path = function(cmap) {
-      this._path = this._get_path(cmap);
-      return this.to = this._path.shift();
     };
     Character.prototype.move = function(objs, cmap) {
       var c, dp, nx, ny, wide, _ref;
@@ -990,6 +769,45 @@
       this._lx_ = this.x;
       return this._ly_ = this.y;
     };
+    Character.prototype.die = function(actor) {
+      var gold;
+      this.cnt = 0;
+      if (this.group === ObjectGroup.Enemy) {
+        gold = randint(0, 100);
+        GameData.gold += gold;
+      }
+      if (actor) {
+        Sys.prototype.message("" + this.name + " is killed by " + actor.name + ".");
+      }
+      if (gold) {
+        return Sys.prototype.message("You got " + gold + "G.");
+      }
+    };
+    Character.prototype.add_damage = function(actor, amount) {
+      var before;
+      before = this.is_alive();
+      this.status.hp -= amount;
+      if (this.is_dead() && before) {
+        this.die(actor);
+      }
+      return this.is_alive();
+    };
+    Character.prototype.set_skill = function(keys) {
+      var k, v, _results;
+      _results = [];
+      for (k in keys) {
+        v = keys[k];
+        if (v && (k === "zero" || k === "one" || k === "two" || k === "three" || k === "four" || k === "five" || k === "six" || k === "seven" || k === "eight" || k === "nine")) {
+          this.selected_skill = this.skills[k];
+          break;
+        }
+      }
+      return _results;
+    };
+    Character.prototype._update_path = function(cmap) {
+      this._path = this._get_path(cmap);
+      return this.to = this._path.shift();
+    };
     Character.prototype._get_path = function(map) {
       var from, to;
       from = map.get_cell(this.x, this.y);
@@ -1000,29 +818,191 @@
       this.set_dir(to_x, to_y);
       return [this.x + ~~(this.status.speed * Math.cos(this.dir)), this.y + ~~(this.status.speed * Math.sin(this.dir))];
     };
-    Character.prototype.update = function(objs, cmap, keys, mouse) {
-      var name, skill, _ref;
-      this.cnt += 1;
-      if (this.is_alive()) {
-        this.check();
-        if (this.cnt % 60 === 0) {
-          this.regenerate();
-        }
-        this.search(objs);
-        this.move(objs, cmap, keys, mouse);
-        this.change_skill(keys, objs);
-        _ref = this.skills;
-        for (name in _ref) {
-          skill = _ref[name];
-          skill.charge(this, skill === this.selected_skill);
-        }
-        return this.selected_skill.exec(this, objs);
+    Character.prototype.has_target = function() {
+      if (this.targeting_obj !== null) {
+        return true;
+      } else {
+        return false;
       }
+    };
+    Character.prototype.is_following = function() {
+      if (this.following_obj !== null) {
+        return true;
+      } else {
+        return false;
+      }
+    };
+    Character.prototype.is_alive = function() {
+      return this.status.hp > 1;
+    };
+    Character.prototype.is_dead = function() {
+      return !this.is_alive();
+    };
+    Character.prototype.find_obj = function(group_id, targets, range) {
+      return targets.filter(__bind(function(t) {
+        return t.group === group_id && this.get_distance(t) < range && t.is_alive();
+      }, this));
+    };
+    Character.prototype.set_dir = function(x, y) {
+      var rx, ry;
+      rx = x - this.x;
+      ry = y - this.y;
+      if (rx >= 0) {
+        return this.dir = Math.atan(ry / rx);
+      } else {
+        return this.dir = Math.PI - Math.atan(ry / -rx);
+      }
+    };
+    Character.prototype.check = function() {
+      var _ref;
+      if (this.status.hp > this.status.MAX_HP) {
+        this.status.hp = this.status.MAX_HP;
+      }
+      if (this.status.hp < 0) {
+        this.status.hp = 0;
+      }
+      if (this.is_alive()) {
+        if ((_ref = this.targeting_obj) != null ? _ref.is_dead() : void 0) {
+          return this.targeting_obj = null;
+        }
+      } else {
+        return this.targeting_obj = null;
+      }
+    };
+    Character.prototype.shift_target = function(targets) {
+      var cur, _ref;
+      if (this.has_target() && targets.length > 0) {
+        if (_ref = !this.targeting_obj, __indexOf.call(targets, _ref) >= 0) {
+          this.targeting_obj = targets[0];
+          return;
+        } else if (targets.size() === 1) {
+          this.targeting_obj = targets[0];
+          return;
+        }
+        if (targets.size() > 1) {
+          cur = targets.indexOf(this.targeting_obj);
+          console.log("before: " + cur + " " + (targets.size()));
+          if (cur + 1 >= targets.size()) {
+            cur = 0;
+          } else {
+            cur += 1;
+          }
+          this.targeting_obj = targets[cur];
+          return console.log("after: " + cur);
+        }
+      }
+    };
+    Character.prototype.add_animation = function(animation) {
+      return this.animation.push(animation);
     };
     return Character;
   })();
+  CharacterObject = (function() {
+    __extends(CharacterObject, Character);
+    function CharacterObject() {
+      CharacterObject.__super__.constructor.apply(this, arguments);
+    }
+    CharacterObject.prototype.render_animation = function(g, x, y) {
+      var n, _ref, _results;
+      _results = [];
+      for (n = 0, _ref = this.animation.length; 0 <= _ref ? n < _ref : n > _ref; 0 <= _ref ? n++ : n--) {
+        if (!this.animation[n].render(g, x, y)) {
+          this.animation.splice(n, 1);
+          this.render_animation(g, x, y);
+          break;
+        }
+      }
+      return _results;
+    };
+    CharacterObject.prototype.render_reach_circle = function(g, pos) {
+      var alpha;
+      g.init();
+      g.drawArc(false, pos.vx, pos.vy, this.selected_skill.range);
+      g.init(Color.i(50, 50, 50), alpha = 0.3);
+      return g.drawArc(false, pos.vx, pos.vy, this.status.sight_range);
+    };
+    CharacterObject.prototype.render_dir_allow = function(g, pos) {
+      g.init(Color.i(255, 0, 0));
+      return g.drawLine(pos.vx, pos.vy, ~~(30 * Math.cos(this.dir)), ~~(30 * Math.sin(this.dir)));
+    };
+    CharacterObject.prototype.render_targeting_obj = function(g, pos, cam) {
+      var alpha, color, t, _ref;
+      if ((_ref = this.targeting_obj) != null ? _ref.is_alive() : void 0) {
+        this.targeting_obj.render_targeted(g, pos);
+        g.init(color = "rgb(0,0,255)", alpha = 0.5);
+        g.moveTo(pos.vx, pos.vy);
+        t = this.targeting_obj.getpos_relative(cam);
+        g.lineTo(t.vx, t.vy);
+        g.stroke();
+        return g.init(color = "rgb(255,0,0)", alpha = 0.6);
+      }
+    };
+    CharacterObject.prototype.render_state = function(g, pos) {
+      var color, text;
+      g.init();
+      this.render_gages(g, pos.vx, pos.vy + 15, 40, 6, this.status.hp / this.status.MAX_HP);
+      g.init();
+      this.render_gages(g, pos.vx, pos.vy + 22, 40, 6, this.selected_skill.ct / this.selected_skill.MAX_CT);
+      if (this.has_target()) {
+        text = this.selected_skill.name;
+      } else {
+        text = "wander";
+      }
+      color = Color.Grey;
+      if (this.has_target()) {
+        if (this.get_distance(this.targeting_obj) < this.selected_skill.range) {
+          color = Color.i(0, 255, 0);
+        }
+      }
+      g.init(color);
+      return g.fillText(text, pos.vx - 17, pos.vy + 35);
+    };
+    CharacterObject.prototype.render_dead = function(g, pos) {
+      var alpha, color;
+      g.init(color = 'rgb(128, 0, 0)', alpha = 1 - this.cnt / 120);
+      return g.drawArc(true, pos.vx, pos.vy, this.scale);
+    };
+    CharacterObject.prototype.render_gages = function(g, x, y, w, h, percent) {
+      if (percent == null) {
+        percent = 1;
+      }
+      g.init(Color.Green);
+      g.strokeRect(x - w / 2, y - h / 2, w, h);
+      g.init(Color.Green);
+      return g.fillRect(x - w / 2 + 1, y - h / 2 + 1, w * percent, h - 2);
+    };
+    CharacterObject.prototype.render_targeted = function(g, pos) {
+      var beat, color, ms;
+      beat = 60;
+      ms = ~~(new Date() / 100) % beat / beat;
+      if (ms > 0.5) {
+        ms = 1 - ms;
+      }
+      if (this.group === ObjectGroup.Player) {
+        color = Color.i(255, 0, 0);
+      } else if (this.group === ObjectGroup.Enemy) {
+        color = Color.i(0, 0, 255);
+      }
+      g.init(color, 0.7);
+      return g.drawPath(true, [[pos.vx, pos.vy - 12 + ms * 10], [pos.vx - 6 - ms * 5, pos.vy - 20 + ms * 10], [pos.vx + 6 + ms * 5, pos.vy - 20 + ms * 10], [pos.vx, pos.vy - 12 + ms * 10]]);
+    };
+    CharacterObject.prototype.render = function(g, cam) {
+      var pos;
+      g.init();
+      pos = this.getpos_relative(cam);
+      if (this.is_alive()) {
+        this.render_object(g, pos);
+        this.render_state(g, pos);
+        this.render_targeting_obj(g, pos, cam);
+      } else {
+        this.render_dead(g, pos);
+      }
+      return this.render_animation(g, pos.vx, pos.vy);
+    };
+    return CharacterObject;
+  })();
   Goblin = (function() {
-    __extends(Goblin, Character);
+    __extends(Goblin, CharacterObject);
     Goblin.prototype.name = "Goblin";
     Goblin.prototype.scale = 1;
     function Goblin(x, y, group) {
@@ -1037,7 +1017,7 @@
         sight_range: 120,
         speed: 4
       });
-      Goblin.__super__.constructor.call(this, this.x, this.y, this.group, status);
+      Goblin.__super__.constructor.call(this, this.x, this.y, this.group, this.status);
       this.skills = {
         one: new Skill_Atack(10),
         two: new Skill_Heal()
@@ -1046,7 +1026,6 @@
     }
     Goblin.prototype.change_skill = function(_) {
       if (this.status.hp < 10) {
-        console.log('#{@name}:warning');
         return this.selected_skill = this.skills['two'];
       } else {
         return this.selected_skill = this.skills['one'];
@@ -1067,12 +1046,18 @@
       }
       g.drawArc(true, pos.vx, pos.vy, ~~(1.3 + ms) * this.scale);
       g.init(Color.Grey);
-      return g.fillText("" + this.name, pos.vx - 5, pos.vy - 12);
+      return g.fillText("" + this.name, pos.vx - 15, pos.vy - 12);
+    };
+    Goblin.prototype.exec = function(actor, objs) {
+      Goblin.__super__.exec.call(this, actor, objs);
+      if (actor.has_target()) {
+        return actor.targeting_obj.add_animation(new Anim.prototype[this.effect](amount, this.size));
+      }
     };
     return Goblin;
   })();
   Player = (function() {
-    __extends(Player, Character);
+    __extends(Player, CharacterObject);
     Player.prototype.scale = 8;
     Player.prototype.name = "Player";
     function Player(x, y, group) {
@@ -1178,7 +1163,7 @@
       g.init(Color.i(128, 100, 162));
       g.drawArc(true, 320, 240, this.scale * 0.5);
       g.init(Color.White);
-      return g.fillText("" + this.name, 315, 228);
+      return g.fillText("" + this.name, 305, 228);
     };
     Player.prototype.render = function(g, cam) {
       Player.__super__.render.call(this, g, cam);
@@ -1220,11 +1205,7 @@
       this.y = y != null ? y : 0;
     }
     Mouse.prototype.render_object = function(g, pos) {};
-    Mouse.prototype.render = function(g, cam) {
-      var cx, cy;
-      cx = ~~((this.x + mouse.x - 320) / cmap.cell);
-      return cy = ~~((this.y + mouse.y - 240) / cmap.cell);
-    };
+    Mouse.prototype.render = function(g, cam) {};
     return Mouse;
   })();
   ObjectGroup = {
@@ -1287,6 +1268,8 @@
     Status.prototype.set_next_exp = function() {
       return this.next_lv = this.lv * 30;
     };
+    Status.prototype.onDamaged = function(amount) {};
+    Status.prototype.onHealed = function(amount) {};
     return Status;
   })();
   Skill = (function() {
@@ -1338,8 +1321,10 @@
           t.add_damage(actor, amount);
           t.add_animation(new Anim.prototype[this.effect](amount));
         }
-        return this.ct = 0;
+        this.ct = 0;
+        return true;
       }
+      return false;
     };
     return DamageHit;
   })();
@@ -1392,6 +1377,13 @@
     };
     TargetAreaHit.prototype._calc = function(actor, target) {
       return ~~(actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+    };
+    TargetAreaHit.prototype.exec = function(actor, objs) {
+      var res;
+      res = TargetAreaHit.__super__.exec.call(this, actor, objs);
+      if (res) {
+        return actor.targeting_obj.add_animation(new Anim.prototype[this.effect](null, this.range * 1.5));
+      }
     };
     return TargetAreaHit;
   })();
@@ -1478,7 +1470,7 @@
       if (this.ct >= this.MAX_CT) {
         target.status.hp += 30;
         this.ct = 0;
-        return console.log("do healing");
+        return Sys.prototype.debug("do healing");
       }
     };
     return Skill_Heal;
@@ -1552,8 +1544,9 @@
     })(),
     Burn: Burn = (function() {
       __extends(Burn, Animation);
-      function Burn(amount) {
+      function Burn(amount, size) {
         this.amount = amount;
+        this.size = size != null ? size : 30;
         Burn.__super__.constructor.call(this, 60);
       }
       Burn.prototype.render = function(g, x, y) {
@@ -1564,7 +1557,7 @@
             per = this.cnt / (this.max_frame / 2);
             g.drawArc(true, x, y, 30 * per);
           }
-          if (this.cnt < this.max_frame) {
+          if (this.amount && this.cnt < this.max_frame) {
             per = this.cnt / this.max_frame;
             g.init(Color.i(255, 55, 55), 1 - this.cnt / this.max_frame);
             g.strokeText("" + this.amount, x + 10, y + 20 * per);
@@ -1682,78 +1675,85 @@
     return this[this.length - 1];
   };
   Array.prototype.each = Array.prototype.forEach;
-  Canvas = CanvasRenderingContext2D;
-  Canvas.prototype.init = function(color, alpha) {
-    if (color == null) {
-      color = Color.i(255, 255, 255);
-    }
-    if (alpha == null) {
-      alpha = 1;
-    }
-    this.beginPath();
-    this.strokeStyle = color;
-    this.fillStyle = color;
-    return this.globalAlpha = alpha;
-  };
-  Canvas.prototype.drawLine = function(x, y, dx, dy) {
-    this.moveTo(x, y);
-    this.lineTo(x + dx, y + dy);
-    return this.stroke();
-  };
-  Canvas.prototype.drawPath = function(fill, path) {
-    var px, py, sx, sy, _ref, _ref2;
-    _ref = path.shift(), sx = _ref[0], sy = _ref[1];
-    this.moveTo(sx, sy);
-    while (path.size() > 0) {
-      _ref2 = path.shift(), px = _ref2[0], py = _ref2[1];
-      this.lineTo(px, py);
-    }
-    this.lineTo(sx, sy);
-    if (fill) {
-      return this.fill();
-    } else {
+  if (typeof CanvasRenderingContext2D !== "undefined" && CanvasRenderingContext2D !== null) {
+    Canvas = CanvasRenderingContext2D;
+    Canvas.prototype.init = function(color, alpha) {
+      if (color == null) {
+        color = Color.i(255, 255, 255);
+      }
+      if (alpha == null) {
+        alpha = 1;
+      }
+      this.beginPath();
+      this.strokeStyle = color;
+      this.fillStyle = color;
+      return this.globalAlpha = alpha;
+    };
+    Canvas.prototype.drawLine = function(x, y, dx, dy) {
+      this.moveTo(x, y);
+      this.lineTo(x + dx, y + dy);
       return this.stroke();
-    }
-  };
-  Canvas.prototype.drawDiffPath = function(fill, path) {
-    var dx, dy, px, py, sx, sy, _ref, _ref2, _ref3, _ref4;
-    _ref = path.shift(), sx = _ref[0], sy = _ref[1];
-    this.moveTo(sx, sy);
-    _ref2 = [sx, sy], px = _ref2[0], py = _ref2[1];
-    while (path.size() > 0) {
-      _ref3 = path.shift(), dx = _ref3[0], dy = _ref3[1];
-      _ref4 = [px + dx, py + dy], px = _ref4[0], py = _ref4[1];
-      this.lineTo(px, py);
-    }
-    this.lineTo(sx, sy);
-    if (fill) {
-      return this.fill();
-    } else {
+    };
+    Canvas.prototype.drawPath = function(fill, path) {
+      var px, py, sx, sy, _ref, _ref2;
+      _ref = path.shift(), sx = _ref[0], sy = _ref[1];
+      this.moveTo(sx, sy);
+      while (path.size() > 0) {
+        _ref2 = path.shift(), px = _ref2[0], py = _ref2[1];
+        this.lineTo(px, py);
+      }
+      this.lineTo(sx, sy);
+      if (fill) {
+        return this.fill();
+      } else {
+        return this.stroke();
+      }
+    };
+    Canvas.prototype.drawDiffPath = function(fill, path) {
+      var dx, dy, px, py, sx, sy, _ref, _ref2, _ref3, _ref4;
+      _ref = path.shift(), sx = _ref[0], sy = _ref[1];
+      this.moveTo(sx, sy);
+      _ref2 = [sx, sy], px = _ref2[0], py = _ref2[1];
+      while (path.size() > 0) {
+        _ref3 = path.shift(), dx = _ref3[0], dy = _ref3[1];
+        _ref4 = [px + dx, py + dy], px = _ref4[0], py = _ref4[1];
+        this.lineTo(px, py);
+      }
+      this.lineTo(sx, sy);
+      if (fill) {
+        return this.fill();
+      } else {
+        return this.stroke();
+      }
+    };
+    Canvas.prototype.drawLine = function(x, y, dx, dy) {
+      this.moveTo(x, y);
+      this.lineTo(x + dx, y + dy);
       return this.stroke();
-    }
-  };
-  Canvas.prototype.drawLine = function(x, y, dx, dy) {
-    this.moveTo(x, y);
-    this.lineTo(x + dx, y + dy);
-    return this.stroke();
-  };
-  Canvas.prototype.drawArc = function(fill, x, y, size, from, to, reverse) {
-    if (from == null) {
-      from = 0;
-    }
-    if (to == null) {
-      to = Math.PI * 2;
-    }
-    if (reverse == null) {
-      reverse = false;
-    }
-    this.arc(x, y, size, from, to, reverse);
-    if (fill) {
-      return this.fill();
-    } else {
+    };
+    Canvas.prototype.drawDLine = function(x1, y1, x2, y2) {
+      this.moveTo(x1, y1);
+      this.lineTo(x2, y2);
       return this.stroke();
-    }
-  };
+    };
+    Canvas.prototype.drawArc = function(fill, x, y, size, from, to, reverse) {
+      if (from == null) {
+        from = 0;
+      }
+      if (to == null) {
+        to = Math.PI * 2;
+      }
+      if (reverse == null) {
+        reverse = false;
+      }
+      this.arc(x, y, size, from, to, reverse);
+      if (fill) {
+        return this.fill();
+      } else {
+        return this.stroke();
+      }
+    };
+  }
   Conf = {
     WINDOW_WIDTH: 640,
     WINDOW_HEIGHT: 480,

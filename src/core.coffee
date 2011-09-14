@@ -95,20 +95,6 @@ my =
         else
               map[i][j] = 1
     return map
-
-  draw_line: (g,x1,y1,x2,y2)->
-    g.moveTo(x1,y1)
-    g.lineTo(x2,y2)
-    g.stroke()
-
-  draw_cell: (g,x,y,cell,color="grey")->
-    g.moveTo(x , y)
-    g.lineTo(x+cell , y)
-    g.lineTo(x+cell , y+cell)
-    g.lineTo(x , y+cell)
-    g.lineTo(x , y)
-    g.fill()
-
   mklist :(list,func)->
     buf = []
     for i in list
