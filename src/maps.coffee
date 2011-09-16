@@ -3,6 +3,12 @@ class Map extends Sprite
     super 0, 0, @cell
     @_map = @load(maps.debug)
 
+  find:(arr,pos)->
+    for i in arr
+      if i.pos[0] == pos[0] and i.pos[1] == pos[1]
+        return i
+    return null
+
   gen_blocked_map : ()->
     map = @gen_map()
     m = base_block
@@ -102,11 +108,11 @@ class Map extends Sprite
         if not @_map[nx][ny]
           dist = Math.pow(min_node.pos[0]-nx,2) + Math.pow(min_node.pos[1]-ny,2)
 
-          if obj = open_list.find([nx,ny])
+          if obj = @find(open_list,[nx,ny])
             if obj.fs > n_gs+obj.hs+dist
               obj.fs = n_gs+obj.hs+dist
               obj.parent = min_node
-          else if obj = close_list.find([nx,ny])
+          else if obj = @find(close_list,[nx,ny])
             if obj.fs > n_gs+obj.hs+dist
                 obj.fs = n_gs+obj.hs+dist
                 obj.parent = min_node
@@ -280,5 +286,3 @@ base_block = [
   [ 1,0,0,0,1 ]
   [ 1,1,0,1,1 ]
   ]
-
-

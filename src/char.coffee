@@ -5,6 +5,11 @@ class Character extends Sprite
   targeting_obj: null
   status : {}
 
+  # _equips_ :
+  #   main_hand : null
+  #   sub_hand : null
+  #   body : null
+
   constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
     super @x, @y
     @state =
@@ -17,7 +22,6 @@ class Character extends Sprite
     @cnt = ~~(Math.random() * 60)
     @distination = [@x,@y]
     @_path = []
-
   regenerate: ()->
     r = (if @targeting_obj then 2 else 1)
     if @is_alive()
@@ -87,6 +91,12 @@ class Character extends Sprite
     @_ly_ = @y
 
   equip : (item)->
+    if item.at in (k for k,v of @_equips_)
+      @_equips_[item.at] = item
+    false
+
+  get_param:(param)->
+    (item?[param] or 0 for at,item of @_equips_).reduce (x,y)-> x+y
 
   die : (actor)->
     @cnt = 0
@@ -272,8 +282,8 @@ class Goblin extends CharacterObject
   constructor: (@x,@y,@group) ->
     @dir = 0
     @status = new Status
-      str: 7
-      int: 2
+      str: 8
+      int: 4
       dex: 6
     super(@x,@y,@group,@status)
 
@@ -282,6 +292,15 @@ class Goblin extends CharacterObject
       two: new Skill_Heal(@)
     @selected_skill = @skills['one']
 
+    # @equip new Dagger
+    # # @equip new SmallShield
+    # # @equip new ClothArmor
+    @_equips_ =
+      main_hand : new Dagger
+      sub_hand : null
+      body : null
+
+  change_skill: (keys)->
   change_skill: (_)->
     if @status.hp < 10
       @selected_skill = @skills['two']
@@ -317,13 +336,6 @@ class Player extends CharacterObject
       str: 10
       int: 10
       dex: 10
-      # hp : 120
-      # atk : 10
-      # def: 0.8
-      # atack_range : 50
-      # sight_range : 80
-      # speed : 3
-
     @skills =
       one: new Skill_Atack(@)
       two: new Skill_Smash(@)
@@ -335,6 +347,14 @@ class Player extends CharacterObject
       x: 0
       y: 0
 
+    @_equips_ =
+      main_hand : new Blade
+      sub_hand : null
+      body : null
+
+    # @equip new Blade
+    # @equip new SmallShield
+    # @equip new ClothArmor
   change_skill: (keys)->
     @set_skill keys
 
@@ -441,11 +461,6 @@ ObjectGroup =
 
 class Status
   constructor: (params = {}, equips = {}, @lv = 1) ->
-    # @params = params
-    # params =
-    #   str : 10
-    #   int : 10
-    #   dex : 10
     @build_status(params,equips)
 
     @hp = @MAX_HP
@@ -453,16 +468,21 @@ class Status
     @exp = 0
     @next_lv = @lv * 50
 
+    @STR = params.str
+    @INT = params.int
+    @DEX = params.dex
+
   build_status:(params={},equips)->
     @MAX_HP = params.str*10
     @MAX_SP = params.int*10
+
     @atk = params.str
     @mgc = params.int
     @def = params.str / 10
     @res = params.int
 
     @regenerate = ~~(params.str/10)
-    @sight_range = params.dex*10
+    @sight_range = params.dex*20
     @speed = ~~(params.dex * 0.5)
 
   get_exp:(point)->

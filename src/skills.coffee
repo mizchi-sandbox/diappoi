@@ -25,6 +25,12 @@ class DamageHit extends Skill
   random_rate : 0.2
   effect : 'Slash'
 
+  _calc_rate:(target,e)->
+    @actor.get_param("a_#{e}") * (1-target.get_param("r_#{e}"))
+
+  _get_random:()->
+    randint(100*(1-@random_rate),100*(1+@random_rate))/100
+
   exec:(objs)->
     targets = @_get_targets(objs)
     if @ct >= @MAX_CT and targets.size() > 0
@@ -43,8 +49,10 @@ class SingleHit extends DamageHit
       if @actor.get_distance(@actor.targeting_obj) < @range
         return [ @actor.targeting_obj ]
     return []
+
   _calc : (target)->
-    return ~~(@actor.status.atk * target.status.def*@damage_rate*randint(100*(1-@random_rate),100*(1+@random_rate))/100)
+    damage = ~~(@actor.status.STR * @_calc_rate(target,'slash'))
+    ~~(damage*@damage_rate*@_get_random())
 
 class AreaHit extends DamageHit
   effect : 'Burn'

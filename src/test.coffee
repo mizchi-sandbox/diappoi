@@ -12,22 +12,29 @@ mouse =
 
 p = console.log
 
-
-
-class Item
-class Weapon extends Item
-  effect : null
-
-class Armor extends Item
-  effect : null
-
-class Dagger extends Weapon
-class Blade extends Weapon
-class SmallShield extends Weapon
-class ClothArmor extends Armor
-
+Elements =[
+  "slash" , "thrust" ,"blow"
+  "fire"  , "flost"  , "thunder"
+  "holy"  , "darkness"
+]
 vows.describe('Game Test').addBatch
-  'Combat':
+  Equip:
+    topic:
+      player : new Player 100,100,ObjectGroup.Player
+      goblin:new Goblin 100,100,ObjectGroup.Enemy
+    'Set Status':(topic)->
+      p = topic.player
+      g = topic.goblin
+      p.equip new Blade
+      p.equip new SmallShield
+      p.equip new ClothArmor
+
+      g.equip new Dagger
+
+      console.log p.get_param('a_slash')
+
+
+  Combat:
     topic:
       player:new Player 100,100,ObjectGroup.Player
       goblin:new Goblin 100,100,ObjectGroup.Enemy
@@ -71,7 +78,7 @@ vows.describe('Game Test').addBatch
     'Equiptment':(topic)->
       player = topic.player
       player._equips_ =
-        main_hand: new Dagger
+        main_hand: new Blade
         sub_hand: new SmallShield
         body: new ClothArmor
       player.equip new Blade

@@ -3,11 +3,6 @@ String::replaceAll = (org, dest) ->
   return @split(org).join(dest)
 
 #===== Array =====
-Array::find = (pos)->
-  for i in @
-    if i.pos[0] == pos[0] and i.pos[1] == pos[1]
-      return i
-  return null
 # Rubinize
 Array::remove = (obj)-> @splice(@indexOf(obj),1)
 Array::size = ()-> @.length
@@ -72,7 +67,7 @@ Util.prototype =
     obj
 
   include : (klass, mixin) ->
-    @extend klass.prototype, mixin
+    Util::extend klass.prototype, mixin
 
   dup : (obj)->
     f = ()->

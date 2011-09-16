@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Armor, Blade, Burn, Canvas, Character, CharacterObject, ClothArmor, Color, Dagger, DamageHit, FieldScene, Game, GameData, Goblin, HealObject, Item, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, SmallShield, Sprite, Status, Sys, TargetAreaHit, TresureObject, Util, Weapon, assert, base_block, include, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows;
+  var Anim, Animation, AreaHit, Armor, Blade, Burn, Canvas, Character, CharacterObject, ClothArmor, Color, Dagger, DamageHit, Elements, EquipItem, FieldScene, Game, GameData, Goblin, HealObject, Item, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, SmallShield, Sprite, Status, Sys, TargetAreaHit, TresureObject, Util, Weapon, assert, base_block, include, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -360,6 +360,16 @@
       Map.__super__.constructor.call(this, 0, 0, this.cell);
       this._map = this.load(maps.debug);
     }
+    Map.prototype.find = function(arr, pos) {
+      var i, _i, _len;
+      for (_i = 0, _len = arr.length; _i < _len; _i++) {
+        i = arr[_i];
+        if (i.pos[0] === pos[0] && i.pos[1] === pos[1]) {
+          return i;
+        }
+      }
+      return null;
+    };
     Map.prototype.gen_blocked_map = function() {
       var m, map;
       map = this.gen_map();
@@ -485,12 +495,12 @@
           _ref = [i[0] + min_node.pos[0], i[1] + min_node.pos[1]], nx = _ref[0], ny = _ref[1];
           if (!this._map[nx][ny]) {
             dist = Math.pow(min_node.pos[0] - nx, 2) + Math.pow(min_node.pos[1] - ny, 2);
-            if (obj = open_list.find([nx, ny])) {
+            if (obj = this.find(open_list, [nx, ny])) {
               if (obj.fs > n_gs + obj.hs + dist) {
                 obj.fs = n_gs + obj.hs + dist;
                 obj.parent = min_node;
               }
-            } else if (obj = close_list.find([nx, ny])) {
+            } else if (obj = this.find(close_list, [nx, ny])) {
               if (obj.fs > n_gs + obj.hs + dist) {
                 obj.fs = n_gs + obj.hs + dist;
                 obj.parent = min_node;
@@ -769,7 +779,37 @@
       this._lx_ = this.x;
       return this._ly_ = this.y;
     };
-    Character.prototype.equip = function(item) {};
+    Character.prototype.equip = function(item) {
+      var k, v, _ref;
+      if (_ref = item.at, __indexOf.call((function() {
+        var _ref2, _results;
+        _ref2 = this._equips_;
+        _results = [];
+        for (k in _ref2) {
+          v = _ref2[k];
+          _results.push(k);
+        }
+        return _results;
+      }).call(this), _ref) >= 0) {
+        this._equips_[item.at] = item;
+      }
+      return false;
+    };
+    Character.prototype.get_param = function(param) {
+      var at, item;
+      return ((function() {
+        var _ref, _results;
+        _ref = this._equips_;
+        _results = [];
+        for (at in _ref) {
+          item = _ref[at];
+          _results.push((item != null ? item[param] : void 0) || 0);
+        }
+        return _results;
+      }).call(this)).reduce(function(x, y) {
+        return x + y;
+      });
+    };
     Character.prototype.die = function(actor) {
       var gold;
       this.cnt = 0;
@@ -1020,7 +1060,13 @@
         two: new Skill_Heal(this)
       };
       this.selected_skill = this.skills['one'];
+      this._equips_ = {
+        main_hand: new Dagger,
+        sub_hand: null,
+        body: null
+      };
     }
+    Goblin.prototype.change_skill = function(keys) {};
     Goblin.prototype.change_skill = function(_) {
       if (this.status.hp < 10) {
         return this.selected_skill = this.skills['two'];
@@ -1078,6 +1124,11 @@
       this.mouse = {
         x: 0,
         y: 0
+      };
+      this._equips_ = {
+        main_hand: new Blade,
+        sub_hand: null,
+        body: null
       };
     }
     Player.prototype.change_skill = function(keys) {
@@ -1232,6 +1283,9 @@
       this.sp = this.MAX_SP;
       this.exp = 0;
       this.next_lv = this.lv * 50;
+      this.STR = params.str;
+      this.INT = params.int;
+      this.DEX = params.dex;
     }
     Status.prototype.build_status = function(params, equips) {
       if (params == null) {
@@ -1244,7 +1298,7 @@
       this.def = params.str / 10;
       this.res = params.int;
       this.regenerate = ~~(params.str / 10);
-      this.sight_range = params.dex * 10;
+      this.sight_range = params.dex * 20;
       return this.speed = ~~(params.dex * 0.5);
     };
     Status.prototype.get_exp = function(point) {
@@ -1263,6 +1317,92 @@
     Status.prototype.onDamaged = function(amount) {};
     Status.prototype.onHealed = function(amount) {};
     return Status;
+  })();
+  Item = (function() {
+    function Item() {}
+    return Item;
+  })();
+  EquipItem = (function() {
+    __extends(EquipItem, Item);
+    function EquipItem() {
+      EquipItem.__super__.constructor.apply(this, arguments);
+    }
+    EquipItem.prototype.weight = 1;
+    EquipItem.prototype.a_slash = 0;
+    EquipItem.prototype.a_thrust = 0;
+    EquipItem.prototype.a_blow = 0;
+    EquipItem.prototype.a_fire = 0;
+    EquipItem.prototype.a_flost = 0;
+    EquipItem.prototype.a_thunder = 0;
+    EquipItem.prototype.a_holy = 0;
+    EquipItem.prototype.a_darkness = 0;
+    EquipItem.prototype.r_slash = 0;
+    EquipItem.prototype.r_thrust = 0;
+    EquipItem.prototype.r_blow = 0;
+    EquipItem.prototype.r_fire = 0;
+    EquipItem.prototype.r_flost = 0;
+    EquipItem.prototype.r_thunder = 0;
+    EquipItem.prototype.r_holy = 0;
+    EquipItem.prototype.r_darkness = 0;
+    return EquipItem;
+  })();
+  Weapon = (function() {
+    __extends(Weapon, EquipItem);
+    function Weapon() {
+      Weapon.__super__.constructor.apply(this, arguments);
+    }
+    Weapon.prototype.type = 'weapon';
+    return Weapon;
+  })();
+  Armor = (function() {
+    __extends(Armor, EquipItem);
+    function Armor() {
+      Armor.__super__.constructor.apply(this, arguments);
+    }
+    Armor.prototype.type = 'armor';
+    return Armor;
+  })();
+  Dagger = (function() {
+    __extends(Dagger, Weapon);
+    function Dagger() {
+      Dagger.__super__.constructor.apply(this, arguments);
+    }
+    Dagger.prototype.name = 'Dagger';
+    Dagger.prototype.at = "main_hand";
+    Dagger.prototype.a_slash = 0.7;
+    Dagger.prototype.weight = 0.2;
+    return Dagger;
+  })();
+  Blade = (function() {
+    __extends(Blade, Weapon);
+    function Blade() {
+      Blade.__super__.constructor.apply(this, arguments);
+    }
+    Blade.prototype.name = 'Blade';
+    Blade.prototype.at = "main_hand";
+    Blade.prototype.a_slash = 2.4;
+    Blade.prototype.weight = 2.9;
+    return Blade;
+  })();
+  SmallShield = (function() {
+    __extends(SmallShield, Weapon);
+    function SmallShield() {
+      SmallShield.__super__.constructor.apply(this, arguments);
+    }
+    SmallShield.prototype.name = 'SmallShiled';
+    SmallShield.prototype.at = "sub_hand";
+    SmallShield.prototype.r_slash = 0.1;
+    return SmallShield;
+  })();
+  ClothArmor = (function() {
+    __extends(ClothArmor, Armor);
+    function ClothArmor() {
+      ClothArmor.__super__.constructor.apply(this, arguments);
+    }
+    ClothArmor.prototype.name = 'ClothArmor';
+    ClothArmor.prototype.at = "body";
+    ClothArmor.prototype.r_slash = 0.2;
+    return ClothArmor;
   })();
   Skill = (function() {
     function Skill(actor, lv) {
@@ -1336,7 +1476,9 @@
       return [];
     };
     SingleHit.prototype._calc = function(target) {
-      return ~~(this.actor.status.atk * target.status.def * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+      var damage;
+      damage = ~~(this.actor.status.STR * this.actor.get_param('a_slash') * (1 - target.get_param('r_slash')));
+      return ~~(damage * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
     };
     return SingleHit;
   })();
@@ -1644,16 +1786,6 @@
   String.prototype.replaceAll = function(org, dest) {
     return this.split(org).join(dest);
   };
-  Array.prototype.find = function(pos) {
-    var i, _i, _len;
-    for (_i = 0, _len = this.length; _i < _len; _i++) {
-      i = this[_i];
-      if (i.pos[0] === pos[0] && i.pos[1] === pos[1]) {
-        return i;
-      }
-    }
-    return null;
-  };
   Array.prototype.remove = function(obj) {
     return this.splice(this.indexOf(obj), 1);
   };
@@ -1757,7 +1889,7 @@
       return obj;
     },
     include: function(klass, mixin) {
-      return this.extend(klass.prototype, mixin);
+      return Util.prototype.extend(klass.prototype, mixin);
     },
     dup: function(obj) {
       var f;
@@ -1780,56 +1912,25 @@
     y: 240
   };
   p = console.log;
-  Item = (function() {
-    function Item() {}
-    return Item;
-  })();
-  Weapon = (function() {
-    __extends(Weapon, Item);
-    function Weapon() {
-      Weapon.__super__.constructor.apply(this, arguments);
-    }
-    Weapon.prototype.effect = null;
-    return Weapon;
-  })();
-  Armor = (function() {
-    __extends(Armor, Item);
-    function Armor() {
-      Armor.__super__.constructor.apply(this, arguments);
-    }
-    Armor.prototype.effect = null;
-    return Armor;
-  })();
-  Dagger = (function() {
-    __extends(Dagger, Weapon);
-    function Dagger() {
-      Dagger.__super__.constructor.apply(this, arguments);
-    }
-    return Dagger;
-  })();
-  Blade = (function() {
-    __extends(Blade, Weapon);
-    function Blade() {
-      Blade.__super__.constructor.apply(this, arguments);
-    }
-    return Blade;
-  })();
-  SmallShield = (function() {
-    __extends(SmallShield, Weapon);
-    function SmallShield() {
-      SmallShield.__super__.constructor.apply(this, arguments);
-    }
-    return SmallShield;
-  })();
-  ClothArmor = (function() {
-    __extends(ClothArmor, Armor);
-    function ClothArmor() {
-      ClothArmor.__super__.constructor.apply(this, arguments);
-    }
-    return ClothArmor;
-  })();
+  Elements = ["slash", "thrust", "blow", "fire", "flost", "thunder", "holy", "darkness"];
   vows.describe('Game Test').addBatch({
-    'Combat': {
+    Equip: {
+      topic: {
+        player: new Player(100, 100, ObjectGroup.Player),
+        goblin: new Goblin(100, 100, ObjectGroup.Enemy)
+      },
+      'Set Status': function(topic) {
+        var g;
+        p = topic.player;
+        g = topic.goblin;
+        p.equip(new Blade);
+        p.equip(new SmallShield);
+        p.equip(new ClothArmor);
+        g.equip(new Dagger);
+        return console.log(p.get_param('a_slash'));
+      }
+    },
+    Combat: {
       topic: {
         player: new Player(100, 100, ObjectGroup.Player),
         goblin: new Goblin(100, 100, ObjectGroup.Enemy),
@@ -1882,7 +1983,7 @@
         var player;
         player = topic.player;
         player._equips_ = {
-          main_hand: new Dagger,
+          main_hand: new Blade,
           sub_hand: new SmallShield,
           body: new ClothArmor
         };
