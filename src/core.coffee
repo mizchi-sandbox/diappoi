@@ -1,11 +1,20 @@
 class Game
   constructor: (conf) ->
-    my.mes("Welcome to the world!")
+    Sys::message("Welcome to the world!")
     canvas =  document.getElementById conf.CANVAS_NAME
     @g = canvas.getContext '2d'
     @config = conf
     canvas.width = conf.WINDOW_WIDTH;
     canvas.height = conf.WINDOW_HEIGHT;
+
+    canvas.onmousemove = (e) =>
+      @mouse.x =  e.x - canvas.offsetLeft
+      @mouse.y =  e.y - canvas.offsetTop
+    @mouse = x : 0, y : 0
+    window.document.onkeydown = (e) =>
+      @getkey( e.keyCode, 2)
+    window.document.onkeyup = (e) =>
+      @getkey( e.keyCode, 0)
     @keys =
         left : 0
         right : 0
@@ -22,54 +31,45 @@ class Game
         eight : 0
         nine : 0
         zero : 0
-    @mouse = x : 0, y : 0
     @scenes =
-      "Opening": new OpeningScene()
-      "Field": new FieldScene()
+      "Opening": new OpeningScene(@)
+      "Field": new FieldScene(@)
+      "Menu": new MenuScene(@)
     @scene_name = "Opening"
-    # @curr_scene = @scenes["Opening"]
 
   enter: ->
     @scene_name = @scenes[@scene_name].enter(@keys,@mouse)
     @draw(@scenes[@scene_name])
+    for k,v of @keys
+      if @keys[k] is 2
+        @keys[k]--
 
-  start: (self) ->
-    # setInterval ->
-    #   self.enter()
-    # , 1000 / @config.FPS
-
-    animationLoop = ->
-      self.enter()
+  start: () ->
+    animationLoop = =>
+      @enter()
       requestAnimationFrame animationLoop
-
-    # animationLoop = ()->
-    #   setTimeout (->
-    #     requestAnimationFrame ->
-    #       animationLoop()
-    #   ), ~~(1000/24)
-    #   self.enter()
-
     animationLoop()
 
 
-  getkey: (self,which,to) ->
+  getkey: (which,to) ->
     switch which
-      when 68,39 then self.keys.right = to
-      when 65,37 then self.keys.left = to
-      when 87,38 then self.keys.up = to
-      when 83,40 then self.keys.down = to
-      when 32 then self.keys.space = to
-      when 17 then self.keys.ctrl = to
-      when 48 then self.keys.zero = to
-      when 49 then self.keys.one = to
-      when 50 then self.keys.two = to
-      when 51 then self.keys.three = to
-      when 52 then self.keys.four = to
-      when 53 then self.keys.five = to
-      when 54 then self.keys.sixe = to
-      when 55 then self.keys.seven = to
-      when 56 then self.keys.eight = to
-      when 57 then self.keys.nine = to
+      when 68,39 then @keys.right = to
+      when 65,37 then @keys.left = to
+      when 87,38 then @keys.up = to
+      when 83,40 then @keys.down = to
+      when 32 then @keys.space = to
+      when 17 then @keys.ctrl = to
+      when 48 then @keys.zero = to
+      when 49 then @keys.one = to
+      when 50 then @keys.two = to
+      when 51 then @keys.three = to
+      when 52 then @keys.four = to
+      when 53 then @keys.five = to
+      when 54 then @keys.sixe = to
+      when 55 then @keys.seven = to
+      when 56 then @keys.eight = to
+      when 57 then @keys.nine = to
+    @keys[String.fromCharCode(which).toLowerCase()] = to
 
   draw: (scene) ->
     @g.clearRect(0,0,@config.WINDOW_WIDTH ,@config.WINDOW_HEIGHT)

@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Armor, Blade, Burn, Canvas, Character, CharacterObject, ClothArmor, Color, Conf, Dagger, DamageHit, EquipItem, FieldScene, Game, GameData, Goblin, HealObject, Item, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, SmallShield, Sprite, Status, Sys, TargetAreaHit, TresureObject, Util, Weapon, base_block, include, maps, my, randint, rjoin, sjoin;
+  var Anim, Animation, AreaHit, Armor, Blade, Canvas, Character, CharacterObject, ClothArmor, Color, Dagger, DamageHit, EquipItem, FieldScene, Game, GameData, Goblin, HealObject, Item, ItemObject, Map, MenuScene, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, SmallShield, Sprite, Status, Sys, TargetAreaHit, TresureObject, Util, Weapon, base_block, include, maps, my, randint, rjoin, sjoin, _;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -16,12 +16,26 @@
   Game = (function() {
     function Game(conf) {
       var canvas;
-      my.mes("Welcome to the world!");
+      Sys.prototype.message("Welcome to the world!");
       canvas = document.getElementById(conf.CANVAS_NAME);
       this.g = canvas.getContext('2d');
       this.config = conf;
       canvas.width = conf.WINDOW_WIDTH;
       canvas.height = conf.WINDOW_HEIGHT;
+      canvas.onmousemove = __bind(function(e) {
+        this.mouse.x = e.x - canvas.offsetLeft;
+        return this.mouse.y = e.y - canvas.offsetTop;
+      }, this);
+      this.mouse = {
+        x: 0,
+        y: 0
+      };
+      window.document.onkeydown = __bind(function(e) {
+        return this.getkey(e.keyCode, 2);
+      }, this);
+      window.document.onkeyup = __bind(function(e) {
+        return this.getkey(e.keyCode, 0);
+      }, this);
       this.keys = {
         left: 0,
         right: 0,
@@ -39,67 +53,88 @@
         nine: 0,
         zero: 0
       };
-      this.mouse = {
-        x: 0,
-        y: 0
-      };
       this.scenes = {
-        "Opening": new OpeningScene(),
-        "Field": new FieldScene()
+        "Opening": new OpeningScene(this),
+        "Field": new FieldScene(this),
+        "Menu": new MenuScene(this)
       };
       this.scene_name = "Opening";
     }
     Game.prototype.enter = function() {
+      var k, v, _ref, _results;
       this.scene_name = this.scenes[this.scene_name].enter(this.keys, this.mouse);
-      return this.draw(this.scenes[this.scene_name]);
+      this.draw(this.scenes[this.scene_name]);
+      _ref = this.keys;
+      _results = [];
+      for (k in _ref) {
+        v = _ref[k];
+        _results.push(this.keys[k] === 2 ? this.keys[k]-- : void 0);
+      }
+      return _results;
     };
-    Game.prototype.start = function(self) {
+    Game.prototype.start = function() {
       var animationLoop;
-      animationLoop = function() {
-        self.enter();
+      animationLoop = __bind(function() {
+        this.enter();
         return requestAnimationFrame(animationLoop);
-      };
+      }, this);
       return animationLoop();
     };
-    Game.prototype.getkey = function(self, which, to) {
+    Game.prototype.getkey = function(which, to) {
       switch (which) {
         case 68:
         case 39:
-          return self.keys.right = to;
+          this.keys.right = to;
+          break;
         case 65:
         case 37:
-          return self.keys.left = to;
+          this.keys.left = to;
+          break;
         case 87:
         case 38:
-          return self.keys.up = to;
+          this.keys.up = to;
+          break;
         case 83:
         case 40:
-          return self.keys.down = to;
+          this.keys.down = to;
+          break;
         case 32:
-          return self.keys.space = to;
+          this.keys.space = to;
+          break;
         case 17:
-          return self.keys.ctrl = to;
+          this.keys.ctrl = to;
+          break;
         case 48:
-          return self.keys.zero = to;
+          this.keys.zero = to;
+          break;
         case 49:
-          return self.keys.one = to;
+          this.keys.one = to;
+          break;
         case 50:
-          return self.keys.two = to;
+          this.keys.two = to;
+          break;
         case 51:
-          return self.keys.three = to;
+          this.keys.three = to;
+          break;
         case 52:
-          return self.keys.four = to;
+          this.keys.four = to;
+          break;
         case 53:
-          return self.keys.five = to;
+          this.keys.five = to;
+          break;
         case 54:
-          return self.keys.sixe = to;
+          this.keys.sixe = to;
+          break;
         case 55:
-          return self.keys.seven = to;
+          this.keys.seven = to;
+          break;
         case 56:
-          return self.keys.eight = to;
+          this.keys.eight = to;
+          break;
         case 57:
-          return self.keys.nine = to;
+          this.keys.nine = to;
       }
+      return this.keys[String.fromCharCode(which).toLowerCase()] = to;
     };
     Game.prototype.draw = function(scene) {
       this.g.clearRect(0, 0, this.config.WINDOW_WIDTH, this.config.WINDOW_HEIGHT);
@@ -699,7 +734,6 @@
       }
     };
     Character.prototype.update = function(objs, cmap, keys, mouse) {
-      var name, skill, _ref;
       this.cnt += 1;
       if (this.is_alive()) {
         this.check();
@@ -709,12 +743,7 @@
         this.search(objs);
         this.move(objs, cmap, keys, mouse);
         this.change_skill(keys, objs);
-        _ref = this.skills;
-        for (name in _ref) {
-          skill = _ref[name];
-          skill.charge(this, skill === this.selected_skill);
-        }
-        return this.selected_skill.exec(objs);
+        return this.selected_skill.update(objs, keys);
       }
     };
     Character.prototype.search = function(objs) {
@@ -1066,7 +1095,6 @@
         body: null
       };
     }
-    Goblin.prototype.change_skill = function(keys) {};
     Goblin.prototype.change_skill = function(_) {
       if (this.status.hp < 10) {
         return this.selected_skill = this.skills['two'];
@@ -1078,8 +1106,8 @@
       var beat, color, ms;
       if (this.group === ObjectGroup.Player) {
         color = Color.White;
-      } else if (this.group === ObjectGroup.Enemy) {
-        color = Color.i(55, 55, 55);
+      } else {
+        color = Color.Black;
       }
       g.init(color);
       beat = 20;
@@ -1103,7 +1131,8 @@
     __extends(Player, CharacterObject);
     Player.prototype.scale = 8;
     Player.prototype.name = "Player";
-    function Player(x, y, group) {
+    function Player(scene, x, y, group) {
+      this.scene = scene;
       this.x = x;
       this.y = y;
       this.group = group != null ? group : ObjectGroup.Player;
@@ -1121,10 +1150,7 @@
       };
       this.selected_skill = this.skills['one'];
       this.state.leader = true;
-      this.mouse = {
-        x: 0,
-        y: 0
-      };
+      this.mouse = this.scene.core.mouse;
       this._equips_ = {
         main_hand: new Blade,
         sub_hand: null,
@@ -1421,6 +1447,15 @@
         }
       }
     };
+    Skill.prototype.update = function(objs, keys) {
+      var name, skill, _ref;
+      _ref = this.actor.skills;
+      for (name in _ref) {
+        skill = _ref[name];
+        skill.charge(this, skill === this);
+      }
+      return this.exec(objs);
+    };
     Skill.prototype.exec = function(objs) {};
     Skill.prototype._build = function(lv) {};
     Skill.prototype._calc = function(target) {
@@ -1655,13 +1690,13 @@
     return Animation;
   })();
   (Anim = {}).prototype = {
-    Slash: Slash = (function() {
-      __extends(Slash, Animation);
-      function Slash(amount) {
+    Slash: _ = (function() {
+      __extends(_, Animation);
+      function _(amount) {
         this.amount = amount;
-        Slash.__super__.constructor.call(this, 60);
+        _.__super__.constructor.call(this, 60);
       }
-      Slash.prototype.render = function(g, x, y) {
+      _.prototype.render = function(g, x, y) {
         var per, zangeki, _ref;
         if ((0 <= (_ref = this.cnt++) && _ref < this.max_frame)) {
           g.init(Color.i(30, 55, 55));
@@ -1680,16 +1715,16 @@
           return false;
         }
       };
-      return Slash;
+      return _;
     })(),
-    Burn: Burn = (function() {
-      __extends(Burn, Animation);
-      function Burn(amount, size) {
+    Burn: _ = (function() {
+      __extends(_, Animation);
+      function _(amount, size) {
         this.amount = amount;
         this.size = size != null ? size : 30;
-        Burn.__super__.constructor.call(this, 60);
+        _.__super__.constructor.call(this, 60);
       }
-      Burn.prototype.render = function(g, x, y) {
+      _.prototype.render = function(g, x, y) {
         var per, _ref;
         if ((0 <= (_ref = this.cnt++) && _ref < this.max_frame)) {
           if (this.cnt < this.max_frame / 2) {
@@ -1707,7 +1742,7 @@
           return false;
         }
       };
-      return Burn;
+      return _;
     })()
   };
   Scene = (function() {
@@ -1724,8 +1759,8 @@
   OpeningScene = (function() {
     __extends(OpeningScene, Scene);
     OpeningScene.prototype.name = "Opening";
-    function OpeningScene() {
-      this.player = new Player(320, 240);
+    function OpeningScene(core) {
+      this.core = core;
     }
     OpeningScene.prototype.enter = function(keys, mouse) {
       if (keys.space) {
@@ -1744,12 +1779,13 @@
     __extends(FieldScene, Scene);
     FieldScene.prototype.name = "Field";
     FieldScene.prototype._camera = null;
-    function FieldScene() {
+    function FieldScene(core) {
       var player, start_point;
+      this.core = core;
       this.map = new SampleMap(this, 32);
       this.mouse = new Mouse();
       start_point = this.map.get_rand_xy();
-      player = new Player(start_point.x, start_point.y, 0);
+      player = new Player(this, start_point.x, start_point.y, 0);
       this.objs = [player];
       this.set_camera(player);
     }
@@ -1764,6 +1800,9 @@
       }
       this.map.update(this.objs, this._camera);
       this.frame_count++;
+      if (keys.c === 2) {
+        return "Menu";
+      }
       return this.name;
     };
     FieldScene.prototype.set_camera = function(obj) {
@@ -1788,6 +1827,25 @@
       }
     };
     return FieldScene;
+  })();
+  MenuScene = (function() {
+    __extends(MenuScene, Scene);
+    MenuScene.prototype.name = "Menu";
+    function MenuScene(core) {
+      this.core = core;
+    }
+    MenuScene.prototype.enter = function(keys, mouse) {
+      if (keys.c === 2) {
+        return "Field";
+      }
+      return this.name;
+    };
+    MenuScene.prototype.render = function(g) {
+      g.init();
+      g.fillText("Opening", 300, 200);
+      return g.fillText("Press Space", 300, 240);
+    };
+    return MenuScene;
   })();
   String.prototype.replaceAll = function(org, dest) {
     return this.split(org).join(dest);
@@ -1905,33 +1963,19 @@
     }
   };
   include = Util.prototype.include;
-  Conf = {
-    WINDOW_WIDTH: 640,
-    WINDOW_HEIGHT: 480,
-    VIEW_X: 320,
-    VIEW_Y: 240,
-    CANVAS_NAME: "game",
-    FPS: 60
-  };
   window.requestAnimationFrame = (function() {
     return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback, element) {
       return window.setTimeout(callback, 1000 / 60);
     };
   })();
   window.onload = function() {
-    var game, gamewindow;
-    game = new Game(Conf);
-    gamewindow = document.getElementById('game');
-    gamewindow.onmousemove = function(e) {
-      game.mouse.x = e.x - gamewindow.offsetLeft;
-      return game.mouse.y = e.y - gamewindow.offsetTop;
-    };
-    window.document.onkeydown = function(e) {
-      return game.getkey(game, e.keyCode, 1);
-    };
-    window.document.onkeyup = function(e) {
-      return game.getkey(game, e.keyCode, 0);
-    };
-    return game.start(game);
+    var game;
+    game = new Game({
+      WINDOW_WIDTH: 640,
+      WINDOW_HEIGHT: 480,
+      CANVAS_NAME: "game",
+      FPS: 60
+    });
+    return game.start();
   };
 }).call(this);

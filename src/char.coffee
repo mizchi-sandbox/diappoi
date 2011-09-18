@@ -5,11 +5,6 @@ class Character extends Sprite
   targeting_obj: null
   status : {}
 
-  # _equips_ :
-  #   main_hand : null
-  #   sub_hand : null
-  #   body : null
-
   constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
     super @x, @y
     @state =
@@ -36,9 +31,7 @@ class Character extends Sprite
       @search objs
       @move(objs,cmap, keys,mouse)
       @change_skill(keys,objs)
-      for name,skill of @skills
-        skill.charge @, skill is @selected_skill
-      @selected_skill.exec objs
+      @selected_skill.update(objs,keys)
 
   search : (objs)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
@@ -286,21 +279,15 @@ class Goblin extends CharacterObject
       int: 4
       dex: 6
     super(@x,@y,@group,@status)
-
     @skills =
       one: new Skill_Atack(@,3)
       two: new Skill_Heal(@)
     @selected_skill = @skills['one']
-
-    # @equip new Dagger
-    # # @equip new SmallShield
-    # # @equip new ClothArmor
     @_equips_ =
       main_hand : new Dagger
       sub_hand : null
       body : null
 
-  change_skill: (keys)->
   change_skill: (_)->
     if @status.hp < 10
       @selected_skill = @skills['two']
@@ -310,8 +297,8 @@ class Goblin extends CharacterObject
   render_object:(g,pos)->
     if @group == ObjectGroup.Player
       color = Color.White
-    else if @group == ObjectGroup.Enemy
-      color = Color.i 55,55,55
+    else
+      color = Color.Black
     g.init color
     beat = 20
     ms = ~~(new Date()/100) % beat / beat
@@ -330,7 +317,7 @@ class Goblin extends CharacterObject
 class Player extends CharacterObject
   scale : 8
   name : "Player"
-  constructor: (@x,@y,@group=ObjectGroup.Player) ->
+  constructor: (@scene, @x,@y,@group=ObjectGroup.Player) ->
     super(@x,@y,@group)
     @status = new Status
       str: 10
@@ -343,18 +330,13 @@ class Player extends CharacterObject
       four: new Skill_Meteor(@)
     @selected_skill = @skills['one']
     @state.leader =true
-    @mouse =
-      x: 0
-      y: 0
+    @mouse = @scene.core.mouse
 
     @_equips_ =
       main_hand : new Blade
       sub_hand : null
       body : null
 
-    # @equip new Blade
-    # @equip new SmallShield
-    # @equip new ClothArmor
   change_skill: (keys)->
     @set_skill keys
 

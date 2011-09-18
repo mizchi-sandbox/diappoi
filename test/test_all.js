@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Armor, Blade, Burn, Canvas, Character, CharacterObject, ClothArmor, Color, Dagger, DamageHit, Elements, EquipItem, FieldScene, Game, GameData, Goblin, HealObject, Item, ItemObject, Map, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, Slash, SmallShield, Sprite, Status, Sys, TargetAreaHit, TresureObject, Util, Weapon, assert, base_block, include, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows;
+  var Anim, Animation, AreaHit, Armor, Blade, Canvas, Character, CharacterObject, ClothArmor, Color, Dagger, DamageHit, Elements, EquipItem, FieldScene, Game, GameData, Goblin, HealObject, Item, ItemObject, Map, MenuScene, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, SmallShield, Sprite, Status, Sys, TargetAreaHit, TresureObject, Util, Weapon, assert, base_block, include, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows, _;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -16,12 +16,26 @@
   Game = (function() {
     function Game(conf) {
       var canvas;
-      my.mes("Welcome to the world!");
+      Sys.prototype.message("Welcome to the world!");
       canvas = document.getElementById(conf.CANVAS_NAME);
       this.g = canvas.getContext('2d');
       this.config = conf;
       canvas.width = conf.WINDOW_WIDTH;
       canvas.height = conf.WINDOW_HEIGHT;
+      canvas.onmousemove = __bind(function(e) {
+        this.mouse.x = e.x - canvas.offsetLeft;
+        return this.mouse.y = e.y - canvas.offsetTop;
+      }, this);
+      this.mouse = {
+        x: 0,
+        y: 0
+      };
+      window.document.onkeydown = __bind(function(e) {
+        return this.getkey(e.keyCode, 2);
+      }, this);
+      window.document.onkeyup = __bind(function(e) {
+        return this.getkey(e.keyCode, 0);
+      }, this);
       this.keys = {
         left: 0,
         right: 0,
@@ -39,13 +53,10 @@
         nine: 0,
         zero: 0
       };
-      this.mouse = {
-        x: 0,
-        y: 0
-      };
       this.scenes = {
         "Opening": new OpeningScene(),
-        "Field": new FieldScene()
+        "Field": new FieldScene(),
+        "Menu": new MenuScene()
       };
       this.scene_name = "Opening";
     }
@@ -53,53 +64,78 @@
       this.scene_name = this.scenes[this.scene_name].enter(this.keys, this.mouse);
       return this.draw(this.scenes[this.scene_name]);
     };
-    Game.prototype.start = function(self) {
+    Game.prototype.start = function() {
       var animationLoop;
-      animationLoop = function() {
-        self.enter();
+      animationLoop = __bind(function() {
+        this.enter();
         return requestAnimationFrame(animationLoop);
-      };
+      }, this);
       return animationLoop();
     };
-    Game.prototype.getkey = function(self, which, to) {
+    Game.prototype.getkey = function(which, to) {
+      var f;
+      f = __bind(function(state, t) {
+        if (this.keys[char] === 2 && t !== 0) {
+          console.log("2 to 1 " + char);
+          return this.keys[char] = 1;
+        } else {
+          return this.keys[char] = t;
+        }
+      }, this);
       switch (which) {
         case 68:
         case 39:
-          return self.keys.right = to;
+          this.keys.right = to;
+          break;
         case 65:
         case 37:
-          return self.keys.left = to;
+          this.keys.left = to;
+          break;
         case 87:
         case 38:
-          return self.keys.up = to;
+          this.keys.up = to;
+          break;
         case 83:
         case 40:
-          return self.keys.down = to;
+          this.keys.down = to;
+          break;
         case 32:
-          return self.keys.space = to;
+          this.keys.space = to;
+          break;
         case 17:
-          return self.keys.ctrl = to;
+          this.keys.ctrl = to;
+          break;
         case 48:
-          return self.keys.zero = to;
+          this.keys.zero = to;
+          break;
         case 49:
-          return self.keys.one = to;
+          this.keys.one = to;
+          break;
         case 50:
-          return self.keys.two = to;
+          this.keys.two = to;
+          break;
         case 51:
-          return self.keys.three = to;
+          this.keys.three = to;
+          break;
         case 52:
-          return self.keys.four = to;
+          this.keys.four = to;
+          break;
         case 53:
-          return self.keys.five = to;
+          this.keys.five = to;
+          break;
         case 54:
-          return self.keys.sixe = to;
+          this.keys.sixe = to;
+          break;
         case 55:
-          return self.keys.seven = to;
+          this.keys.seven = to;
+          break;
         case 56:
-          return self.keys.eight = to;
+          this.keys.eight = to;
+          break;
         case 57:
-          return self.keys.nine = to;
+          this.keys.nine = to;
       }
+      return f(String.fromCharCode(which).toLowerCase(), to);
     };
     Game.prototype.draw = function(scene) {
       this.g.clearRect(0, 0, this.config.WINDOW_WIDTH, this.config.WINDOW_HEIGHT);
@@ -699,7 +735,6 @@
       }
     };
     Character.prototype.update = function(objs, cmap, keys, mouse) {
-      var name, skill, _ref;
       this.cnt += 1;
       if (this.is_alive()) {
         this.check();
@@ -709,12 +744,7 @@
         this.search(objs);
         this.move(objs, cmap, keys, mouse);
         this.change_skill(keys, objs);
-        _ref = this.skills;
-        for (name in _ref) {
-          skill = _ref[name];
-          skill.charge(this, skill === this.selected_skill);
-        }
-        return this.selected_skill.exec(objs);
+        return this.selected_skill.update(objs, keys);
       }
     };
     Character.prototype.search = function(objs) {
@@ -1050,8 +1080,8 @@
       this.group = group;
       this.dir = 0;
       this.status = new Status({
-        str: 7,
-        int: 2,
+        str: 8,
+        int: 4,
         dex: 6
       });
       Goblin.__super__.constructor.call(this, this.x, this.y, this.group, this.status);
@@ -1066,7 +1096,6 @@
         body: null
       };
     }
-    Goblin.prototype.change_skill = function(keys) {};
     Goblin.prototype.change_skill = function(_) {
       if (this.status.hp < 10) {
         return this.selected_skill = this.skills['two'];
@@ -1078,8 +1107,8 @@
       var beat, color, ms;
       if (this.group === ObjectGroup.Player) {
         color = Color.White;
-      } else if (this.group === ObjectGroup.Enemy) {
-        color = Color.i(55, 55, 55);
+      } else {
+        color = Color.Black;
       }
       g.init(color);
       beat = 20;
@@ -1380,7 +1409,7 @@
     }
     Blade.prototype.name = 'Blade';
     Blade.prototype.at = "main_hand";
-    Blade.prototype.a_slash = 2.4;
+    Blade.prototype.a_slash = 1.1;
     Blade.prototype.weight = 2.9;
     return Blade;
   })();
@@ -1421,6 +1450,15 @@
         }
       }
     };
+    Skill.prototype.update = function(objs, keys) {
+      var name, skill, _ref;
+      _ref = this.actor.skills;
+      for (name in _ref) {
+        skill = _ref[name];
+        skill.charge(this, skill === this);
+      }
+      return this.exec(objs);
+    };
     Skill.prototype.exec = function(objs) {};
     Skill.prototype._build = function(lv) {};
     Skill.prototype._calc = function(target) {
@@ -1444,6 +1482,12 @@
     DamageHit.prototype.damage_rate = 1.0;
     DamageHit.prototype.random_rate = 0.2;
     DamageHit.prototype.effect = 'Slash';
+    DamageHit.prototype._calc_rate = function(target, e) {
+      return this.actor.get_param("a_" + e) * (1 - target.get_param("r_" + e));
+    };
+    DamageHit.prototype._get_random = function() {
+      return randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100;
+    };
     DamageHit.prototype.exec = function(objs) {
       var amount, t, targets, _i, _len;
       targets = this._get_targets(objs);
@@ -1477,8 +1521,8 @@
     };
     SingleHit.prototype._calc = function(target) {
       var damage;
-      damage = ~~(this.actor.status.STR * this.actor.get_param('a_slash') * (1 - target.get_param('r_slash')));
-      return ~~(damage * this.damage_rate * randint(100 * (1 - this.random_rate), 100 * (1 + this.random_rate)) / 100);
+      damage = ~~(this.actor.status.STR * this._calc_rate(target, 'slash'));
+      return ~~(damage * this.damage_rate * this._get_random());
     };
     return SingleHit;
   })();
@@ -1649,13 +1693,13 @@
     return Animation;
   })();
   (Anim = {}).prototype = {
-    Slash: Slash = (function() {
-      __extends(Slash, Animation);
-      function Slash(amount) {
+    Slash: _ = (function() {
+      __extends(_, Animation);
+      function _(amount) {
         this.amount = amount;
-        Slash.__super__.constructor.call(this, 60);
+        _.__super__.constructor.call(this, 60);
       }
-      Slash.prototype.render = function(g, x, y) {
+      _.prototype.render = function(g, x, y) {
         var per, zangeki, _ref;
         if ((0 <= (_ref = this.cnt++) && _ref < this.max_frame)) {
           g.init(Color.i(30, 55, 55));
@@ -1674,16 +1718,16 @@
           return false;
         }
       };
-      return Slash;
+      return _;
     })(),
-    Burn: Burn = (function() {
-      __extends(Burn, Animation);
-      function Burn(amount, size) {
+    Burn: _ = (function() {
+      __extends(_, Animation);
+      function _(amount, size) {
         this.amount = amount;
         this.size = size != null ? size : 30;
-        Burn.__super__.constructor.call(this, 60);
+        _.__super__.constructor.call(this, 60);
       }
-      Burn.prototype.render = function(g, x, y) {
+      _.prototype.render = function(g, x, y) {
         var per, _ref;
         if ((0 <= (_ref = this.cnt++) && _ref < this.max_frame)) {
           if (this.cnt < this.max_frame / 2) {
@@ -1701,7 +1745,7 @@
           return false;
         }
       };
-      return Burn;
+      return _;
     })()
   };
   Scene = (function() {
@@ -1758,6 +1802,9 @@
       }
       this.map.update(this.objs, this._camera);
       this.frame_count++;
+      if (keys.c) {
+        return "Menu";
+      }
       return this.name;
     };
     FieldScene.prototype.set_camera = function(obj) {
@@ -1782,6 +1829,23 @@
       }
     };
     return FieldScene;
+  })();
+  MenuScene = (function() {
+    __extends(MenuScene, Scene);
+    MenuScene.prototype.name = "Menu";
+    function MenuScene() {}
+    MenuScene.prototype.enter = function(keys, mouse) {
+      if (keys.c) {
+        return "Field";
+      }
+      return this.name;
+    };
+    MenuScene.prototype.render = function(g) {
+      g.init();
+      g.fillText("Opening", 300, 200);
+      return g.fillText("Press Space", 300, 240);
+    };
+    return MenuScene;
   })();
   String.prototype.replaceAll = function(org, dest) {
     return this.split(org).join(dest);

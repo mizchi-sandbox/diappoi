@@ -10,6 +10,11 @@ class Skill
         @ct += @fg_charge
       else
         @ct += @bg_charge
+  update: (objs,keys)->
+    for name,skill of @actor.skills
+      skill.charge @, skill is @
+    @exec objs
+
   exec:(objs)->
   _build:(lv)->
   _calc:(target)-> return 1
@@ -170,7 +175,7 @@ class Animation extends Sprite
   render:(g,x,y)->
 
 (Anim = {}).prototype =
-  Slash: class Slash extends Animation
+  Slash: class _ extends Animation
     constructor: (@amount) ->
       super 60
     render:(g,x,y)->
@@ -194,7 +199,7 @@ class Animation extends Sprite
       else
         return false
 
-  Burn: class Burn extends Animation
+  Burn: class _ extends Animation
     constructor: (@amount,@size=30) ->
       super 60
     render:(g,x,y)->

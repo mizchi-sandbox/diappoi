@@ -10,8 +10,7 @@ class Scene
 
 class OpeningScene extends Scene
   name : "Opening"
-  constructor: () ->
-    @player  =  new Player(320,240)
+  constructor: (@core) ->
 
   enter: (keys,mouse) ->
     if keys.space
@@ -32,12 +31,12 @@ class FieldScene extends Scene
   name : "Field"
   _camera : null
 
-  constructor: () ->
+  constructor: (@core) ->
     @map = new SampleMap(@,32)
     @mouse = new Mouse()
 
     start_point = @map.get_rand_xy()
-    player  =  new Player(start_point.x ,start_point.y, 0)
+    player  =  new Player(@,start_point.x ,start_point.y, 0)
     @objs = [player]
     @set_camera( player )
 
@@ -46,6 +45,8 @@ class FieldScene extends Scene
     obj.update(@objs, @map,keys,mouse,@_camera) for obj in near_obj
     @map.update @objs,@_camera
     @frame_count++
+    if keys.c == 2
+      return "Menu"
     return @name
 
   set_camera: (obj)->
@@ -64,3 +65,24 @@ class FieldScene extends Scene
       g.fillText(
           "HP "+player.status.hp+"/"+player.status.MAX_HP,
           15,15)
+
+
+class MenuScene extends Scene
+  name : "Menu"
+
+  constructor: (@core) ->
+
+  enter: (keys,mouse) ->
+    if keys.c == 2
+      return "Field"
+    return @name
+
+  render: (g)->
+    g.init()
+    g.fillText(
+        "Opening",
+        300,200)
+    g.fillText(
+        "Press Space",
+        300,240)
+
