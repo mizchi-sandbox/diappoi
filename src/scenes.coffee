@@ -1,5 +1,5 @@
 class Scene
-  enter: (keys,mouse) ->
+  enter: () ->
     return @name
 
   render: (g)->
@@ -12,8 +12,8 @@ class OpeningScene extends Scene
   name : "Opening"
   constructor: (@core) ->
 
-  enter: (keys,mouse) ->
-    if keys.space
+  enter: () ->
+    if @core.keys.space
       return "Field"
     return @name
 
@@ -33,19 +33,18 @@ class FieldScene extends Scene
 
   constructor: (@core) ->
     @map = new SampleMap(@,32)
-    @mouse = new Mouse()
-
     start_point = @map.get_rand_xy()
-    player  =  new Player(@,start_point.x ,start_point.y, 0)
+    player  =  new Player(@,start_point.x ,start_point.y, ObjectGroup.Player)
+    @core.player = player if @core?
     @objs = [player]
     @set_camera( player )
 
-  enter: (keys,mouse) ->
+  enter: () ->
     near_obj = @objs.filter (e)=> e.get_distance(@_camera) < 400
-    obj.update(@objs, @map,keys,mouse,@_camera) for obj in near_obj
+    obj.update(@objs, @map,@_camera) for obj in near_obj
     @map.update @objs,@_camera
     @frame_count++
-    if keys.c == 2
+    if @core.keys.c == 2
       return "Menu"
     return @name
 
@@ -72,17 +71,32 @@ class MenuScene extends Scene
 
   constructor: (@core) ->
 
-  enter: (keys,mouse) ->
-    if keys.c == 2
+  enter: () ->
+    if @core.keys.c == 2
       return "Field"
     return @name
 
   render: (g)->
     g.init()
+    g.initText()
     g.fillText(
-        "Opening",
-        300,200)
-    g.fillText(
-        "Press Space",
-        300,240)
+        @core.player.name,
+        20,20)
+    i = 0
+    for k,v of @core.player._equips_
+      g.fillText(
+          "#{k}: #{v?.name or 'none'}",
+          30,40+(i++)*10)
+
+    i = 0
+    for item in @core.player._items_
+      g.fillText(
+          "#{item.name}",
+          300,40+(i++)*10)
+
+    i = 0
+    for k,v of @core.player.skills
+      g.fillText(
+          "#{v.name}:lv#{v?.lv or 'none'}",
+          150,40+(i++)*10)
 

@@ -4,6 +4,7 @@ class Character extends Sprite
   following_obj: null
   targeting_obj: null
   status : {}
+  _items_ : []
 
   constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
     super @x, @y
@@ -17,21 +18,22 @@ class Character extends Sprite
     @cnt = ~~(Math.random() * 60)
     @distination = [@x,@y]
     @_path = []
+
   regenerate: ()->
     r = (if @targeting_obj then 2 else 1)
     if @is_alive()
       if @status.hp < @status.MAX_HP
         @status.hp += 1
 
-  update:(objs, cmap, keys, mouse)->
+  update:(objs, cmap)->
     @cnt += 1
     if @is_alive()
       @check()
       @regenerate() if @cnt%60 == 0
       @search objs
-      @move(objs,cmap, keys,mouse)
-      @change_skill(keys,objs)
-      @selected_skill.update(objs,keys)
+      @move(objs,cmap)
+      @change_skill()
+      @selected_skill.update(objs)
 
   search : (objs)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
@@ -88,6 +90,12 @@ class Character extends Sprite
       @_equips_[item.at] = item
     false
 
+  get_item:(item)->
+    @_items_.push(item)
+
+  use_item:(item)->
+    @_items_.remove(item)
+
   get_param:(param)->
     (item?[param] or 0 for at,item of @_equips_).reduce (x,y)-> x+y
 
@@ -105,8 +113,8 @@ class Character extends Sprite
     @die(actor) if @is_dead() and before
     return @is_alive()
 
-  set_skill :(keys)->
-    for k,v of keys
+  set_skill :()->
+    for k,v of @keys
       if v and k in ["zero","one","two","three","four","five","six","seven","eight","nine"]
         @selected_skill = @skills[k]
         break
@@ -288,7 +296,7 @@ class Goblin extends CharacterObject
       sub_hand : null
       body : null
 
-  change_skill: (_)->
+  change_skill: ()->
     if @status.hp < 10
       @selected_skill = @skills['two']
     else
@@ -308,6 +316,10 @@ class Goblin extends CharacterObject
 
     g.init Color.Grey
     g.fillText( "#{@name}" ,pos.vx-15, pos.vy-12)
+
+  die : (actor)->
+    super actor
+    actor.get_item new Dagger
 
   exec:(actor,objs)->
     super actor,objs
@@ -329,34 +341,35 @@ class Player extends CharacterObject
       three: new Skill_Heal(@)
       four: new Skill_Meteor(@)
     @selected_skill = @skills['one']
-    @state.leader =true
-    @mouse = @scene.core.mouse
-
     @_equips_ =
       main_hand : new Blade
       sub_hand : null
       body : null
 
-  change_skill: (keys)->
-    @set_skill keys
+    @mouse = @scene.core.mouse if window?
+    @keys = @scene.core.keys if window?
 
-  update:(objs, cmap, keys, mouse)->
+
+  change_skill: ()->
+    @set_skill @keys
+
+  update:(objs, cmap)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
-    if keys.space and @__last is 0
+    if @keys.space == 2
       @shift_target(enemies)
-    @__last = keys.space
-    super objs,cmap,keys,mouse
+    super objs,cmap
 
   set_mouse_dir: (x,y)->
     rx = x - 320
     ry = y - 240
-    if rx >= 0
+    if rx > 0
       @dir = Math.atan( ry / rx  )
     else
       @dir = Math.PI - Math.atan( ry / - rx  )
 
-  move: (objs,cmap, keys, mouse)->
-    @dir = @set_mouse_dir(mouse.x , mouse.y)
+  move: (objs,cmap)->
+    # @dir = @set_mouse_dir(mouse.x , mouse.y)
+    keys = @keys
 
     if keys.right + keys.left + keys.up + keys.down > 1
       move = ~~(@status.speed * Math.sqrt(2)/2)
@@ -403,7 +416,7 @@ class Player extends CharacterObject
 
   render: (g,cam)->
     super(g,cam)
-    @render_mouse(g)
+    # @render_mouse(g)
 
   render_skill_gage: (g)->
     c = 0
@@ -417,16 +430,16 @@ class Player extends CharacterObject
       @render_gages(g, 40+c*50 , 40,40 , 6 , skill.ct/skill.MAX_CT)
       c++
 
-  render_mouse: (g)->
-    if @mouse
-      g.init Color.i 200, 200, 50
-      g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
-      g.stroke()
+  # render_mouse: (g)->
+  #   if @mouse
+  #     g.init Color.i 200, 200, 50
+  #     g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
+  #     g.stroke()
 
-class Mouse extends Sprite
-  constructor: (@x=0,@y=0) ->
-  render_object: (g,pos)->
-  render: (g,cam)->
+# class Mouse extends Sprite
+#   constructor: (@x=0,@y=0) ->
+#   render_object: (g,pos)->
+#   render: (g,cam)->
 
 ObjectGroup =
   Player : 0

@@ -62,15 +62,15 @@ class ItemObject extends Sprite
     @group = ObjectGroup.Item
     @event_in = true
 
-  update:(objs,map , keys ,mouse,camera)->
+  update:(objs,map,camera)->
     @cnt++
     if camera.get_distance(@) < 30
       if @event_in
-        @event(objs,map , keys ,mouse,camera)
+        @event(objs,map,camera)
         @event_in = false
         @cnt=0
 
-  event : (objs,map , keys ,mouse,camera)->
+  event : (objs,map,camera)->
     console.log "you got item"
 
   render: (g,cam)->
@@ -99,7 +99,7 @@ class MoneyObject extends ItemObject
   constructor:(x,y)->
     super(x,y)
     @amount = randint(0,100)
-  event : (objs,map , keys ,mouse,player)->
+  event : (objs,map, player)->
     GameData.gold += @amount
     Sys::message "You got #{@amount}G / #{GameData.gold} "
 

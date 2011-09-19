@@ -40,7 +40,7 @@ class Game
     @scene_name = "Opening"
 
   enter: ->
-    @scene_name = @scenes[@scene_name].enter(@keys,@mouse)
+    @scene_name = @scenes[@scene_name].enter(@keys)
     @draw(@scenes[@scene_name])
     for k,v of @keys
       if @keys[k] is 2
@@ -196,15 +196,15 @@ class ItemObject extends Sprite
     @group = ObjectGroup.Item
     @event_in = true
 
-  update:(objs,map , keys ,mouse,camera)->
+  update:(objs,map,camera)->
     @cnt++
     if camera.get_distance(@) < 30
       if @event_in
-        @event(objs,map , keys ,mouse,camera)
+        @event(objs,map,camera)
         @event_in = false
         @cnt=0
 
-  event : (objs,map , keys ,mouse,camera)->
+  event : (objs,map,camera)->
     console.log "you got item"
 
   render: (g,cam)->
@@ -233,7 +233,7 @@ class MoneyObject extends ItemObject
   constructor:(x,y)->
     super(x,y)
     @amount = randint(0,100)
-  event : (objs,map , keys ,mouse,player)->
+  event : (objs,map, player)->
     GameData.gold += @amount
     Sys::message "You got #{@amount}G / #{GameData.gold} "
 
@@ -459,7 +459,7 @@ class SampleMap extends Map
       if objs[i].is_dead() and objs[i].cnt > 120
         if objs[i] is camera
           start_point = @get_rand_xy()
-          player  =  new Player(start_point.x ,start_point.y, 0)
+          player  =  new Player(@context,start_point.x ,start_point.y, 0)
           @context.set_camera player
           objs.push(player)
           objs.splice(i,1)
@@ -555,6 +555,7 @@ class Character extends Sprite
   following_obj: null
   targeting_obj: null
   status : {}
+  _items_ : []
 
   constructor: (@x=0,@y=0,@group=ObjectGroup.Enemy ,status={}) ->
     super @x, @y
@@ -568,21 +569,22 @@ class Character extends Sprite
     @cnt = ~~(Math.random() * 60)
     @distination = [@x,@y]
     @_path = []
+
   regenerate: ()->
     r = (if @targeting_obj then 2 else 1)
     if @is_alive()
       if @status.hp < @status.MAX_HP
         @status.hp += 1
 
-  update:(objs, cmap, keys, mouse)->
+  update:(objs, cmap)->
     @cnt += 1
     if @is_alive()
       @check()
       @regenerate() if @cnt%60 == 0
       @search objs
-      @move(objs,cmap, keys,mouse)
-      @change_skill(keys,objs)
-      @selected_skill.update(objs,keys)
+      @move(objs,cmap)
+      @change_skill()
+      @selected_skill.update(objs)
 
   search : (objs)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
@@ -639,6 +641,12 @@ class Character extends Sprite
       @_equips_[item.at] = item
     false
 
+  get_item:(item)->
+    @_items_.push(item)
+
+  use_item:(item)->
+    @_items_.remove(item)
+
   get_param:(param)->
     (item?[param] or 0 for at,item of @_equips_).reduce (x,y)-> x+y
 
@@ -656,8 +664,8 @@ class Character extends Sprite
     @die(actor) if @is_dead() and before
     return @is_alive()
 
-  set_skill :(keys)->
-    for k,v of keys
+  set_skill :()->
+    for k,v of @keys
       if v and k in ["zero","one","two","three","four","five","six","seven","eight","nine"]
         @selected_skill = @skills[k]
         break
@@ -839,7 +847,7 @@ class Goblin extends CharacterObject
       sub_hand : null
       body : null
 
-  change_skill: (_)->
+  change_skill: ()->
     if @status.hp < 10
       @selected_skill = @skills['two']
     else
@@ -859,6 +867,10 @@ class Goblin extends CharacterObject
 
     g.init Color.Grey
     g.fillText( "#{@name}" ,pos.vx-15, pos.vy-12)
+
+  die : (actor)->
+    super actor
+    actor.get_item new Dagger
 
   exec:(actor,objs)->
     super actor,objs
@@ -880,36 +892,35 @@ class Player extends CharacterObject
       three: new Skill_Heal(@)
       four: new Skill_Meteor(@)
     @selected_skill = @skills['one']
-    @state.leader =true
-    @mouse = @scene.core.mouse
-      # x: 0
-      # y: 0
-
     @_equips_ =
       main_hand : new Blade
       sub_hand : null
       body : null
 
-  change_skill: (keys)->
-    @set_skill keys
+    @mouse = @scene.core.mouse if window?
+    @keys = @scene.core.keys if window?
 
-  update:(objs, cmap, keys, mouse)->
+
+  change_skill: ()->
+    @set_skill @keys
+
+  update:(objs, cmap)->
     enemies = @find_obj(ObjectGroup.get_against(@),objs,@status.sight_range)
-    if keys.space and @__last is 0
+    if @keys.space == 2
       @shift_target(enemies)
-    @__last = keys.space
-    super objs,cmap,keys,mouse
+    super objs,cmap
 
   set_mouse_dir: (x,y)->
     rx = x - 320
     ry = y - 240
-    if rx >= 0
+    if rx > 0
       @dir = Math.atan( ry / rx  )
     else
       @dir = Math.PI - Math.atan( ry / - rx  )
 
-  move: (objs,cmap, keys, mouse)->
-    @dir = @set_mouse_dir(mouse.x , mouse.y)
+  move: (objs,cmap)->
+    # @dir = @set_mouse_dir(mouse.x , mouse.y)
+    keys = @keys
 
     if keys.right + keys.left + keys.up + keys.down > 1
       move = ~~(@status.speed * Math.sqrt(2)/2)
@@ -956,7 +967,7 @@ class Player extends CharacterObject
 
   render: (g,cam)->
     super(g,cam)
-    @render_mouse(g)
+    # @render_mouse(g)
 
   render_skill_gage: (g)->
     c = 0
@@ -970,16 +981,16 @@ class Player extends CharacterObject
       @render_gages(g, 40+c*50 , 40,40 , 6 , skill.ct/skill.MAX_CT)
       c++
 
-  render_mouse: (g)->
-    if @mouse
-      g.init Color.i 200, 200, 50
-      g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
-      g.stroke()
+  # render_mouse: (g)->
+  #   if @mouse
+  #     g.init Color.i 200, 200, 50
+  #     g.arc(@mouse.x,@mouse.y,  @scale ,0,Math.PI*2,true)
+  #     g.stroke()
 
-class Mouse extends Sprite
-  constructor: (@x=0,@y=0) ->
-  render_object: (g,pos)->
-  render: (g,cam)->
+# class Mouse extends Sprite
+#   constructor: (@x=0,@y=0) ->
+#   render_object: (g,pos)->
+#   render: (g,cam)->
 
 ObjectGroup =
   Player : 0
@@ -1038,7 +1049,6 @@ class Status
 class Item
 class EquipItem extends Item
   weight : 1
-
   a_slash : 0
   a_thrust : 0
   a_blow : 0
@@ -1084,6 +1094,31 @@ class ClothArmor extends Armor
   at : "body"
   r_slash : 0.2
 
+class UseItem extends Item
+  type : 'use'
+  effect : (actor)->
+
+
+class ItemBox
+  items : []
+  serialize : ()->
+    buf = []
+    for i in @items
+      buf.push for [k,v] in ([k,v] for k,v of i)
+    if localStorage?
+      localStorage.set JSON.stringify buf
+    else
+      @_storage_ = JSON.stringify buf
+
+  load : (str)->
+    console.log eval @_storage_
+
+  add_item : (item)->
+
+    @items.push item
+
+  remove_item : (item)->
+    @items.remove item
 # generated by src/skills.coffee
 class Skill
   constructor: (@actor,@lv=1) ->
@@ -1305,7 +1340,7 @@ class Animation extends Sprite
         return false
 # generated by src/scenes.coffee
 class Scene
-  enter: (keys,mouse) ->
+  enter: () ->
     return @name
 
   render: (g)->
@@ -1318,8 +1353,8 @@ class OpeningScene extends Scene
   name : "Opening"
   constructor: (@core) ->
 
-  enter: (keys,mouse) ->
-    if keys.space
+  enter: () ->
+    if @core.keys.space
       return "Field"
     return @name
 
@@ -1339,19 +1374,18 @@ class FieldScene extends Scene
 
   constructor: (@core) ->
     @map = new SampleMap(@,32)
-    @mouse = new Mouse()
-
     start_point = @map.get_rand_xy()
-    player  =  new Player(@,start_point.x ,start_point.y, 0)
+    player  =  new Player(@,start_point.x ,start_point.y, ObjectGroup.Player)
+    @core.player = player if @core?
     @objs = [player]
     @set_camera( player )
 
-  enter: (keys,mouse) ->
+  enter: () ->
     near_obj = @objs.filter (e)=> e.get_distance(@_camera) < 400
-    obj.update(@objs, @map,keys,mouse,@_camera) for obj in near_obj
+    obj.update(@objs, @map,@_camera) for obj in near_obj
     @map.update @objs,@_camera
     @frame_count++
-    if keys.c == 2
+    if @core.keys.c == 2
       return "Menu"
     return @name
 
@@ -1378,19 +1412,34 @@ class MenuScene extends Scene
 
   constructor: (@core) ->
 
-  enter: (keys,mouse) ->
-    if keys.c == 2
+  enter: () ->
+    if @core.keys.c == 2
       return "Field"
     return @name
 
   render: (g)->
     g.init()
+    g.initText()
     g.fillText(
-        "Opening",
-        300,200)
-    g.fillText(
-        "Press Space",
-        300,240)
+        @core.player.name,
+        20,20)
+    i = 0
+    for k,v of @core.player._equips_
+      g.fillText(
+          "#{k}: #{v?.name or 'none'}",
+          30,40+(i++)*10)
+
+    i = 0
+    for item in @core.player._items_
+      g.fillText(
+          "#{item.name}",
+          300,40+(i++)*10)
+
+    i = 0
+    for k,v of @core.player.skills
+      g.fillText(
+          "#{v.name}:lv#{v?.lv or 'none'}",
+          150,40+(i++)*10)
 
 # generated by src/object.coffee
 #===== String =====
@@ -1414,11 +1463,13 @@ if CanvasRenderingContext2D?
     @fillStyle = color
     @globalAlpha = alpha
 
+  Canvas::initText = (size=10,font='Arial')->
+    @font = "#{size}pt #{font}"
+
   Canvas::drawLine = (x,y,dx,dy)->
     @moveTo x,y
     @lineTo x+dx,y+dy
     @stroke()
-
   Canvas::drawPath = (fill,path)->
     [sx,sy] = path.shift()
     @moveTo sx,sy
@@ -1490,10 +1541,16 @@ Elements =[
   "holy"  , "darkness"
 ]
 vows.describe('Game Test').addBatch
+  Item:
+    topic: new ItemBox
+    'get item':(t)->
+      t.add_item new Dagger
+      t.add_item new Blade
+      console.log t.serialize()
   Equip:
     topic:
-      player : new Player 100,100,ObjectGroup.Player
-      goblin:new Goblin 100,100,ObjectGroup.Enemy
+      player : new Player null,100,100,ObjectGroup.Player
+      goblin:new Goblin null,100,100,ObjectGroup.Enemy
     'Set Status':(topic)->
       p = topic.player
       g = topic.goblin
@@ -1504,74 +1561,78 @@ vows.describe('Game Test').addBatch
       g.equip new Dagger
 
       console.log p.get_param('a_slash')
-
+      console.log JSON.stringify ( [k,v] for k,v of new Dagger)
+      prop = {}
+      for [k,v] in ([k,v] for k,v of new Dagger)
+        prop[k] = v
+      console.log prop
 
   Combat:
     topic:
-      player:new Player 100,100,ObjectGroup.Player
-      goblin:new Goblin 100,100,ObjectGroup.Enemy
+      player:new Player null,100,100,ObjectGroup.Player
+      goblin:new Goblin null,100,100,ObjectGroup.Enemy
       map : new SampleMap()
-    'Attack until Dead':(topic)->
-      player = topic.player
-      goblin = topic.goblin
-      m = topic.map
-      while player.is_alive() and goblin.is_alive()
-        player.update([player,goblin],m,keys,mouse)
-        goblin.update([player,goblin],m)
-      assert.isTrue( player.is_dead() or goblin.is_dead())
+    # 'Attack until Dead':(topic)->
+    #   player = topic.player
+    #   goblin = topic.goblin
+    #   m = topic.map
+    #   # while player.is_alive() and goblin.is_alive()
+    #   player.update([player,goblin],m,keys,mouse)
+    #   goblin.update([player,goblin],m)
+    #   assert.isTrue( player.is_dead() or goblin.is_dead())
 
-    'Exec Attack Skill':(topic)->
-      player = topic.player
-      goblin = topic.goblin
-      m = topic.map
-      while player.is_alive() and goblin.is_alive()
-        player.update([player,goblin],m,keys,mouse)
-        goblin.update([player,goblin],m)
-      player.targeting_obj = goblin
-      player.selected_skill = new Skill_Atack(player,4)
-      player.selected_skill.exec(player,[goblin])
-      assert.isTrue( goblin.status.MAX_HP > goblin.status.hp )
-      assert.isTrue( player.selected_skill.lv is 4 )
+    # 'Exec Attack Skill':(topic)->
+    #   player = topic.player
+    #   goblin = topic.goblin
+    #   m = topic.map
+    #   while player.is_alive() and goblin.is_alive()
+    #     player.update([player,goblin],m,keys,mouse)
+    #     goblin.update([player,goblin],m)
+    #   player.targeting_obj = goblin
+    #   player.selected_skill = new Skill_Atack(player,4)
+    #   player.selected_skill.exec(player,[goblin])
+    #   assert.isTrue( goblin.status.MAX_HP > goblin.status.hp )
+    #   assert.isTrue( player.selected_skill.lv is 4 )
 
-    'TargetChange':(topic)->
-      goblin2 = new Goblin 100,100,ObjectGroup.Enemy
-      goblin2.name += 2
-      objs = [topic.player,topic.goblin,goblin2]
-      i.update(objs,topic.map,keys,mouse) for i in objs
+  #   'TargetChange':(topic)->
+  #     goblin2 = new Goblin 100,100,ObjectGroup.Enemy
+  #     goblin2.name += 2
+  #     objs = [topic.player,topic.goblin,goblin2]
+  #     i.update(objs,topic.map,keys,mouse) for i in objs
 
-      before = topic.player.targeting_obj.name
-      topic.player.shift_target [topic.goblin,goblin2]
-      after = topic.player.targeting_obj.name
-      topic.player.shift_target [topic.goblin,goblin2]
-      after2 = topic.player.targeting_obj.name
-      assert.isTrue before isnt after
-      assert.isTrue before is after2
+  #     before = topic.player.targeting_obj.name
+  #     topic.player.shift_target [topic.goblin,goblin2]
+  #     after = topic.player.targeting_obj.name
+  #     topic.player.shift_target [topic.goblin,goblin2]
+  #     after2 = topic.player.targeting_obj.name
+  #     assert.isTrue before isnt after
+  #     assert.isTrue before is after2
 
-    'Equiptment':(topic)->
-      player = topic.player
-      player._equips_ =
-        main_hand: new Blade
-        sub_hand: new SmallShield
-        body: new ClothArmor
-      player.equip new Blade
+  #   'Equiptment':(topic)->
+  #     player = topic.player
+  #     player._equips_ =
+  #       main_hand: new Blade
+  #       sub_hand: new SmallShield
+  #       body: new ClothArmor
+  #     player.equip new Blade
 
-    ' - Use Skill':
-      topic : (parent)->
-        parent.player.targeting_obj = parent.goblin
-        return {
-          player : parent.player
-          gen_targets :()->
-            new Goblin parent.player.x,parent.player.y,ObjectGroup.get_against(parent.player) for _ in [1..3]
-        }
-      'Atack':(topic)->
-        topic.player.selected_skill = new Skill_Atack topic.player
-        topic.player.selected_skill.exec topic.gen_targets()
-      'Meteor':(topic)->
-        topic.player.selected_skill = new Skill_Meteor topic.player
-        topic.player.selected_skill.exec topic.gen_targets()
-      'Smash':(topic)->
-        topic.player.selected_skill = new Skill_Smash topic.player
-        topic.player.selected_skill.exec topic.gen_targets()
+  #   ' - Use Skill':
+  #     topic : (parent)->
+  #       parent.player.targeting_obj = parent.goblin
+  #       return {
+  #         player : parent.player
+  #         gen_targets :()->
+  #           new Goblin parent.player.x,parent.player.y,ObjectGroup.get_against(parent.player) for _ in [1..3]
+  #       }
+  #     'Atack':(topic)->
+  #       topic.player.selected_skill = new Skill_Atack topic.player
+  #       topic.player.selected_skill.exec topic.gen_targets()
+  #     'Meteor':(topic)->
+  #       topic.player.selected_skill = new Skill_Meteor topic.player
+  #       topic.player.selected_skill.exec topic.gen_targets()
+  #     'Smash':(topic)->
+  #       topic.player.selected_skill = new Skill_Smash topic.player
+  #       topic.player.selected_skill.exec topic.gen_targets()
 
 
 .export module

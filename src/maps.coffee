@@ -197,7 +197,7 @@ class SampleMap extends Map
       if objs[i].is_dead() and objs[i].cnt > 120
         if objs[i] is camera
           start_point = @get_rand_xy()
-          player  =  new Player(start_point.x ,start_point.y, 0)
+          player  =  new Player(@context,start_point.x ,start_point.y, 0)
           @context.set_camera player
           objs.push(player)
           objs.splice(i,1)

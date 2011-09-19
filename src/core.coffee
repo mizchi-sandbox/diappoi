@@ -38,7 +38,7 @@ class Game
     @scene_name = "Opening"
 
   enter: ->
-    @scene_name = @scenes[@scene_name].enter(@keys,@mouse)
+    @scene_name = @scenes[@scene_name].enter(@keys)
     @draw(@scenes[@scene_name])
     for k,v of @keys
       if @keys[k] is 2

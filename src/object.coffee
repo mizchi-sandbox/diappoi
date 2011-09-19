@@ -19,11 +19,13 @@ if CanvasRenderingContext2D?
     @fillStyle = color
     @globalAlpha = alpha
 
+  Canvas::initText = (size=10,font='Arial')->
+    @font = "#{size}pt #{font}"
+
   Canvas::drawLine = (x,y,dx,dy)->
     @moveTo x,y
     @lineTo x+dx,y+dy
     @stroke()
-
   Canvas::drawPath = (fill,path)->
     [sx,sy] = path.shift()
     @moveTo sx,sy

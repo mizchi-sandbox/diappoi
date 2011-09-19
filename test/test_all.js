@@ -1,5 +1,5 @@
 (function() {
-  var Anim, Animation, AreaHit, Armor, Blade, Canvas, Character, CharacterObject, ClothArmor, Color, Dagger, DamageHit, Elements, EquipItem, FieldScene, Game, GameData, Goblin, HealObject, Item, ItemObject, Map, MenuScene, MoneyObject, Mouse, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, SmallShield, Sprite, Status, Sys, TargetAreaHit, TresureObject, Util, Weapon, assert, base_block, include, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows, _;
+  var Anim, Animation, AreaHit, Armor, Blade, Canvas, Character, CharacterObject, ClothArmor, Color, Dagger, DamageHit, Elements, EquipItem, FieldScene, Game, GameData, Goblin, HealObject, Item, ItemBox, ItemObject, Map, MenuScene, MoneyObject, Node, ObjectGroup, OpeningScene, Player, SampleMap, Scene, SingleHit, Skill, Skill_Atack, Skill_Heal, Skill_Meteor, Skill_Smash, Skill_ThrowBomb, SmallShield, Sprite, Status, Sys, TargetAreaHit, TresureObject, UseItem, Util, Weapon, assert, base_block, include, keys, maps, mouse, my, p, randint, rjoin, sjoin, vows, _;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -54,15 +54,23 @@
         zero: 0
       };
       this.scenes = {
-        "Opening": new OpeningScene(),
-        "Field": new FieldScene(),
-        "Menu": new MenuScene()
+        "Opening": new OpeningScene(this),
+        "Field": new FieldScene(this),
+        "Menu": new MenuScene(this)
       };
       this.scene_name = "Opening";
     }
     Game.prototype.enter = function() {
-      this.scene_name = this.scenes[this.scene_name].enter(this.keys, this.mouse);
-      return this.draw(this.scenes[this.scene_name]);
+      var k, v, _ref, _results;
+      this.scene_name = this.scenes[this.scene_name].enter(this.keys);
+      this.draw(this.scenes[this.scene_name]);
+      _ref = this.keys;
+      _results = [];
+      for (k in _ref) {
+        v = _ref[k];
+        _results.push(this.keys[k] === 2 ? this.keys[k]-- : void 0);
+      }
+      return _results;
     };
     Game.prototype.start = function() {
       var animationLoop;
@@ -73,15 +81,6 @@
       return animationLoop();
     };
     Game.prototype.getkey = function(which, to) {
-      var f;
-      f = __bind(function(state, t) {
-        if (this.keys[char] === 2 && t !== 0) {
-          console.log("2 to 1 " + char);
-          return this.keys[char] = 1;
-        } else {
-          return this.keys[char] = t;
-        }
-      }, this);
       switch (which) {
         case 68:
         case 39:
@@ -135,7 +134,7 @@
         case 57:
           this.keys.nine = to;
       }
-      return f(String.fromCharCode(which).toLowerCase(), to);
+      return this.keys[String.fromCharCode(which).toLowerCase()] = to;
     };
     Game.prototype.draw = function(scene) {
       this.g.clearRect(0, 0, this.config.WINDOW_WIDTH, this.config.WINDOW_HEIGHT);
@@ -309,17 +308,17 @@
       this.group = ObjectGroup.Item;
       this.event_in = true;
     }
-    ItemObject.prototype.update = function(objs, map, keys, mouse, camera) {
+    ItemObject.prototype.update = function(objs, map, camera) {
       this.cnt++;
       if (camera.get_distance(this) < 30) {
         if (this.event_in) {
-          this.event(objs, map, keys, mouse, camera);
+          this.event(objs, map, camera);
           this.event_in = false;
           return this.cnt = 0;
         }
       }
     };
-    ItemObject.prototype.event = function(objs, map, keys, mouse, camera) {
+    ItemObject.prototype.event = function(objs, map, camera) {
       return console.log("you got item");
     };
     ItemObject.prototype.render = function(g, cam) {
@@ -353,7 +352,7 @@
       MoneyObject.__super__.constructor.call(this, x, y);
       this.amount = randint(0, 100);
     }
-    MoneyObject.prototype.event = function(objs, map, keys, mouse, player) {
+    MoneyObject.prototype.event = function(objs, map, player) {
       GameData.gold += this.amount;
       return Sys.prototype.message("You got " + this.amount + "G / " + GameData.gold + " ");
     };
@@ -652,7 +651,7 @@
         if (objs[i].is_dead() && objs[i].cnt > 120) {
           if (objs[i] === camera) {
             start_point = this.get_rand_xy();
-            player = new Player(start_point.x, start_point.y, 0);
+            player = new Player(this.context, start_point.x, start_point.y, 0);
             this.context.set_camera(player);
             objs.push(player);
             objs.splice(i, 1);
@@ -705,6 +704,7 @@
     Character.prototype.following_obj = null;
     Character.prototype.targeting_obj = null;
     Character.prototype.status = {};
+    Character.prototype._items_ = [];
     function Character(x, y, group, status) {
       this.x = x != null ? x : 0;
       this.y = y != null ? y : 0;
@@ -734,7 +734,7 @@
         }
       }
     };
-    Character.prototype.update = function(objs, cmap, keys, mouse) {
+    Character.prototype.update = function(objs, cmap) {
       this.cnt += 1;
       if (this.is_alive()) {
         this.check();
@@ -742,9 +742,9 @@
           this.regenerate();
         }
         this.search(objs);
-        this.move(objs, cmap, keys, mouse);
-        this.change_skill(keys, objs);
-        return this.selected_skill.update(objs, keys);
+        this.move(objs, cmap);
+        this.change_skill();
+        return this.selected_skill.update(objs);
       }
     };
     Character.prototype.search = function(objs) {
@@ -825,6 +825,12 @@
       }
       return false;
     };
+    Character.prototype.get_item = function(item) {
+      return this._items_.push(item);
+    };
+    Character.prototype.use_item = function(item) {
+      return this._items_.remove(item);
+    };
     Character.prototype.get_param = function(param) {
       var at, item;
       return ((function() {
@@ -863,11 +869,12 @@
       }
       return this.is_alive();
     };
-    Character.prototype.set_skill = function(keys) {
-      var k, v, _results;
+    Character.prototype.set_skill = function() {
+      var k, v, _ref, _results;
+      _ref = this.keys;
       _results = [];
-      for (k in keys) {
-        v = keys[k];
+      for (k in _ref) {
+        v = _ref[k];
         if (v && (k === "zero" || k === "one" || k === "two" || k === "three" || k === "four" || k === "five" || k === "six" || k === "seven" || k === "eight" || k === "nine")) {
           this.selected_skill = this.skills[k];
           break;
@@ -1096,7 +1103,7 @@
         body: null
       };
     }
-    Goblin.prototype.change_skill = function(_) {
+    Goblin.prototype.change_skill = function() {
       if (this.status.hp < 10) {
         return this.selected_skill = this.skills['two'];
       } else {
@@ -1120,6 +1127,10 @@
       g.init(Color.Grey);
       return g.fillText("" + this.name, pos.vx - 15, pos.vy - 12);
     };
+    Goblin.prototype.die = function(actor) {
+      Goblin.__super__.die.call(this, actor);
+      return actor.get_item(new Dagger);
+    };
     Goblin.prototype.exec = function(actor, objs) {
       Goblin.__super__.exec.call(this, actor, objs);
       if (actor.has_target()) {
@@ -1132,7 +1143,8 @@
     __extends(Player, CharacterObject);
     Player.prototype.scale = 8;
     Player.prototype.name = "Player";
-    function Player(x, y, group) {
+    function Player(scene, x, y, group) {
+      this.scene = scene;
       this.x = x;
       this.y = y;
       this.group = group != null ? group : ObjectGroup.Player;
@@ -1149,42 +1161,42 @@
         four: new Skill_Meteor(this)
       };
       this.selected_skill = this.skills['one'];
-      this.state.leader = true;
-      this.mouse = {
-        x: 0,
-        y: 0
-      };
       this._equips_ = {
         main_hand: new Blade,
         sub_hand: null,
         body: null
       };
+      if (typeof window !== "undefined" && window !== null) {
+        this.mouse = this.scene.core.mouse;
+      }
+      if (typeof window !== "undefined" && window !== null) {
+        this.keys = this.scene.core.keys;
+      }
     }
-    Player.prototype.change_skill = function(keys) {
-      return this.set_skill(keys);
+    Player.prototype.change_skill = function() {
+      return this.set_skill(this.keys);
     };
-    Player.prototype.update = function(objs, cmap, keys, mouse) {
+    Player.prototype.update = function(objs, cmap) {
       var enemies;
       enemies = this.find_obj(ObjectGroup.get_against(this), objs, this.status.sight_range);
-      if (keys.space && this.__last === 0) {
+      if (this.keys.space === 2) {
         this.shift_target(enemies);
       }
-      this.__last = keys.space;
-      return Player.__super__.update.call(this, objs, cmap, keys, mouse);
+      return Player.__super__.update.call(this, objs, cmap);
     };
     Player.prototype.set_mouse_dir = function(x, y) {
       var rx, ry;
       rx = x - 320;
       ry = y - 240;
-      if (rx >= 0) {
+      if (rx > 0) {
         return this.dir = Math.atan(ry / rx);
       } else {
         return this.dir = Math.PI - Math.atan(ry / -rx);
       }
     };
-    Player.prototype.move = function(objs, cmap, keys, mouse) {
-      var move;
-      this.dir = this.set_mouse_dir(mouse.x, mouse.y);
+    Player.prototype.move = function(objs, cmap) {
+      var keys, move;
+      keys = this.keys;
       if (keys.right + keys.left + keys.up + keys.down > 1) {
         move = ~~(this.status.speed * Math.sqrt(2) / 2);
       } else {
@@ -1240,8 +1252,7 @@
       return g.fillText("" + this.name, 305, 228);
     };
     Player.prototype.render = function(g, cam) {
-      Player.__super__.render.call(this, g, cam);
-      return this.render_mouse(g);
+      return Player.__super__.render.call(this, g, cam);
     };
     Player.prototype.render_skill_gage = function(g) {
       var c, color, number, skill, _ref, _results;
@@ -1263,24 +1274,7 @@
       }
       return _results;
     };
-    Player.prototype.render_mouse = function(g) {
-      if (this.mouse) {
-        g.init(Color.i(200, 200, 50));
-        g.arc(this.mouse.x, this.mouse.y, this.scale, 0, Math.PI * 2, true);
-        return g.stroke();
-      }
-    };
     return Player;
-  })();
-  Mouse = (function() {
-    __extends(Mouse, Sprite);
-    function Mouse(x, y) {
-      this.x = x != null ? x : 0;
-      this.y = y != null ? y : 0;
-    }
-    Mouse.prototype.render_object = function(g, pos) {};
-    Mouse.prototype.render = function(g, cam) {};
-    return Mouse;
   })();
   ObjectGroup = {
     Player: 0,
@@ -1432,6 +1426,55 @@
     ClothArmor.prototype.at = "body";
     ClothArmor.prototype.r_slash = 0.2;
     return ClothArmor;
+  })();
+  UseItem = (function() {
+    __extends(UseItem, Item);
+    function UseItem() {
+      UseItem.__super__.constructor.apply(this, arguments);
+    }
+    UseItem.prototype.type = 'use';
+    UseItem.prototype.effect = function(actor) {};
+    return UseItem;
+  })();
+  ItemBox = (function() {
+    function ItemBox() {}
+    ItemBox.prototype.items = [];
+    ItemBox.prototype.serialize = function() {
+      var buf, i, k, v, _i, _j, _len, _len2, _ref, _ref2, _ref3;
+      buf = [];
+      _ref = this.items;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        i = _ref[_i];
+        _ref2 = (function() {
+          var _results;
+          _results = [];
+          for (k in i) {
+            v = i[k];
+            _results.push([k, v]);
+          }
+          return _results;
+        })();
+        for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
+          _ref3 = _ref2[_j], k = _ref3[0], v = _ref3[1];
+          buf.push;
+        }
+      }
+      if (typeof localStorage !== "undefined" && localStorage !== null) {
+        return localStorage.set(JSON.stringify(buf));
+      } else {
+        return this._storage_ = JSON.stringify(buf);
+      }
+    };
+    ItemBox.prototype.load = function(str) {
+      return console.log(eval(this._storage_));
+    };
+    ItemBox.prototype.add_item = function(item) {
+      return this.items.push(item);
+    };
+    ItemBox.prototype.remove_item = function(item) {
+      return this.items.remove(item);
+    };
+    return ItemBox;
   })();
   Skill = (function() {
     function Skill(actor, lv) {
@@ -1750,7 +1793,7 @@
   };
   Scene = (function() {
     function Scene() {}
-    Scene.prototype.enter = function(keys, mouse) {
+    Scene.prototype.enter = function() {
       return this.name;
     };
     Scene.prototype.render = function(g) {
@@ -1762,11 +1805,11 @@
   OpeningScene = (function() {
     __extends(OpeningScene, Scene);
     OpeningScene.prototype.name = "Opening";
-    function OpeningScene() {
-      this.player = new Player(320, 240);
+    function OpeningScene(core) {
+      this.core = core;
     }
-    OpeningScene.prototype.enter = function(keys, mouse) {
-      if (keys.space) {
+    OpeningScene.prototype.enter = function() {
+      if (this.core.keys.space) {
         return "Field";
       }
       return this.name;
@@ -1782,27 +1825,30 @@
     __extends(FieldScene, Scene);
     FieldScene.prototype.name = "Field";
     FieldScene.prototype._camera = null;
-    function FieldScene() {
+    function FieldScene(core) {
       var player, start_point;
+      this.core = core;
       this.map = new SampleMap(this, 32);
-      this.mouse = new Mouse();
       start_point = this.map.get_rand_xy();
-      player = new Player(start_point.x, start_point.y, 0);
+      player = new Player(this, start_point.x, start_point.y, ObjectGroup.Player);
+      if (this.core != null) {
+        this.core.player = player;
+      }
       this.objs = [player];
       this.set_camera(player);
     }
-    FieldScene.prototype.enter = function(keys, mouse) {
+    FieldScene.prototype.enter = function() {
       var near_obj, obj, _i, _len;
       near_obj = this.objs.filter(__bind(function(e) {
         return e.get_distance(this._camera) < 400;
       }, this));
       for (_i = 0, _len = near_obj.length; _i < _len; _i++) {
         obj = near_obj[_i];
-        obj.update(this.objs, this.map, keys, mouse, this._camera);
+        obj.update(this.objs, this.map, this._camera);
       }
       this.map.update(this.objs, this._camera);
       this.frame_count++;
-      if (keys.c) {
+      if (this.core.keys.c === 2) {
         return "Menu";
       }
       return this.name;
@@ -1833,17 +1879,40 @@
   MenuScene = (function() {
     __extends(MenuScene, Scene);
     MenuScene.prototype.name = "Menu";
-    function MenuScene() {}
-    MenuScene.prototype.enter = function(keys, mouse) {
-      if (keys.c) {
+    function MenuScene(core) {
+      this.core = core;
+    }
+    MenuScene.prototype.enter = function() {
+      if (this.core.keys.c === 2) {
         return "Field";
       }
       return this.name;
     };
     MenuScene.prototype.render = function(g) {
+      var i, item, k, v, _i, _len, _ref, _ref2, _ref3, _results;
       g.init();
-      g.fillText("Opening", 300, 200);
-      return g.fillText("Press Space", 300, 240);
+      g.initText();
+      g.fillText(this.core.player.name, 20, 20);
+      i = 0;
+      _ref = this.core.player._equips_;
+      for (k in _ref) {
+        v = _ref[k];
+        g.fillText("" + k + ": " + ((v != null ? v.name : void 0) || 'none'), 30, 40 + (i++) * 10);
+      }
+      i = 0;
+      _ref2 = this.core.player._items_;
+      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+        item = _ref2[_i];
+        g.fillText("" + item.name, 300, 40 + (i++) * 10);
+      }
+      i = 0;
+      _ref3 = this.core.player.skills;
+      _results = [];
+      for (k in _ref3) {
+        v = _ref3[k];
+        _results.push(g.fillText("" + v.name + ":lv" + ((v != null ? v.lv : void 0) || 'none'), 150, 40 + (i++) * 10));
+      }
+      return _results;
     };
     return MenuScene;
   })();
@@ -1876,6 +1945,15 @@
       this.strokeStyle = color;
       this.fillStyle = color;
       return this.globalAlpha = alpha;
+    };
+    Canvas.prototype.initText = function(size, font) {
+      if (size == null) {
+        size = 10;
+      }
+      if (font == null) {
+        font = 'Arial';
+      }
+      return this.font = "" + size + "pt " + font;
     };
     Canvas.prototype.drawLine = function(x, y, dx, dy) {
       this.moveTo(x, y);
@@ -1978,108 +2056,61 @@
   p = console.log;
   Elements = ["slash", "thrust", "blow", "fire", "flost", "thunder", "holy", "darkness"];
   vows.describe('Game Test').addBatch({
+    Item: {
+      topic: new ItemBox,
+      'get item': function(t) {
+        t.add_item(new Dagger);
+        t.add_item(new Blade);
+        return console.log(t.serialize());
+      }
+    },
     Equip: {
       topic: {
-        player: new Player(100, 100, ObjectGroup.Player),
-        goblin: new Goblin(100, 100, ObjectGroup.Enemy)
+        player: new Player(null, 100, 100, ObjectGroup.Player),
+        goblin: new Goblin(null, 100, 100, ObjectGroup.Enemy)
       },
       'Set Status': function(topic) {
-        var g;
+        var g, k, prop, v, _i, _len, _ref, _ref2;
         p = topic.player;
         g = topic.goblin;
         p.equip(new Blade);
         p.equip(new SmallShield);
         p.equip(new ClothArmor);
         g.equip(new Dagger);
-        return console.log(p.get_param('a_slash'));
+        console.log(p.get_param('a_slash'));
+        console.log(JSON.stringify((function() {
+          var _ref, _results;
+          _ref = new Dagger;
+          _results = [];
+          for (k in _ref) {
+            v = _ref[k];
+            _results.push([k, v]);
+          }
+          return _results;
+        })()));
+        prop = {};
+        _ref = (function() {
+          var _ref, _results;
+          _ref = new Dagger;
+          _results = [];
+          for (k in _ref) {
+            v = _ref[k];
+            _results.push([k, v]);
+          }
+          return _results;
+        })();
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          _ref2 = _ref[_i], k = _ref2[0], v = _ref2[1];
+          prop[k] = v;
+        }
+        return console.log(prop);
       }
     },
     Combat: {
       topic: {
-        player: new Player(100, 100, ObjectGroup.Player),
-        goblin: new Goblin(100, 100, ObjectGroup.Enemy),
+        player: new Player(null, 100, 100, ObjectGroup.Player),
+        goblin: new Goblin(null, 100, 100, ObjectGroup.Enemy),
         map: new SampleMap()
-      },
-      'Attack until Dead': function(topic) {
-        var goblin, m, player;
-        player = topic.player;
-        goblin = topic.goblin;
-        m = topic.map;
-        while (player.is_alive() && goblin.is_alive()) {
-          player.update([player, goblin], m, keys, mouse);
-          goblin.update([player, goblin], m);
-        }
-        return assert.isTrue(player.is_dead() || goblin.is_dead());
-      },
-      'Exec Attack Skill': function(topic) {
-        var goblin, m, player;
-        player = topic.player;
-        goblin = topic.goblin;
-        m = topic.map;
-        while (player.is_alive() && goblin.is_alive()) {
-          player.update([player, goblin], m, keys, mouse);
-          goblin.update([player, goblin], m);
-        }
-        player.targeting_obj = goblin;
-        player.selected_skill = new Skill_Atack(player, 4);
-        player.selected_skill.exec(player, [goblin]);
-        assert.isTrue(goblin.status.MAX_HP > goblin.status.hp);
-        return assert.isTrue(player.selected_skill.lv === 4);
-      },
-      'TargetChange': function(topic) {
-        var after, after2, before, goblin2, i, objs, _i, _len;
-        goblin2 = new Goblin(100, 100, ObjectGroup.Enemy);
-        goblin2.name += 2;
-        objs = [topic.player, topic.goblin, goblin2];
-        for (_i = 0, _len = objs.length; _i < _len; _i++) {
-          i = objs[_i];
-          i.update(objs, topic.map, keys, mouse);
-        }
-        before = topic.player.targeting_obj.name;
-        topic.player.shift_target([topic.goblin, goblin2]);
-        after = topic.player.targeting_obj.name;
-        topic.player.shift_target([topic.goblin, goblin2]);
-        after2 = topic.player.targeting_obj.name;
-        assert.isTrue(before !== after);
-        return assert.isTrue(before === after2);
-      },
-      'Equiptment': function(topic) {
-        var player;
-        player = topic.player;
-        player._equips_ = {
-          main_hand: new Blade,
-          sub_hand: new SmallShield,
-          body: new ClothArmor
-        };
-        return player.equip(new Blade);
-      },
-      ' - Use Skill': {
-        topic: function(parent) {
-          parent.player.targeting_obj = parent.goblin;
-          return {
-            player: parent.player,
-            gen_targets: function() {
-              var _, _results;
-              _results = [];
-              for (_ = 1; _ <= 3; _++) {
-                _results.push(new Goblin(parent.player.x, parent.player.y, ObjectGroup.get_against(parent.player)));
-              }
-              return _results;
-            }
-          };
-        },
-        'Atack': function(topic) {
-          topic.player.selected_skill = new Skill_Atack(topic.player);
-          return topic.player.selected_skill.exec(topic.gen_targets());
-        },
-        'Meteor': function(topic) {
-          topic.player.selected_skill = new Skill_Meteor(topic.player);
-          return topic.player.selected_skill.exec(topic.gen_targets());
-        },
-        'Smash': function(topic) {
-          topic.player.selected_skill = new Skill_Smash(topic.player);
-          return topic.player.selected_skill.exec(topic.gen_targets());
-        }
       }
     }
   })["export"](module);
